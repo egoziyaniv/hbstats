@@ -198,7 +198,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     prisma.team.findMany({
       where: { seasonId: latestSeason.id },
       orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }],
-      select: { id: true, apiFootballId: true, nameHe: true, nameEn: true },
+      select: { id: true, apiFootballId: true, nameHe: true, nameEn: true, logoUrl: true },
     }),
     // Restrict standings to a single competition. Mobile shows the Israeli
     // Premier League (Ligat HaAl) by default; without this filter the row set
@@ -251,14 +251,33 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
       homeScore: true,
       awayScore: true,
       roundNameEn: true,
+      dateTime: true,
     },
+    orderBy: { dateTime: 'asc' },
   });
+
+  // Compute last-5 results per team for the home table preview form column.
+  function lastFiveFor(teamId: string): string {
+    return competitionGamesForStandings
+      .filter((g) => (g.homeTeamId === teamId || g.awayTeamId === teamId) && g.homeScore != null && g.awayScore != null)
+      .sort((a, b) => (b.dateTime?.getTime() ?? 0) - (a.dateTime?.getTime() ?? 0))
+      .slice(0, 5)
+      .map((g) => {
+        const isHome = g.homeTeamId === teamId;
+        const teamGoals = isHome ? g.homeScore! : g.awayScore!;
+        const oppGoals = isHome ? g.awayScore! : g.homeScore!;
+        if (teamGoals > oppGoals) return 'נ';
+        if (teamGoals < oppGoals) return 'ה';
+        return 'ת';
+      })
+      .join('');
+  }
 
   const teamsForDerivation = seasonTeams.map((t) => ({
     id: t.id,
     nameEn: t.nameEn,
     nameHe: t.nameHe,
-    logoUrl: null,
+    logoUrl: t.logoUrl,
   }));
 
   const standingsAdjustments = rawStandings.map((r) => ({
@@ -522,9 +541,12 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
         id: row.id,
         teamId: row.teamId,
         teamName: row.team.nameHe || row.team.nameEn,
+        teamLogoUrl: row.team.logoUrl ?? null,
         position: row.displayPosition,
         played: row.played,
+        goalsDiff: row.goalsFor - row.goalsAgainst,
         points: row.adjustedPoints,
+        form: lastFiveFor(row.teamId),
         isFavorite: selectedTeamIds.includes(row.teamId),
       })),
       predictions: predictions.map((prediction) => ({

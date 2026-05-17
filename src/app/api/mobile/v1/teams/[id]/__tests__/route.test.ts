@@ -14,7 +14,16 @@ describe('GET /api/mobile/v1/teams/:id — TeamPayload contract', () => {
   });
 
   test('returns 200 with TeamPayload shape', async () => {
-    const team = await prisma.team.findFirst({ select: { id: true } });
+    // Pick a team from the latest season so the route's old-id-resolver does
+    // not redirect us to a different team id (which would break the equality
+    // check below).
+    const latestSeason = await prisma.season.findFirst({
+      orderBy: { year: 'desc' },
+      select: { id: true },
+    });
+    const team = latestSeason
+      ? await prisma.team.findFirst({ where: { seasonId: latestSeason.id }, select: { id: true } })
+      : await prisma.team.findFirst({ select: { id: true } });
     if (!team) {
       console.warn('No teams in dev DB — skipping');
       return;

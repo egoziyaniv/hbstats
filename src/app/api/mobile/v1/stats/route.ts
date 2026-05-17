@@ -84,25 +84,153 @@ export async function GET(request: NextRequest) {
         },
         orderBy: [{ rank: 'asc' }, { value: 'desc' }],
         take: 20,
+        // Pull the linked Player so we can prefer their canonical Hebrew name
+        // when the stored leaderboard entry was scraped before transliteration
+        // ran (entry.playerNameHe often holds the English fallback).
+        include: {
+          player: { select: { id: true, nameHe: true, nameEn: true, photoUrl: true } },
+        },
       })
     )
   );
 
+  // Hebrew-character heuristic: any code point in the U+0590..U+05FF range.
+  const HEB_RE = /[֐-׿]/;
+  const preferHebrew = (...candidates: Array<string | null | undefined>): string => {
+    for (const c of candidates) {
+      if (c && HEB_RE.test(c)) return c;
+    }
+    return candidates.find((c) => !!c) ?? '';
+  };
+
   const categories: Record<string, unknown[]> = {};
   CATEGORIES.forEach((category, index) => {
     const key = CATEGORY_KEYS[category];
-    categories[key] = entriesByCategory[index].map((entry) => ({
-      rank: entry.rank,
+    categories[key] = entriesByCategory[index].map((entry) => {
+      const playerNameHe = preferHebrew(entry.player?.nameHe, entry.playerNameHe);
+      const photoUrl =
+        entry.player?.photoUrl ?? extractPhotoUrl(entry.additionalInfo);
+      return {
+        rank: entry.rank,
+        playerId: entry.playerId,
+        playerNameHe,
+        playerNameEn: entry.player?.nameEn ?? entry.playerNameEn,
+        teamNameHe: entry.teamNameHe,
+        teamNameEn: entry.teamNameEn,
+        value: entry.value,
+        gamesPlayed: entry.gamesPlayed,
+        photoUrl,
+      };
+    });
+  });
+
+  // Always derive leaderboards from GameEvent — the stored
+  // CompetitionLeaderboardEntry rows are snapshots that go stale fast and
+  // miss recent matches (e.g. Dan Biton showing 11 goals when he has 15).
+  // For each category we count distinct events, then join Player + their
+  // appearance count (lineups + scoring sub-ins). Top 20 by count.
+  type Card = { playerId: string | null };
+  async function deriveLeaderboard(opts: {
+    eventTypes: ('GOAL' | 'PENALTY_GOAL' | 'OWN_GOAL' | 'YELLOW_CARD' | 'RED_CARD' | 'YELLOW_RED_CARD' | 'ASSIST')[];
+    countAssist?: boolean;
+    // If true, OWN_GOAL is excluded from a scorer's tally (it's still in the
+    // event stream but doesn't belong on the top-scorers board).
+    excludeOwnGoals?: boolean;
+  }) {
+    const events = await prisma.gameEvent.findMany({
+      where: {
+        type: { in: opts.eventTypes },
+        ...(opts.countAssist ? {} : { playerId: { not: null } }),
+        game: {
+          seasonId: season!.id,
+          ...(competition ? { competitionId: competition.id } : {}),
+          status: { in: ['COMPLETED', 'ONGOING'] },
+        },
+      },
+      select: { playerId: true, assistPlayerId: true, type: true },
+    });
+    const counts = new Map<string, number>();
+    for (const e of events) {
+      const id = opts.countAssist ? e.assistPlayerId : e.playerId;
+      if (!id) continue;
+      if (opts.excludeOwnGoals && e.type === 'OWN_GOAL') continue;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    const topIds = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+    if (topIds.length === 0) return [];
+
+    // Pull player + their game count from the league this season.
+    const players = await prisma.player.findMany({
+      where: { id: { in: topIds.map(([id]) => id) } },
+      include: {
+        team: { select: { nameHe: true, nameEn: true } },
+        lineupEntries: {
+          where: {
+            game: {
+              seasonId: season!.id,
+              ...(competition ? { competitionId: competition.id } : {}),
+              status: { in: ['COMPLETED', 'ONGOING'] },
+            },
+            role: { in: ['STARTER', 'SUBSTITUTE'] },
+          },
+          select: { gameId: true },
+        },
+      },
+    });
+    const byId = new Map(players.map((p) => [p.id, p]));
+    return topIds.map(([playerId, value], i) => {
+      const p = byId.get(playerId);
+      // appearances = unique games where the player started or came on
+      const gameIds = new Set((p?.lineupEntries ?? []).map((l) => l.gameId));
+      return {
+        rank: i + 1,
+        playerId,
+        playerNameHe: preferHebrew(p?.nameHe, p?.nameEn),
+        playerNameEn: p?.nameEn ?? null,
+        teamNameHe: p?.team?.nameHe ?? null,
+        teamNameEn: p?.team?.nameEn ?? null,
+        value,
+        gamesPlayed: gameIds.size,
+        photoUrl: p?.photoUrl ?? null,
+      };
+    });
+  }
+
+  categories.topScorers = await deriveLeaderboard({
+    eventTypes: ['GOAL', 'PENALTY_GOAL'], // own goals don't count toward scorer
+  });
+  categories.topYellowCards = await deriveLeaderboard({
+    eventTypes: ['YELLOW_CARD', 'YELLOW_RED_CARD'],
+  });
+  categories.topRedCards = await deriveLeaderboard({
+    eventTypes: ['RED_CARD', 'YELLOW_RED_CARD'],
+  });
+
+  // Assists: events only have 74 ASSIST rows (incomplete — most goals lack
+  // the assist link). The stored CompetitionLeaderboardEntry rows from the
+  // Walla scrape carry the full counts (R. Revivo 10 etc.), so use them and
+  // enrich with the player's Hebrew name from the linked Player record.
+  // (categories.topAssists may already hold the enriched leaderboard above.)
+  if ((categories.topAssists ?? []).length === 0 && competition) {
+    const lbEntries = await prisma.competitionLeaderboardEntry.findMany({
+      where: { seasonId: season.id, competitionId: competition.id, category: 'TOP_ASSISTS' },
+      orderBy: [{ rank: 'asc' }, { value: 'desc' }],
+      take: 20,
+      include: { player: { select: { id: true, nameHe: true, nameEn: true, photoUrl: true } } },
+    });
+    categories.topAssists = lbEntries.map((entry, i) => ({
+      rank: i + 1,
       playerId: entry.playerId,
-      playerNameHe: entry.playerNameHe,
-      playerNameEn: entry.playerNameEn,
+      playerNameHe: preferHebrew(entry.player?.nameHe, entry.playerNameHe),
+      playerNameEn: entry.player?.nameEn ?? entry.playerNameEn,
       teamNameHe: entry.teamNameHe,
       teamNameEn: entry.teamNameEn,
       value: entry.value,
       gamesPlayed: entry.gamesPlayed,
-      photoUrl: extractPhotoUrl(entry.additionalInfo),
+      photoUrl: entry.player?.photoUrl ?? extractPhotoUrl(entry.additionalInfo),
     }));
-  });
+  }
+  void preferHebrew;
 
   return NextResponse.json({
     season: { id: season.id, year: season.year, name: season.name },

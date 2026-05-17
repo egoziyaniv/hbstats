@@ -121,7 +121,7 @@ export default function TeamScreen() {
                   <Text style={{ width: 22, fontSize: 12, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>
                     {row.rank}
                   </Text>
-                  <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 13.5, fontWeight: isSelf ? '800' : '600', color: theme.ink[900], textAlign: 'right' }} numberOfLines={1}>
+                  <Text style={{ flex: 1, marginStart: 10, marginEnd: 10, fontSize: 13.5, fontWeight: isSelf ? '800' : '600', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
                     {row.team.nameHe}
                   </Text>
                   <View style={{ backgroundColor: brand.accentGlow, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, minWidth: 30 }}>

@@ -71,9 +71,13 @@ export async function GET(request: NextRequest) {
   // Map standings to CompactStandingRow[]
   const compactStandings: CompactStandingRow[] = raw.sections.standings.map((row) => ({
     rank: row.position,
+    teamId: row.teamId,
     teamName: row.teamName,
+    logoUrl: row.teamLogoUrl ?? null,
     played: row.played,
+    goalsDiff: row.goalsDiff,
     points: row.points,
+    form: row.form,
   }));
 
   // Map live items to LiveMatchCompact[]

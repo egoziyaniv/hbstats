@@ -129,17 +129,17 @@ function LeaderRow({
       )}
       <View style={{ flex: 1 }}>
         <Text
-          style={{ fontSize: 14, fontWeight: '700', color: theme.ink[900], textAlign: 'right' }}
+          style={{ fontSize: 14, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl', width: '100%' }}
           numberOfLines={1}
         >
           {entry.playerNameHe}
         </Text>
         <Text
-          style={{ fontSize: 11, color: theme.ink[500], marginTop: 2, textAlign: 'right' }}
+          style={{ fontSize: 11, color: theme.ink[500], marginTop: 2, textAlign: 'right', writingDirection: 'rtl', width: '100%' }}
           numberOfLines={1}
         >
           {entry.teamNameHe}
-          {entry.gamesPlayed != null ? ` · ${entry.gamesPlayed} מ'` : ''}
+          {entry.gamesPlayed != null ? ` · ${entry.gamesPlayed} משחקים` : ''}
         </Text>
       </View>
       <View style={{ alignItems: 'center', minWidth: 50, backgroundColor: brandGlow, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 }}>

@@ -4,6 +4,7 @@ import { getEventDisplayLabel } from '@/lib/event-display';
 import { formatPlayerName } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
+import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
 
 type PlayerGameFilter = 'all' | 'starts' | 'bench' | 'sub-in' | 'sub-off';
 
@@ -336,8 +337,34 @@ function matchesGameFilter(
 }
 
 export async function getMobileTeamPayload(teamId: string) {
-  const team = await prisma.team.findUnique({
+  // Each season has its own Team row, so an old URL (e.g. a 2017 Beer Sheva
+  // record) routes to a stale, empty page. Resolve to the most-recent season's
+  // Team row that matches the same canonical key (apiFootballId first, then
+  // nameHe + nameEn). Falls back to the requested id if no newer record exists.
+  const requested = await prisma.team.findUnique({
     where: { id: teamId },
+    select: { id: true, seasonId: true, apiFootballId: true, nameHe: true, nameEn: true, season: { select: { year: true } } },
+  });
+  const latestSeason = await prisma.season.findFirst({ orderBy: { year: 'desc' } });
+  let resolvedTeamId = teamId;
+  if (requested && latestSeason && requested.seasonId !== latestSeason.id) {
+    const newer = await prisma.team.findFirst({
+      where: {
+        seasonId: latestSeason.id,
+        OR: [
+          requested.apiFootballId !== null
+            ? { apiFootballId: requested.apiFootballId }
+            : { id: '__never__' },
+          { nameHe: requested.nameHe, nameEn: requested.nameEn },
+        ],
+      },
+      select: { id: true },
+    });
+    if (newer) resolvedTeamId = newer.id;
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { id: resolvedTeamId },
     include: {
       players: {
         orderBy: [{ jerseyNumber: 'asc' }, { nameHe: 'asc' }, { nameEn: 'asc' }],
@@ -424,7 +451,104 @@ export async function getMobileTeamPayload(teamId: string) {
     }),
   ]);
 
-  const sortedStandings = sortStandings(seasonStandings);
+  // Restrict the standings context to the team's primary league competition.
+  // `seasonStandings` mixes Ligat Ha'al + Leumit + state cup tables, so
+  // without this filter the "around" rows on a Hapoel Beer Sheva page can
+  // include second-tier teams from Leumit. Pick the team's own row's
+  // competitionId — prefer the one with the highest played count (= league)
+  // when the team has multiple competition entries.
+  const ownStandings = seasonStandings.filter((row) => row.teamId === team.id);
+  const primaryStandingCompId =
+    ownStandings.length > 0
+      ? ownStandings.reduce((a, b) => (b.played > a.played ? b : a)).competitionId
+      : null;
+  const competitionFilteredStandings = primaryStandingCompId
+    ? seasonStandings.filter((row) => row.competitionId === primaryStandingCompId)
+    : seasonStandings;
+
+  // Mirror the main /standings endpoint: when the playoff is running, derive
+  // a live table from completed games so the team page shows current playoff
+  // totals (e.g. 76 pts for Beer Sheva post-playoff, not the 59 pts snapshot).
+  const sortedStandings = await (async () => {
+    if (primaryStandingCompId !== 'comp_liga_haal') {
+      return sortStandings(competitionFilteredStandings);
+    }
+    const allLeagueGames = await prisma.game.findMany({
+      where: {
+        seasonId: team.seasonId,
+        competitionId: primaryStandingCompId,
+        status: { in: ['COMPLETED', 'ONGOING'] },
+      },
+      select: {
+        homeTeamId: true,
+        awayTeamId: true,
+        homeScore: true,
+        awayScore: true,
+        roundNameEn: true,
+      },
+    });
+    const shouldDerive = shouldDeriveStandings(
+      competitionFilteredStandings.map((r) => ({ played: r.played, groupNameEn: r.groupNameEn ?? null })),
+      allLeagueGames,
+    );
+    if (!shouldDerive) return sortStandings(competitionFilteredStandings);
+
+    const teamsForDerivation = competitionFilteredStandings.map((r) => ({
+      id: r.team.id,
+      nameEn: r.team.nameEn,
+      nameHe: r.team.nameHe ?? r.team.nameEn,
+      logoUrl: r.team.logoUrl ?? null,
+    }));
+    const adjustments = competitionFilteredStandings.map((r) => ({
+      teamId: r.teamId,
+      pointsAdjustment: r.pointsAdjustment,
+      pointsAdjustmentNoteHe: r.pointsAdjustmentNoteHe,
+    }));
+    const derived = buildStandingsFromGames(teamsForDerivation, allLeagueGames, adjustments);
+    // Re-shape rows to match the `sortStandings` return type used downstream
+    // (display fields + a `team` object + `id`/`teamId`).
+    return derived.map((row, index) => {
+      const t = teamsForDerivation.find((x) => x.id === row.teamId)!;
+      const adjustedPoints = row.points + row.pointsAdjustment;
+      return {
+        id: row.id,
+        position: row.position,
+        played: row.played,
+        wins: row.wins,
+        draws: row.draws,
+        losses: row.losses,
+        goalsFor: row.goalsFor,
+        goalsAgainst: row.goalsAgainst,
+        points: row.points,
+        pointsAdjustment: row.pointsAdjustment,
+        pointsAdjustmentNoteHe: row.pointsAdjustmentNoteHe,
+        adjustedPoints,
+        goalDifference: row.goalsFor - row.goalsAgainst,
+        displayPosition: index + 1,
+        teamId: row.teamId,
+        team: { id: t.id, nameEn: t.nameEn, nameHe: t.nameHe, logoUrl: t.logoUrl },
+        groupNameEn: row.groupNameEn ?? null,
+      };
+    });
+  })() as unknown as Array<{
+    id: string;
+    teamId: string;
+    team: { id: string; nameEn: string; nameHe: string | null; logoUrl: string | null };
+    position: number;
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    points: number;
+    pointsAdjustment: number;
+    pointsAdjustmentNoteHe: string | null;
+    adjustedPoints: number;
+    goalDifference: number;
+    displayPosition: number;
+    groupNameEn: string | null;
+  }>;
   const standing = sortedStandings.find((row) => row.teamId === team.id) || null;
   const standingIndex = sortedStandings.findIndex((row) => row.teamId === team.id);
   const nearbyStandings =
@@ -862,8 +986,10 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
   return {
     player: {
       id: canonicalPlayerId,
-      name: formatPlayerName(canonicalPlayer),
-      nameEn: canonicalPlayer.nameEn,
+      // Prefer the selected-season player's name — the canonical record can
+      // hold an older spelling (e.g. "אליל פרץ" while 2025 has "אליאל פרץ").
+      name: formatPlayerName(displayPlayerEntry) || formatPlayerName(canonicalPlayer),
+      nameEn: displayPlayerEntry.nameEn || canonicalPlayer.nameEn,
       photoUrl: displayPhoto,
       teamName: displayPlayerEntry.team.nameHe || displayPlayerEntry.team.nameEn,
       position: displayPlayerEntry.position || null,

@@ -67,9 +67,13 @@ export interface LiveMatchCompact {
 
 export interface CompactStandingRow {
   rank: number;
+  teamId: string;
   teamName: string;
+  logoUrl: string | null;
   played: number;
+  goalsDiff: number;
   points: number;
+  form: string;   // last 5 results, newest first ("נננתה")
 }
 
 // Stats tab — top scorers / assisters / yellow / red cards leaderboards.
@@ -302,7 +306,23 @@ export interface PlayerPayload {
 
 // ---------- Preferences ----------
 
+export interface PreferenceTeamOption {
+  id: string;
+  apiFootballId: number | null;
+  name: string;
+  logoUrl: string | null;
+}
+
+export interface PreferenceCompetitionOption {
+  id: string;
+  apiFootballId: number | null;
+  name: string;
+  country: string | null;
+}
+
 export interface PreferencesPayload {
   favoriteTeamApiIds: number[];
   favoriteCompetitionApiIds: number[];
+  availableTeams: PreferenceTeamOption[];
+  availableCompetitions: PreferenceCompetitionOption[];
 }

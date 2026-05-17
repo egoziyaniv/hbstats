@@ -10,6 +10,7 @@ import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { TeamCrest } from '@/design-system/TeamCrest';
 import { StatusPill } from '@/design-system/StatusPill';
+import { FormRow } from '@/design-system/FormPill';
 import { theme } from '@/design-system/theme';
 import type { MatchCard } from '@shared/types/common';
 
@@ -105,43 +106,67 @@ export default function HomeScreen() {
           </Section>
         ) : null}
 
-        {/* Standings preview */}
+        {/* Standings preview — mirrors the full standings screen layout
+            (logo + GD + form row), capped at 5 rows. */}
         {data.compactStandings.length > 0 ? (
           <Section title="טבלת ליגת העל" actionLabel="טבלה מלאה" onAction={() => router.push('/(tabs)/standings' as any)}>
             <Card pad={false}>
+              <View
+                style={{
+                  flexDirection: rtlRow(),
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  backgroundColor: theme.ink[50],
+                  borderTopLeftRadius: 14,
+                  borderTopRightRadius: 14,
+                }}
+              >
+                <Text style={{ width: 24, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>#</Text>
+                <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>קבוצה</Text>
+                <Text style={{ width: 24, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>מ'</Text>
+                <Text style={{ width: 36, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>הפרש</Text>
+                <Text style={{ width: 32, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>נק'</Text>
+              </View>
               {data.compactStandings.slice(0, 5).map((row, i, arr) => (
-                <View
-                  key={row.rank}
-                  style={{
-                    paddingVertical: 11,
-                    paddingHorizontal: 14,
-                    borderBottomWidth: i === arr.length - 1 ? 0 : 1,
-                    borderBottomColor: theme.ink[100],
-                    flexDirection: rtlRow(),
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ width: 22, fontSize: 12, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>
-                    {row.rank}
-                  </Text>
-                  <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right' }} numberOfLines={1}>
-                    {row.teamName}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: theme.ink[500], marginEnd: 12 }}>{row.played}</Text>
+                <Pressable key={row.teamId} onPress={() => router.push(`/teams/${row.teamId}` as any)}>
                   <View
                     style={{
-                      backgroundColor: brand.accentGlow,
-                      borderRadius: 6,
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                      minWidth: 30,
+                      flexDirection: rtlRow(),
+                      alignItems: 'center',
+                      paddingVertical: 11,
+                      paddingHorizontal: 14,
+                      borderBottomWidth: i === arr.length - 1 && !row.form ? 0 : 1,
+                      borderBottomColor: theme.ink[100],
                     }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: theme.ink[900], textAlign: 'center' }}>
-                      {row.points}
+                    <Text style={{ width: 24, fontSize: 13, fontWeight: '800', color: theme.ink[500], textAlign: 'center' }}>
+                      {row.rank}
                     </Text>
+                    {absoluteImage(row.logoUrl) ? (
+                      <Image source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
+                    ) : (
+                      <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
+                    )}
+                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
+                      {row.teamName}
+                    </Text>
+                    <Text style={{ width: 24, fontSize: 11, color: theme.ink[500], textAlign: 'center' }}>{row.played}</Text>
+                    <Text style={{ width: 36, fontSize: 11, fontWeight: '600', color: row.goalsDiff > 0 ? theme.result.win : row.goalsDiff < 0 ? theme.result.loss : theme.ink[500], textAlign: 'center' }}>
+                      {row.goalsDiff > 0 ? `+${row.goalsDiff}` : row.goalsDiff}
+                    </Text>
+                    <View style={{ width: 32, backgroundColor: brand.accentGlow, borderRadius: 6, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.ink[900], textAlign: 'center' }}>
+                        {row.points}
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                  {row.form ? (
+                    <View style={{ paddingHorizontal: 14, paddingBottom: 8, flexDirection: rtlRow() }}>
+                      <FormRow form={row.form} size={16} gap={3} />
+                    </View>
+                  ) : null}
+                </Pressable>
               ))}
             </Card>
           </Section>

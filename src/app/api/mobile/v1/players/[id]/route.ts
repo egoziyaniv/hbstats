@@ -103,31 +103,91 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   // cards while keeping the DB's appearance/minute counters.
   const firstStat = raw.sections.aggregatedStats?.[0] ?? null;
   const fsTop = extras.career[0] ?? null;
-  const currentSeasonStats: PlayerSeasonStats | null = firstStat
-    ? {
-        appearances: fsTop?.apps ?? firstStat.gamesPlayed,
-        starts: firstStat.starts,
-        minutes: firstStat.minutesPlayed,
-        goals: fsTop?.goals ?? firstStat.goals,
-        assists: fsTop?.assists ?? firstStat.assists,
-        yellowCards: fsTop?.yellow ?? firstStat.yellowCards,
-        redCards: fsTop?.red ?? firstStat.redCards,
-        subbedIn: firstStat.substituteAppearances,
-        subbedOut: firstStat.timesSubbedOff,
+
+  // Always derive current-season tally from GameEvent + GameLineupEntry rows,
+  // so fresh-season players (e.g. Eliel Peretz — goals but no PlayerStatistics
+  // yet) show the right numbers. The stored row gets used when the derived
+  // count is zero, preserving older seasons that pre-date our event coverage.
+  let derivedStats: PlayerSeasonStats | null = null;
+  {
+    const latestSeason = await prisma.season.findFirst({ orderBy: { year: 'desc' } });
+    if (latestSeason) {
+      // Each season has its own Player row; events for season N reference
+      // that season's row, not the canonical master. Collect all linked IDs
+      // (canonical + every record pointing at it) so we count events from
+      // the current-season child as well.
+      const linkedPlayers = await prisma.player.findMany({
+        where: { OR: [{ id: raw.player.id }, { canonicalPlayerId: raw.player.id }] },
+        select: { id: true },
+      });
+      const playerIds = linkedPlayers.map((p) => p.id);
+      const idSet = new Set(playerIds);
+      const [events, lineups] = await Promise.all([
+        prisma.gameEvent.findMany({
+          where: {
+            game: { seasonId: latestSeason.id, status: { in: ['COMPLETED', 'ONGOING'] } },
+            OR: [{ playerId: { in: playerIds } }, { assistPlayerId: { in: playerIds } }],
+          },
+          select: { type: true, playerId: true, assistPlayerId: true },
+        }),
+        prisma.gameLineupEntry.findMany({
+          where: {
+            playerId: { in: playerIds },
+            role: { in: ['STARTER', 'SUBSTITUTE'] },
+            game: { seasonId: latestSeason.id, status: { in: ['COMPLETED', 'ONGOING'] } },
+          },
+          select: { gameId: true, role: true },
+        }),
+      ]);
+      const games = new Set(lineups.map((l) => l.gameId));
+      const starts = lineups.filter((l) => l.role === 'STARTER').length;
+      let goals = 0, assists = 0, yellow = 0, red = 0, subbedIn = 0, subbedOut = 0;
+      for (const e of events) {
+        if (e.playerId && idSet.has(e.playerId)) {
+          if (e.type === 'GOAL' || e.type === 'PENALTY_GOAL') goals += 1;
+          else if (e.type === 'ASSIST') assists += 1;
+          else if (e.type === 'YELLOW_CARD' || e.type === 'YELLOW_RED_CARD') yellow += 1;
+          else if (e.type === 'RED_CARD') red += 1;
+          else if (e.type === 'SUBSTITUTION_IN') subbedIn += 1;
+          else if (e.type === 'SUBSTITUTION_OUT') subbedOut += 1;
+        }
+        if (e.assistPlayerId && idSet.has(e.assistPlayerId) && (e.type === 'GOAL' || e.type === 'PENALTY_GOAL')) {
+          assists += 1;
+        }
       }
-    : fsTop
-    ? {
-        appearances: fsTop.apps ?? 0,
-        starts: 0,
+      derivedStats = {
+        appearances: games.size,
+        starts,
         minutes: 0,
-        goals: fsTop.goals ?? 0,
-        assists: fsTop.assists ?? 0,
-        yellowCards: fsTop.yellow ?? 0,
-        redCards: fsTop.red ?? 0,
-        subbedIn: 0,
-        subbedOut: 0,
-      }
-    : null;
+        goals,
+        assists,
+        yellowCards: yellow,
+        redCards: red,
+        subbedIn,
+        subbedOut,
+      };
+    }
+  }
+
+  // Merge stored + derived: prefer the bigger of the two per-field, so we get
+  // the latest event-derived counts (Eliel's 8 goals) without losing minutes
+  // / appearances that only the stored PlayerStatistics row knows.
+  const max = (a: number | null | undefined, b: number | null | undefined) =>
+    Math.max(a ?? 0, b ?? 0);
+  let currentSeasonStats: PlayerSeasonStats | null = null;
+  if (firstStat || fsTop || derivedStats) {
+    currentSeasonStats = {
+      appearances: max(max(fsTop?.apps, firstStat?.gamesPlayed), derivedStats?.appearances),
+      starts: max(firstStat?.starts, derivedStats?.starts),
+      minutes: firstStat?.minutesPlayed ?? 0,
+      goals: max(max(fsTop?.goals, firstStat?.goals), derivedStats?.goals),
+      assists: max(max(fsTop?.assists, firstStat?.assists), derivedStats?.assists),
+      yellowCards: max(max(fsTop?.yellow, firstStat?.yellowCards), derivedStats?.yellowCards),
+      redCards: max(max(fsTop?.red, firstStat?.redCards), derivedStats?.redCards),
+      subbedIn: max(firstStat?.substituteAppearances, derivedStats?.subbedIn),
+      subbedOut: max(firstStat?.timesSubbedOff, derivedStats?.subbedOut),
+    };
+  }
 
   // Build recentMatches from the last 5 player game rows
   const recentMatches: PlayerRecentMatch[] = (raw.sections.games ?? [])

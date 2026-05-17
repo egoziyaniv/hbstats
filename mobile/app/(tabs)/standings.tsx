@@ -88,7 +88,7 @@ export default function StandingsScreen() {
                 }}
               >
                 <Text style={{ width: 24, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>#</Text>
-                <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 10, fontWeight: '700', color: theme.ink[500] }}>קבוצה</Text>
+                <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>קבוצה</Text>
                 <Text style={{ width: 24, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>מ'</Text>
                 <Text style={{ width: 36, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>הפרש</Text>
                 <Text style={{ width: 32, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>נק'</Text>
@@ -158,19 +158,17 @@ function StandingsRowView({
           {row.position}
         </Text>
 
-        <View style={{ flexDirection: rtlRow(), alignItems: 'center', flex: 1, marginHorizontal: 10, gap: 8 }}>
-          {absoluteImage(row.logoUrl) ? (
-            <Image source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4 }} />
-          ) : (
-            <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200] }} />
-          )}
-          <Text
-            style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right' }}
-            numberOfLines={1}
-          >
-            {row.teamNameHe}
-          </Text>
-        </View>
+        {absoluteImage(row.logoUrl) ? (
+          <Image source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
+        ) : (
+          <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
+        )}
+        <Text
+          style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}
+          numberOfLines={1}
+        >
+          {row.teamNameHe}
+        </Text>
 
         <Text style={{ width: 24, fontSize: 11, color: theme.ink[500], textAlign: 'center' }}>{row.played}</Text>
         <Text
