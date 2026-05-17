@@ -395,6 +395,7 @@ model GameLineupEntry {
   positionName    String?
   positionGrid    String?
   jerseyNumber    Int?
+  rating          Float? // 0-10 per-match performance rating (Flashscore)
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   gameId          String

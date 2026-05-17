@@ -1,14 +1,16 @@
 import { ScrollView, View, Text, ActivityIndicator, Image, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Svg, Path } from 'react-native-svg';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { MetricCell } from '@/design-system/MetricCell';
+import { BackButton } from '@/design-system/BackButton';
+import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
 import type { PlayerCareerEntry } from '@shared/types/mobile-api';
 
@@ -42,6 +44,7 @@ export default function PlayerScreen() {
   const router = useRouter();
   const { data, isLoading } = usePlayer(id);
   const { brand } = useTheme();
+  const insets = useSafeAreaInsets();
 
   if (isLoading || !data) {
     return (
@@ -56,7 +59,8 @@ export default function PlayerScreen() {
   const firstLetter = data.player.nameHe.slice(0, 1);
 
   return (
-    <ScrollView className="flex-1 bg-canvas-start" contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}>
+    <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32, paddingTop: insets.top + 8 }}>
       {/* Hero header — purple→blue gradient with photo + name + team. */}
       <LinearGradient
         colors={[brand.accent, brand.accentDeep]}
@@ -67,15 +71,7 @@ export default function PlayerScreen() {
         <View className="px-6 py-6">
           {/* Back arrow on the right (RTL) */}
           <View style={{ flexDirection: rtlRow(), justifyContent: 'space-between', marginBottom: 12 }}>
-            <Pressable
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/' as any))}
-              hitSlop={10}
-              style={{ padding: 4 }}
-            >
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M9 6l6 6-6 6" />
-              </Svg>
-            </Pressable>
+            <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/' as any))} />
             <View />
           </View>
           <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 16 }}>
@@ -178,6 +174,8 @@ export default function PlayerScreen() {
         </Card>
       ) : null}
     </ScrollView>
+    <BottomNav />
+    </View>
   );
 }
 

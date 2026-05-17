@@ -42,13 +42,21 @@ export async function GET(_request: NextRequest) {
     }),
   ]);
 
+  // Per-team point adjustments (deductions) stored on the regular-season
+  // Standing row — must survive the regular→playoff derivation.
+  const adjustments = rawStandings.map((r) => ({
+    teamId: r.teamId,
+    pointsAdjustment: r.pointsAdjustment,
+    pointsAdjustmentNoteHe: r.pointsAdjustmentNoteHe,
+  }));
+
   // Derive playoff-aware standings when the league is in the playoff phase;
   // otherwise sort the snapshot rows stored from API-Football.
   const sorted = shouldDeriveStandings(
     rawStandings.map((r) => ({ played: r.played, groupNameEn: r.groupNameEn ?? null })),
     games,
   )
-    ? buildStandingsFromGames(teams.map((t) => ({ ...t })), games)
+    ? buildStandingsFromGames(teams.map((t) => ({ ...t })), games, adjustments)
     : sortStandings(rawStandings);
 
   // Per-team last-5 results (newest first) — used by the mobile FormPill row.
@@ -71,6 +79,8 @@ export async function GET(_request: NextRequest) {
   const rows = sorted.map((row) => {
     const teamId = (row as { teamId?: string; team?: { id?: string } }).teamId ?? (row as { team?: { id?: string } }).team?.id ?? '';
     const t = teams.find((x) => x.id === teamId);
+    const adj = (row as { pointsAdjustment?: number }).pointsAdjustment ?? 0;
+    const adjNote = (row as { pointsAdjustmentNoteHe?: string | null }).pointsAdjustmentNoteHe ?? null;
     return {
       position: row.position,
       teamId,
@@ -84,7 +94,11 @@ export async function GET(_request: NextRequest) {
       goalsFor: row.goalsFor,
       goalsAgainst: row.goalsAgainst,
       goalsDiff: row.goalsFor - row.goalsAgainst,
-      points: row.points,
+      // Display the adjusted point total — Hapoel Tel Aviv 51 − 2, Ironi
+      // Tiberia 26 − 8 etc. Sort already factors this in.
+      points: row.points + adj,
+      pointsAdjustment: adj,
+      pointsAdjustmentNoteHe: adjNote,
       form: lastFiveFor(teamId),
       groupNameEn: 'groupNameEn' in row ? (row as { groupNameEn?: string }).groupNameEn ?? null : null,
     };

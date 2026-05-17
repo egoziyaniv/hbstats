@@ -17,9 +17,12 @@ type Status = {
 // Today is during 2025-2026 (Aug 2025 → Jul 2026). Current-season slugs have
 // no year suffix on Flashscore; historical seasons append "-YYYY-YYYY".
 const CURRENT_SEASON = '2025-2026';
+// Includes the current season at index 0 so it can be selected. Loop endYear
+// starts at the CURRENT_SEASON's end year (2026) so "2025-2026" is in the list.
 const HISTORICAL_SEASONS = (() => {
+  const currentEnd = parseInt(CURRENT_SEASON.split('-')[1], 10);
   const arr: string[] = [];
-  for (let endYear = 2025; endYear >= 1996; endYear--) {
+  for (let endYear = currentEnd; endYear >= 1996; endYear--) {
     arr.push(`${endYear - 1}-${endYear}`);
   }
   return arr;

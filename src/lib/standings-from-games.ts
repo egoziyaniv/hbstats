@@ -32,6 +32,12 @@ type DerivedStandingRow = {
   groupNameEn?: string;
 };
 
+type TeamAdjustment = {
+  teamId: string;
+  pointsAdjustment: number;
+  pointsAdjustmentNoteHe: string | null;
+};
+
 /**
  * Build a league table directly from completed games. Inspects each game's
  * `roundNameEn` and, when 'Championship Group' / 'Relegation Group' rounds
@@ -40,12 +46,21 @@ type DerivedStandingRow = {
  *
  * Used by /standings and /statistics when the stored Standing rows are
  * end-of-regular-season snapshots that don't carry the playoff group info.
+ *
+ * `adjustments` carries per-team point deductions (e.g. Hapoel Tel Aviv -2,
+ * Ironi Tiberia -8 in 2025) that survive the regular→playoff transition.
  */
-export function buildStandingsFromGames(teams: TeamName[], games: GameForStandings[]) {
+export function buildStandingsFromGames(
+  teams: TeamName[],
+  games: GameForStandings[],
+  adjustments: TeamAdjustment[] = [],
+) {
   const rows = new Map<string, DerivedStandingRow>();
   const teamPlayoffGroup = new Map<string, 'championship' | 'relegation' | null>();
+  const adjByTeam = new Map(adjustments.map((a) => [a.teamId, a]));
 
   for (const team of teams) {
+    const adj = adjByTeam.get(team.id);
     rows.set(team.id, {
       id: `derived-${team.id}`,
       position: 999,
@@ -56,8 +71,8 @@ export function buildStandingsFromGames(teams: TeamName[], games: GameForStandin
       goalsFor: 0,
       goalsAgainst: 0,
       points: 0,
-      pointsAdjustment: 0,
-      pointsAdjustmentNoteHe: null,
+      pointsAdjustment: adj?.pointsAdjustment ?? 0,
+      pointsAdjustmentNoteHe: adj?.pointsAdjustmentNoteHe ?? null,
       teamId: team.id,
       team,
     });

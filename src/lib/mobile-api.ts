@@ -261,11 +261,16 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     logoUrl: null,
   }));
 
+  const standingsAdjustments = rawStandings.map((r) => ({
+    teamId: r.teamId,
+    pointsAdjustment: r.pointsAdjustment,
+    pointsAdjustmentNoteHe: r.pointsAdjustmentNoteHe,
+  }));
   const sortedStandings = shouldDeriveStandings(
     rawStandings.map((r) => ({ played: r.played, groupNameEn: r.groupNameEn ?? null })),
     competitionGamesForStandings,
   )
-    ? buildStandingsFromGames(teamsForDerivation, competitionGamesForStandings)
+    ? buildStandingsFromGames(teamsForDerivation, competitionGamesForStandings, standingsAdjustments)
     : sortStandings(rawStandings);
   const compactStandings = (() => {
     if (!sortedStandings.length) return [];

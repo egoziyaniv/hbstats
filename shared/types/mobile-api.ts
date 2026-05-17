@@ -113,7 +113,9 @@ export interface StandingsRow {
   goalsFor: number;
   goalsAgainst: number;
   goalsDiff: number;
-  points: number;
+  points: number;           // adjusted point total (raw points + deduction)
+  pointsAdjustment: number; // negative when points were deducted
+  pointsAdjustmentNoteHe: string | null;
   form: string;             // last 5 results, newest first ("נננתה")
   groupNameEn: string | null;
 }
@@ -178,6 +180,7 @@ export interface LineupPlayer {
   player: PlayerSummary;
   isStarting: boolean;
   position: string | null;
+  rating: number | null; // 0-10 Flashscore per-match performance rating
 }
 
 export interface Lineup {

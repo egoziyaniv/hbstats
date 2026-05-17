@@ -416,6 +416,7 @@ async function enrichLineups() {
           jerseyNumber: entry.jersey ?? null,
           participantName: entry.name || null,
           formation: sideObj.formation || null,
+          rating: typeof entry.rating === 'number' ? entry.rating : null,
         });
       }
       for (const entry of (sideObj.subs || [])) {
@@ -427,6 +428,7 @@ async function enrichLineups() {
           jerseyNumber: entry.jersey ?? null,
           participantName: entry.name || null,
           formation: sideObj.formation || null,
+          rating: typeof entry.rating === 'number' ? entry.rating : null,
         });
       }
     }
@@ -444,6 +446,66 @@ async function enrichLineups() {
   }
 
   console.log(`  matches processed: ${processed}, games already-had-lineup: ${gamesWithExisting}, rows inserted: ${inserted} (unlinked players: ${unlinkedRows}), errors: ${errors}`);
+}
+
+// Backfill per-match ratings onto EXISTING lineup rows. Runs even when the
+// lineups came from API-Football — Flashscore is the only source for ratings,
+// and we never want to overwrite a rating that's already set.
+async function enrichLineupRatings() {
+  console.log('\n[lineup ratings]');
+  const { map: gameByKey } = await buildGameLookup();
+  const fsMatches = await prisma.flashscoreScrapedMatch.findMany();
+
+  let processed = 0, gamesWithoutLineup = 0, updated = 0, skippedNoMatch = 0, skippedAlreadySet = 0;
+
+  for (const fs of fsMatches) {
+    const lineups = fs.payload?.lineups;
+    if (!lineups || !lineups.home || !lineups.away) continue;
+    const game = findGameForFsMatch(fs, gameByKey);
+    if (!game) continue;
+    processed++;
+
+    const dbRows = await prisma.gameLineupEntry.findMany({
+      where: { gameId: game.id },
+      include: { player: { select: { id: true, nameEn: true, nameHe: true, lastNameEn: true, lastNameHe: true } } },
+    });
+    if (dbRows.length === 0) { gamesWithoutLineup++; continue; }
+
+    for (const side of ['home', 'away']) {
+      const teamId = side === 'home' ? game.homeTeamId : game.awayTeamId;
+      const sideRows = dbRows.filter((r) => r.teamId === teamId);
+      const sideScraped = [
+        ...((lineups[side].starters || []).map((e) => ({ ...e, role: 'STARTER' }))),
+        ...((lineups[side].subs || []).map((e) => ({ ...e, role: 'SUBSTITUTE' }))),
+      ];
+      for (const entry of sideScraped) {
+        if (typeof entry.rating !== 'number') continue;
+        // Match by (1) jersey + role, (2) player name fuzzy, (3) participantName.
+        let target = sideRows.find((r) =>
+          r.jerseyNumber != null && entry.jersey != null && r.jerseyNumber === entry.jersey && r.role === entry.role,
+        );
+        if (!target) {
+          const lastName = (entry.name || '').split(/\s+/).pop();
+          target = sideRows.find((r) => {
+            const candidate = r.player?.lastNameEn || r.player?.nameEn || r.participantName || '';
+            return candidate && lastName && candidate.toLowerCase().includes(lastName.toLowerCase());
+          });
+        }
+        if (!target) { skippedNoMatch++; continue; }
+        if (target.rating != null) { skippedAlreadySet++; continue; }
+        if (!APPLY) { updated++; continue; }
+        try {
+          await prisma.gameLineupEntry.update({ where: { id: target.id }, data: { rating: entry.rating } });
+          target.rating = entry.rating; // prevent double-matching in this game
+          updated++;
+        } catch (e) {
+          if (updated < 3) console.log(`    error on lineup ${target.id}: ${e.message.slice(0, 100)}`);
+        }
+      }
+    }
+  }
+
+  console.log(`  matches processed: ${processed}, no-lineup-rows: ${gamesWithoutLineup}, ratings filled: ${updated}, skipped (no DB match): ${skippedNoMatch}, skipped (already set): ${skippedAlreadySet}`);
 }
 
 // Parse a Flashscore event text line into a structured event.
@@ -566,12 +628,183 @@ async function enrichEvents() {
   console.log(`  matches processed: ${processed}, games already-had-events: ${gamesWithExisting}, events parsed: ${parsed}, inserted: ${inserted} (unlinked: ${unlinked}), errors: ${errors}`);
 }
 
+// Map a Flashscore season string ("2025-2026") to a DB Season.id.
+async function buildSeasonLookup() {
+  const seasons = await prisma.season.findMany({ select: { id: true, year: true, name: true } });
+  const map = new Map();
+  for (const s of seasons) {
+    // Match by "YYYY-YYYY" patterns in either name or year.
+    if (s.name) map.set(s.name.replace('/', '-'), s.id);
+    map.set(`${s.year}-${s.year + 1}`, s.id);
+  }
+  return map;
+}
+
+// Reverse the "Lastname Firstname" Flashscore format and find the best matching
+// DB player. Search across all season-copies of the player; pick the one whose
+// team matches the scraped teamKey when possible.
+function reverseName(name) {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  // Heuristic: if first word is fully uppercase, treat it as the surname.
+  return `${parts.slice(1).join(' ')} ${parts[0]}`;
+}
+
+async function enrichTransfers() {
+  console.log('\n[transfers]');
+  const { map: teamByKey } = await buildTeamLookup();
+  const seasonByLabel = await buildSeasonLookup();
+
+  // Pre-load existing PlayerTransfer rows for quick "already have it" checks.
+  // Key: `${playerNameNorm}|${dayKey(transferDate)}`.
+  const existing = await prisma.playerTransfer.findMany({
+    select: { playerNameEn: true, playerNameHe: true, transferDate: true },
+  });
+  const existingKeys = new Set();
+  for (const e of existing) {
+    const name = (e.playerNameEn || e.playerNameHe || '').trim().toLowerCase();
+    if (!name || !e.transferDate) continue;
+    existingKeys.add(`${name}|${dayKey(e.transferDate)}`);
+  }
+
+  const fsTransfers = await prisma.flashscoreScrapedTransfer.findMany();
+  let considered = 0, alreadyHave = 0, noSeason = 0, noPlayer = 0, inserted = 0, errors = 0;
+
+  for (const t of fsTransfers) {
+    considered++;
+    const seasonId = seasonByLabel.get(t.season);
+    if (!seasonId) { noSeason++; continue; }
+
+    // Skip if API-Football already recorded this transfer for the same player
+    // on the same calendar day. Names may differ a bit ("Itay Mehager" vs
+    // "I. Mehager") so we also try the surname-only variant.
+    const flippedName = reverseName(t.playerName); // "Itay Mehager"
+    const tryKeys = [
+      `${(t.playerName || '').toLowerCase()}|${dayKey(t.transferDate)}`,
+      `${flippedName.toLowerCase()}|${dayKey(t.transferDate)}`,
+    ];
+    if (tryKeys.some((k) => existingKeys.has(k))) { alreadyHave++; continue; }
+
+    // Resolve player by name within the season (best-effort).
+    const surname = (t.playerName || '').split(/\s+/)[0]; // FS leads with surname
+    const dbPlayer = await prisma.player.findFirst({
+      where: {
+        team: { seasonId },
+        OR: [
+          { nameEn: { contains: surname, mode: 'insensitive' } },
+          { lastNameEn: { equals: surname, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, nameEn: true, nameHe: true },
+    });
+    if (!dbPlayer) { noPlayer++; continue; }
+
+    // Resolve owning team for direction:
+    //   direction='in'  → destination team is the owner of the scraped page
+    //   direction='out' → source team is the owner of the scraped page
+    const ownerTeamIds = teamByKey.get(t.teamKey) || [];
+    const ownerTeamId = ownerTeamIds[0] || null;
+    const ownerTeam = ownerTeamId
+      ? await prisma.team.findUnique({ where: { id: ownerTeamId }, select: { nameEn: true, nameHe: true, logoUrl: true } })
+      : null;
+
+    const data = {
+      playerNameEn: flippedName,
+      playerNameHe: dbPlayer.nameHe || null,
+      transferDate: t.transferDate,
+      transferTypeEn: t.fee && t.fee !== '-' ? t.fee : null,
+      transferTypeHe: null,
+      sourceTeamNameEn: t.direction === 'out' ? (ownerTeam?.nameEn ?? null) : (t.fromTeam && t.fromTeam !== '-' ? t.fromTeam : null),
+      sourceTeamNameHe: t.direction === 'out' ? (ownerTeam?.nameHe ?? null) : null,
+      sourceTeamLogoUrl: t.direction === 'out' ? (ownerTeam?.logoUrl ?? null) : null,
+      destinationTeamNameEn: t.direction === 'in' ? (ownerTeam?.nameEn ?? null) : (t.toTeam && t.toTeam !== '-' ? t.toTeam : null),
+      destinationTeamNameHe: t.direction === 'in' ? (ownerTeam?.nameHe ?? null) : null,
+      destinationTeamLogoUrl: t.direction === 'in' ? (ownerTeam?.logoUrl ?? null) : null,
+      seasonId,
+      playerId: dbPlayer.id,
+    };
+
+    if (!APPLY) { inserted++; continue; }
+    try {
+      await prisma.playerTransfer.create({ data });
+      inserted++;
+      // Track so a duplicate scrape later in the same run isn't re-inserted.
+      existingKeys.add(`${flippedName.toLowerCase()}|${dayKey(t.transferDate)}`);
+    } catch (e) {
+      errors++;
+      if (errors <= 3) console.log(`    error on ${t.playerName}: ${e.message.slice(0, 100)}`);
+    }
+  }
+
+  console.log(`  scraped: ${considered}, already-have: ${alreadyHave}, no-season: ${noSeason}, no-player: ${noPlayer}, inserted: ${inserted}, errors: ${errors}`);
+}
+
+// Fill PlayerStatistics.rating from Flashscore career history. Only writes
+// when the DB column is currently null — API-Football ratings always win when
+// they exist. Matches Flashscore season "2025/2026" to DB Season year=2025.
+async function enrichSeasonRatings() {
+  console.log('\n[season ratings]');
+
+  const seasons = await prisma.season.findMany({ select: { id: true, year: true } });
+  const seasonByYear = new Map(seasons.map((s) => [s.year, s.id]));
+
+  // Players whose additionalInfo carries flashscore career data.
+  const players = await prisma.player.findMany({
+    where: { additionalInfo: { not: null } },
+    select: { id: true, nameEn: true, additionalInfo: true },
+  });
+
+  let considered = 0, filled = 0, alreadySet = 0, noStatsRow = 0, noSeasonMatch = 0, errors = 0;
+
+  for (const player of players) {
+    const career = player.additionalInfo?.flashscore?.career;
+    if (!Array.isArray(career)) continue;
+
+    for (const row of career) {
+      if (typeof row.rating !== 'number') continue;
+      considered++;
+
+      // "2025/2026" → year 2025.
+      const m = (row.season || '').match(/^(\d{4})/);
+      if (!m) { noSeasonMatch++; continue; }
+      const seasonId = seasonByYear.get(parseInt(m[1], 10));
+      if (!seasonId) { noSeasonMatch++; continue; }
+
+      // Find ALL stats rows for this player+season (could be split per
+      // competition). Fill any row whose rating is currently null.
+      const statsRows = await prisma.playerStatistics.findMany({
+        where: { playerId: player.id, seasonId },
+        select: { id: true, rating: true },
+      });
+      if (statsRows.length === 0) { noStatsRow++; continue; }
+
+      for (const r of statsRows) {
+        if (r.rating != null) { alreadySet++; continue; }
+        if (!APPLY) { filled++; continue; }
+        try {
+          await prisma.playerStatistics.update({ where: { id: r.id }, data: { rating: row.rating } });
+          filled++;
+        } catch (e) {
+          errors++;
+          if (errors <= 3) console.log(`    error on stats ${r.id}: ${e.message.slice(0, 100)}`);
+        }
+      }
+    }
+  }
+
+  console.log(`  career rows considered: ${considered}, ratings filled: ${filled}, already-set: ${alreadySet}, no-stats-row: ${noStatsRow}, no-season-match: ${noSeasonMatch}, errors: ${errors}`);
+}
+
 async function main() {
   console.log(`${APPLY ? '✓ APPLYING' : '[DRY RUN]'} Flashscore enrichment`);
   if (!SKIP_MATCHES) await enrichMatches();
   if (!process.argv.includes('--skip-lineups')) await enrichLineups();
+  if (!process.argv.includes('--skip-lineup-ratings')) await enrichLineupRatings();
   if (!process.argv.includes('--skip-events')) await enrichEvents();
   if (!SKIP_PLAYERS) await enrichPlayers();
+  if (!process.argv.includes('--skip-transfers')) await enrichTransfers();
+  if (!process.argv.includes('--skip-season-ratings')) await enrichSeasonRatings();
   await prisma.$disconnect();
 }
 

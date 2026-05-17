@@ -167,6 +167,7 @@ function mapLineupPlayer(entry: {
   positionName: string | null;
   positionGrid: string | null;
   jerseyNumber: number | null;
+  rating: number | null;
   player: {
     nameHe: string;
     nameEn: string;
@@ -182,6 +183,7 @@ function mapLineupPlayer(entry: {
     positionName: entry.positionName,
     positionGrid: entry.positionGrid,
     jerseyNumber: entry.jerseyNumber,
+    rating: entry.rating ?? null,
   };
 }
 
@@ -195,6 +197,7 @@ function buildTeamLineup(
       positionName: string | null;
       positionGrid: string | null;
       jerseyNumber: number | null;
+      rating: number | null;
       player: {
         nameHe: string;
         nameEn: string;

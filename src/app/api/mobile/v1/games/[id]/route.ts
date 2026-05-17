@@ -113,6 +113,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
         },
         isStarting: true,
         position: p.positionName ?? null,
+        rating: p.rating ?? null,
       })),
       ...rawLineup.substitutes.map((p) => ({
         player: {
@@ -126,6 +127,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
         },
         isStarting: false,
         position: p.positionName ?? null,
+        rating: p.rating ?? null,
       })),
     ];
     return {

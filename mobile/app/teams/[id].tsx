@@ -1,8 +1,8 @@
 import { ScrollView, View, Text, ActivityIndicator, Image, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Svg, Path } from 'react-native-svg';
 import { useTeam } from '@/hooks/useTeam';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
@@ -10,6 +10,8 @@ import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { MetricCell } from '@/design-system/MetricCell';
 import { FormRow } from '@/design-system/FormPill';
+import { BackButton } from '@/design-system/BackButton';
+import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
 
 // Map the API's English form letters → Hebrew letters so FormPill colors right.
@@ -21,6 +23,7 @@ export default function TeamScreen() {
   const router = useRouter();
   const { data, isLoading } = useTeam(id);
   const { brand } = useTheme();
+  const insets = useSafeAreaInsets();
 
   if (isLoading || !data) {
     return (
@@ -34,8 +37,9 @@ export default function TeamScreen() {
   const formHe = data.recentForm.map((r) => FORM_HE[r] || 'ת').join('');
 
   return (
+    <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: theme.canvas.start }}
+      style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: 32, gap: 12 }}
     >
       {/* Hero header */}
@@ -43,15 +47,11 @@ export default function TeamScreen() {
         colors={[brand.accent, brand.accentDeep]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={{ paddingHorizontal: 20, paddingTop: 56, paddingBottom: 24 }}
+        style={{ paddingHorizontal: 20, paddingTop: insets.top + 16, paddingBottom: 24 }}
       >
         {/* Top row: back arrow on the right */}
         <View style={{ flexDirection: rtlRow(), justifyContent: 'space-between', marginBottom: 16 }}>
-          <Pressable onPress={goBack} hitSlop={10} style={{ padding: 4 }}>
-            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M9 6l6 6-6 6" />
-            </Svg>
-          </Pressable>
+          <BackButton onPress={goBack} />
           <View />
         </View>
 
@@ -193,6 +193,8 @@ export default function TeamScreen() {
         </Section>
       ) : null}
     </ScrollView>
+    <BottomNav />
+    </View>
   );
 }
 

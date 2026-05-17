@@ -811,12 +811,19 @@ function TeamLineupCard({
         <div className="text-sm font-black text-stone-900">מחליפים</div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {lineup.substitutes.map((player) => (
-            <div key={player.id} className="rounded-2xl bg-stone-50 px-3 py-2 text-sm">
-              <div className="font-semibold text-stone-900">
-                {player.jerseyNumber ? `${player.jerseyNumber}. ` : ''}
-                {player.displayName}
+            <div key={player.id} className="flex items-center justify-between rounded-2xl bg-stone-50 px-3 py-2 text-sm">
+              <div>
+                <div className="font-semibold text-stone-900">
+                  {player.jerseyNumber ? `${player.jerseyNumber}. ` : ''}
+                  {player.displayName}
+                </div>
+                <div className="text-xs text-stone-500">{player.positionName || 'ספסל'}</div>
               </div>
-              <div className="text-xs text-stone-500">{player.positionName || 'ספסל'}</div>
+              {player.rating != null ? (
+                <span className={`flex h-6 w-10 items-center justify-center rounded-md text-[11px] font-black text-white ${ratingBg(player.rating)}`}>
+                  {player.rating.toFixed(1)}
+                </span>
+              ) : null}
             </div>
           ))}
           {lineup.substitutes.length === 0 ? <div className="text-sm text-stone-500">אין מחליפים שמורים.</div> : null}
@@ -826,7 +833,7 @@ function TeamLineupCard({
   );
 }
 
-type LineupPlayer = { id: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; positionName: string | null; positionGrid: string | null; playerPosition: string | null };
+type LineupPlayer = { id: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; positionName: string | null; positionGrid: string | null; playerPosition: string | null; rating: number | null };
 
 function FootballPitch({
   side,
@@ -892,6 +899,11 @@ function FootballPitch({
                       {player.photoUrl ? (
                         <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#1a6b3a] shadow-sm">
                           {player.jerseyNumber ?? ''}
+                        </span>
+                      ) : null}
+                      {player.rating != null ? (
+                        <span className={`absolute -top-1 -left-1 flex h-6 w-9 items-center justify-center rounded-md text-[10px] font-black text-white shadow-md ${ratingBg(player.rating)}`}>
+                          {player.rating.toFixed(1)}
                         </span>
                       ) : null}
                     </div>
@@ -1247,6 +1259,7 @@ function buildTeamLineup(
       positionName: string | null;
       positionGrid: string | null;
       jerseyNumber: number | null;
+      rating: number | null;
       player: { nameHe: string; nameEn: string; photoUrl: string | null; position: string | null } | null;
       teamId: string;
     }>;
@@ -1273,6 +1286,7 @@ function mapLineupPlayer(entry: {
   positionName: string | null;
   positionGrid: string | null;
   jerseyNumber: number | null;
+  rating: number | null;
   player: { nameHe: string; nameEn: string; photoUrl: string | null; position: string | null } | null;
 }) {
   return {
@@ -1282,8 +1296,18 @@ function mapLineupPlayer(entry: {
     positionName: entry.positionName,
     positionGrid: entry.positionGrid,
     jerseyNumber: entry.jerseyNumber,
+    rating: entry.rating ?? null,
     playerPosition: entry.player?.position || null,
   };
+}
+
+// Tailwind background class for the per-match rating badge.
+// Bands match Flashscore's colour conventions.
+function ratingBg(rating: number): string {
+  if (rating >= 8.0) return 'bg-emerald-600';
+  if (rating >= 7.0) return 'bg-amber-500';
+  if (rating >= 6.0) return 'bg-stone-500';
+  return 'bg-rose-600';
 }
 
 function resolvePositionGroup(player: LineupPlayer): 'G' | 'D' | 'M' | 'F' {

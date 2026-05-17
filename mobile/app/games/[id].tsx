@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { rtlRow } from '@/lib/rtl';
 import { ScrollView, View, Text, ActivityIndicator, Image, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Svg, Path } from 'react-native-svg';
 import { useMatch } from '@/hooks/useMatch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
@@ -11,6 +11,8 @@ import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { LiveDot } from '@/design-system/LiveDot';
 import { TabBar } from '@/design-system/TabBar';
+import { BackButton } from '@/design-system/BackButton';
+import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
 import type { MatchEvent } from '@shared/types/mobile-api';
 
@@ -103,6 +105,7 @@ export default function MatchScreen() {
   const router = useRouter();
   const { data, isLoading } = useMatch(id);
   const { brand } = useTheme();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MatchTabId>('overview');
 
   const goBack = () => {
@@ -129,16 +132,11 @@ export default function MatchScreen() {
         colors={[brand.accent, brand.accentDeep]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
+        style={{ paddingTop: insets.top + 8 }}
       >
-        <View className="px-5 py-6">
-          {/* Top row: back arrow on the right (RTL home), space-reserve on left. */}
+        <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
           <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Pressable onPress={goBack} hitSlop={10} style={{ padding: 4 }}>
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                {/* Arrow head pointing right (back in RTL = forward visually) */}
-                <Path d="M9 6l6 6-6 6" />
-              </Svg>
-            </Pressable>
+            <BackButton onPress={goBack} />
             <View />
           </View>
           {/* HOME on the right, AWAY on the left — forced via row-reverse so
@@ -201,7 +199,7 @@ export default function MatchScreen() {
         onChange={(id) => setTab(id as MatchTabId)}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}>
         {tab === 'overview' ? (
           <>
             {/* Top stats highlights */}
@@ -299,6 +297,7 @@ export default function MatchScreen() {
                         <Text className="text-[11px] font-black text-ink-700">{p.player.jerseyNumber ?? '—'}</Text>
                       </View>
                       <Text style={{ flex: 1, textAlign: 'right' }} className="text-sm text-ink-900" numberOfLines={1}>{p.player.nameHe}</Text>
+                      {p.rating != null ? <RatingBadge rating={p.rating} /> : null}
                     </View>
                   ))}
                 </View>
@@ -315,6 +314,7 @@ export default function MatchScreen() {
                         <Text className="text-[11px] font-black text-ink-700">{p.player.jerseyNumber ?? '—'}</Text>
                       </View>
                       <Text style={{ flex: 1, textAlign: 'left' }} className="text-sm text-ink-900" numberOfLines={1}>{p.player.nameHe}</Text>
+                      {p.rating != null ? <RatingBadge rating={p.rating} /> : null}
                     </View>
                   ))}
                 </View>
@@ -329,6 +329,22 @@ export default function MatchScreen() {
           )
         ) : null}
       </ScrollView>
+      <BottomNav />
+    </View>
+  );
+}
+
+// Per-match Flashscore rating badge. Colour bands:
+//   ≥ 8.0 green, 7.0-7.9 amber, 6.0-6.9 grey, < 6.0 red.
+function RatingBadge({ rating }: { rating: number }) {
+  const bg =
+    rating >= 8.0 ? theme.result.win
+    : rating >= 7.0 ? '#F59E0B'
+    : rating >= 6.0 ? theme.ink[500]
+    : theme.result.loss;
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, minWidth: 32, alignItems: 'center' }}>
+      <Text style={{ fontSize: 11, fontWeight: '800', color: 'white' }}>{rating.toFixed(1)}</Text>
     </View>
   );
 }

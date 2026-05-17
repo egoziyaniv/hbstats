@@ -136,7 +136,7 @@ const LAST_NAMES: Record<string, string> = {
   Radulovic: "ראדולוביץ'", Radulović: "ראדולוביץ'",
   Revivo: 'רביבו', Rosen: 'רוזן', Rotman: 'רוטמן',
   Sabag: 'סבג', Sahiti: 'סהיטי', Salem: 'סאלם', Serdal: 'סרדל',
-  Shlomo: 'שלמה', Sissokho: 'סיסוקו',
+  Shlomo: 'שלמה', Shua: 'שועה', Sissokho: 'סיסוקו',
   Stojic: "סטויץ'", Stojić: "סטויץ'",
   Trau: 'טראו', Tzedaka: 'צדקה',
   Weinberg: 'ויינברג',

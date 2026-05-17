@@ -11,13 +11,26 @@ import { FormRow } from '@/design-system/FormPill';
 import { theme } from '@/design-system/theme';
 import type { StandingsRow } from '@shared/types/mobile-api';
 
-// Top-of-table colours: gold for 1st (champion line), accent for European qual,
-// red bar for relegation. Visualised as a thin vertical strip on the row.
-function zoneColor(rank: number, totalInGroup: number, brandAccent: string): string | null {
-  if (rank === 1) return '#F59E0B';                    // gold — champion
-  if (rank <= 2) return brandAccent;                   // CL qualifying
-  if (rank <= 4) return '#EA580C';                     // Europa
-  if (rank >= totalInGroup) return '#DC2626';          // relegation
+// Visual zone strip on each row. Israeli Premier League rules used here:
+//   #1            → gold (champion)
+//   #2            → brand colour (Champions League qual.)
+//   #3 / #4       → orange (Europa Conference / Europa)
+//   bottom 2 (N-1, N) of the FULL table → red (relegation)
+// Mid-table teams in either playoff group (e.g. Maccabi Haifa #5 of
+// championship, Hapoel Petah Tikva #6 of championship, the upper rows of the
+// relegation group) intentionally have no strip — only the actual relegation
+// positions at the very bottom of the overall table get one.
+const ZONE = {
+  champion: '#F59E0B',
+  europa: '#EA580C',
+  relegation: '#DC2626',
+} as const;
+
+function zoneColor(rank: number, totalTable: number, brandAccent: string): string | null {
+  if (rank === 1) return ZONE.champion;
+  if (rank === 2) return brandAccent;
+  if (rank <= 4) return ZONE.europa;
+  if (totalTable > 0 && rank >= totalTable - 1) return ZONE.relegation;
   return null;
 }
 
@@ -57,7 +70,9 @@ export default function StandingsScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
         contentContainerStyle={{ paddingVertical: 16, gap: 16, paddingBottom: 32 }}
       >
-        {data.groups.map((group) => (
+        {(() => {
+          const totalTable = data.groups.reduce((sum, g) => sum + g.rows.length, 0);
+          return data.groups.map((group) => (
           <Section key={group.label} title={group.label} dense>
             <Card pad={false}>
               {/* Column header */}
@@ -79,22 +94,17 @@ export default function StandingsScreen() {
                 <Text style={{ width: 32, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>נק'</Text>
               </View>
               {group.rows.map((row, i) => (
-                <StandingsRowView key={row.teamId} row={row} index={i} total={group.rows.length} onPress={() => router.push(`/teams/${row.teamId}` as any)} brand={brand} />
+                <StandingsRowView key={row.teamId} row={row} index={i} totalGroup={group.rows.length} totalTable={totalTable} onPress={() => router.push(`/teams/${row.teamId}` as any)} brand={brand} />
               ))}
             </Card>
-            {/* Form row preview */}
-            <View style={{ paddingHorizontal: 16, marginTop: 6 }}>
-              <Text style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right' }}>
-                <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: theme.result.win, marginEnd: 2 }} />
-                {' '}נצחון {' · '}
-                <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: theme.result.draw }} />
-                {' '}תיקו{' · '}
-                <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: theme.result.loss }} />
-                {' '}הפסד
-              </Text>
+            {/* Zone-strip legend — explains the coloured vertical strip at
+                the row's start edge. */}
+            <View style={{ paddingHorizontal: 16, marginTop: 6, gap: 4 }}>
+              <ZoneLegend brand={brand} />
             </View>
           </Section>
-        ))}
+        ));
+        })()}
       </ScrollView>
     </View>
   );
@@ -103,17 +113,19 @@ export default function StandingsScreen() {
 function StandingsRowView({
   row,
   index,
-  total,
+  totalGroup,
+  totalTable,
   onPress,
   brand,
 }: {
   row: StandingsRow;
   index: number;
-  total: number;
+  totalGroup: number;
+  totalTable: number;
   onPress: () => void;
   brand: { accent: string; accentGlow: string };
 }) {
-  const zc = zoneColor(row.position, total, brand.accent);
+  const zc = zoneColor(row.position, totalTable, brand.accent);
   return (
     <Pressable onPress={onPress}>
       <View
@@ -122,7 +134,7 @@ function StandingsRowView({
           alignItems: 'center',
           paddingVertical: 11,
           paddingHorizontal: 14,
-          borderBottomWidth: index === total - 1 ? 0 : 1,
+          borderBottomWidth: index === totalGroup - 1 ? 0 : 1,
           borderBottomColor: theme.ink[100],
           position: 'relative',
         }}
@@ -172,11 +184,17 @@ function StandingsRowView({
             backgroundColor: brand.accentGlow,
             borderRadius: 6,
             paddingVertical: 2,
+            alignItems: 'center',
           }}
         >
           <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.ink[900], textAlign: 'center' }}>
             {row.points}
           </Text>
+          {row.pointsAdjustment !== 0 ? (
+            <Text style={{ fontSize: 9, fontWeight: '700', color: theme.result.loss, marginTop: -1 }}>
+              {row.pointsAdjustment > 0 ? `+${row.pointsAdjustment}` : row.pointsAdjustment}
+            </Text>
+          ) : null}
         </View>
       </View>
       {row.form ? (
@@ -185,5 +203,24 @@ function StandingsRowView({
         </View>
       ) : null}
     </Pressable>
+  );
+}
+
+function ZoneLegend({ brand }: { brand: { accent: string } }) {
+  const items = [
+    { color: ZONE.champion, label: 'אלופה' },
+    { color: brand.accent, label: 'מוקדמות אלופות' },
+    { color: ZONE.europa, label: 'מוקדמות אירופה' },
+    { color: ZONE.relegation, label: 'ירידה / פלייאוף ירידה' },
+  ];
+  return (
+    <View style={{ flexDirection: rtlRow(), flexWrap: 'wrap', gap: 10 }}>
+      {items.map((it) => (
+        <View key={it.label} style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 3, height: 12, backgroundColor: it.color, borderRadius: 2 }} />
+          <Text style={{ fontSize: 10, color: theme.ink[500] }}>{it.label}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
