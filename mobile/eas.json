@@ -24,7 +24,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://currently-casino-scored-objective.trycloudflare.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://hbs.co.il"
       }
     },
     "production": {

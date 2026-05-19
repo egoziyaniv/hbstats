@@ -89,11 +89,11 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   // Build currentTeam from the player's current team name + season
   const currentTeam: TeamSummary | null = raw.player.teamName
     ? {
-        id: '', // service does not expose the team DB id in the player block
+        id: raw.player.teamId ?? '',
         apiId: null,
         nameEn: raw.player.teamName,
         nameHe: raw.player.teamName,
-        logoUrl: null,
+        logoUrl: raw.player.teamLogoUrl ?? null,
       }
     : null;
 

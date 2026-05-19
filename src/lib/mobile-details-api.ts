@@ -991,7 +991,9 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
       name: formatPlayerName(displayPlayerEntry) || formatPlayerName(canonicalPlayer),
       nameEn: displayPlayerEntry.nameEn || canonicalPlayer.nameEn,
       photoUrl: displayPhoto,
+      teamId: displayPlayerEntry.teamId,
       teamName: displayPlayerEntry.team.nameHe || displayPlayerEntry.team.nameEn,
+      teamLogoUrl: displayPlayerEntry.team.logoUrl ?? null,
       position: displayPlayerEntry.position || null,
       jerseyNumber: displayPlayerEntry.jerseyNumber,
       season: selectedSeason
