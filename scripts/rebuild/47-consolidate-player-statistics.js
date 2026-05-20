@@ -133,9 +133,10 @@ async function main() {
     if (touched) touchedCanonicals++;
   }
 
-  // Final pass — delete rows that carry no information at all (games, goals,
-  // assists, yellow, red, minutes all zero and no rating/position). They
-  // clutter the career table with empty entries like "2022 גביע המדינה 0/0/0".
+  // Final pass — delete rows that carry no useful counts (games, goals,
+  // assists, yellow, red all zero). We ignore minutesPlayed/rating/position
+  // since some rows have e.g. a position string set with no actual stats —
+  // they still clutter the career table.
   let purgedEmpty = 0;
   if (APPLY) {
     const result = await prisma.playerStatistics.deleteMany({
@@ -145,9 +146,6 @@ async function main() {
         assists: 0,
         yellowCards: 0,
         redCards: 0,
-        minutesPlayed: 0,
-        rating: null,
-        position: null,
       },
     });
     purgedEmpty = result.count;
