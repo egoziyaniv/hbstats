@@ -2797,28 +2797,33 @@ export async function POST(request: NextRequest) {
         const payload = predictionRows[0];
         if (!payload?.predictions) continue;
 
-        await prisma.gamePrediction.create({
-          data: {
-            gameId: game.id,
-            seasonId: season.id,
-            competitionId: competition.id,
-            winnerTeamApiFootballId: payload?.predictions?.winner?.id || null,
-            winnerTeamNameEn: payload?.predictions?.winner?.name || null,
-            winnerTeamNameHe: translateName(payload?.predictions?.winner?.name),
-            winnerCommentEn: payload?.predictions?.winner?.comment || null,
-            winnerCommentHe: translateName(payload?.predictions?.winner?.comment),
-            adviceEn: payload?.predictions?.advice || null,
-            adviceHe: translateName(payload?.predictions?.advice),
-            winOrDraw: payload?.predictions?.win_or_draw ?? null,
-            underOver: payload?.predictions?.under_over || null,
-            goalsHome: payload?.predictions?.goals?.home || null,
-            goalsAway: payload?.predictions?.goals?.away || null,
-            percentHome: parsePercentValue(payload?.predictions?.percent?.home),
-            percentDraw: parsePercentValue(payload?.predictions?.percent?.draw),
-            percentAway: parsePercentValue(payload?.predictions?.percent?.away),
-            comparisonJson: payload?.comparison || null,
-            rawJson: payload as any,
-          },
+        // Use upsert to survive a stale prediction row from a previous fetch
+        // even when the prior deleteMany missed it (e.g. after dump/restore
+        // shifted season/competition IDs). gameId is the unique key.
+        const predictionData = {
+          seasonId: season.id,
+          competitionId: competition.id,
+          winnerTeamApiFootballId: payload?.predictions?.winner?.id || null,
+          winnerTeamNameEn: payload?.predictions?.winner?.name || null,
+          winnerTeamNameHe: translateName(payload?.predictions?.winner?.name),
+          winnerCommentEn: payload?.predictions?.winner?.comment || null,
+          winnerCommentHe: translateName(payload?.predictions?.winner?.comment),
+          adviceEn: payload?.predictions?.advice || null,
+          adviceHe: translateName(payload?.predictions?.advice),
+          winOrDraw: payload?.predictions?.win_or_draw ?? null,
+          underOver: payload?.predictions?.under_over || null,
+          goalsHome: payload?.predictions?.goals?.home || null,
+          goalsAway: payload?.predictions?.goals?.away || null,
+          percentHome: parsePercentValue(payload?.predictions?.percent?.home),
+          percentDraw: parsePercentValue(payload?.predictions?.percent?.draw),
+          percentAway: parsePercentValue(payload?.predictions?.percent?.away),
+          comparisonJson: payload?.comparison || null,
+          rawJson: payload as any,
+        };
+        await prisma.gamePrediction.upsert({
+          where: { gameId: game.id },
+          create: { gameId: game.id, ...predictionData },
+          update: predictionData,
         });
 
         await prisma.gamePredictionSnapshot.create({
