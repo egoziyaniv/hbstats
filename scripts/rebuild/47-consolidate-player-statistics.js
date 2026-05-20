@@ -86,18 +86,27 @@ async function main() {
       const others = rows.slice(1);
 
       // Ensure the winner sits under the canonical id.
+      const deletedIds = new Set();
       if (winner.playerId !== canon.id) {
         if (APPLY) {
           // First delete any row already at the canonical for this slot
-          // (would block our update due to unique constraint).
-          await prisma.playerStatistics.deleteMany({
+          // (would block our update due to unique constraint). Capture which
+          // ids we deleted so the subsequent loop doesn't try to re-delete.
+          const blockers = await prisma.playerStatistics.findMany({
             where: {
               playerId: canon.id,
               seasonId: winner.seasonId,
               competitionId: winner.competitionId,
               id: { not: winner.id },
             },
+            select: { id: true },
           });
+          for (const b of blockers) deletedIds.add(b.id);
+          if (blockers.length > 0) {
+            await prisma.playerStatistics.deleteMany({
+              where: { id: { in: blockers.map((b) => b.id) } },
+            });
+          }
           await prisma.playerStatistics.update({
             where: { id: winner.id },
             data: { playerId: canon.id },
@@ -109,8 +118,13 @@ async function main() {
 
       // Delete the duplicates.
       for (const dup of others) {
+        if (deletedIds.has(dup.id)) continue; // already removed above
         if (APPLY) {
-          await prisma.playerStatistics.delete({ where: { id: dup.id } });
+          try {
+            await prisma.playerStatistics.delete({ where: { id: dup.id } });
+          } catch (e) {
+            if (e.code !== 'P2025') throw e; // P2025 = "Record to delete does not exist" — fine
+          }
         }
         deleted++;
         touched = true;
