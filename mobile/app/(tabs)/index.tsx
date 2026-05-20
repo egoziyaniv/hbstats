@@ -185,9 +185,18 @@ export default function HomeScreen() {
           </Section>
         ) : null}
 
+        {/* Predictions teaser */}
+        <Section title="תחזיות משחק" actionLabel="כל התחזיות" onAction={() => router.push('/predictions' as any)}>
+          <Card>
+            <Text style={{ color: theme.ink[700], fontSize: 13, textAlign: 'right', writingDirection: 'rtl' }}>
+              לחץ "כל התחזיות" כדי לראות אחוזי ניצחון, המלצות הימור והערכות לכל המשחקים הקרובים.
+            </Text>
+          </Card>
+        </Section>
+
         {/* News strip */}
         {data.newsStrip.length > 0 ? (
-          <Section title="חדשות">
+          <Section title="חדשות" actionLabel="כל החדשות" onAction={() => router.push('/news' as any)}>
             <Card pad={false}>
               {data.newsStrip.slice(0, 5).map((n, i, arr) => {
                 const formattedDate = (() => {

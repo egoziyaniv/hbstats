@@ -134,6 +134,42 @@ export interface StandingsPayload {
   groups: StandingsGroup[];
 }
 
+// ---------- News (full list screen) ----------
+
+export interface NewsSource {
+  slug: string;
+  label: string;
+  teamLabel: string | null;
+}
+
+export interface NewsPayload {
+  updatedAt: string;
+  sources: NewsSource[];
+  items: NewsCard[];
+}
+
+// ---------- Predictions (full list screen) ----------
+
+export interface PredictionItem {
+  gameId: string;
+  competition: string;
+  homeTeam: { id: string; nameHe: string; logoUrl: string | null };
+  awayTeam: { id: string; nameHe: string; logoUrl: string | null };
+  dateTime: string;
+  winnerName: string | null;     // למשל "הפועל באר שבע"
+  winnerCommentHe: string | null; // משפט קצר
+  adviceHe: string | null;       // המלצת הימור
+  underOver: string | null;      // למשל "+2.5"
+  percentHome: number | null;    // 0-100
+  percentDraw: number | null;
+  percentAway: number | null;
+}
+
+export interface PredictionsPayload {
+  season: { id: string; year: number; name: string } | null;
+  items: PredictionItem[];
+}
+
 export interface HomePayload {
   user: { id: string; name: string; avatarUrl: string | null } | null;
   favoriteTeam: TeamSummary | null;
