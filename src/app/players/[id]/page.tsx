@@ -297,15 +297,33 @@ export default async function PlayerPage({
 
   const leaderboardFallbacks = buildLeaderboardFallbackMap(leaderboardEntries);
 
+  // Build a per-season team lookup from linkedPlayers — when consolidation
+  // moves all stats to the canonical player record, the canonical's own team
+  // ("Maccabi PT 2020") would otherwise tag every row. We look up the team
+  // for each row's seasonId across the linked records so each row reads with
+  // the correct historical team.
+  const teamBySeasonId = new Map<string, { id: string; name: string }>();
+  for (const lp of linkedPlayers) {
+    const sid = lp.team.season.id;
+    if (!teamBySeasonId.has(sid)) {
+      teamBySeasonId.set(sid, { id: lp.team.id, name: lp.team.nameHe || lp.team.nameEn });
+    }
+  }
+
   function buildAggregatedStats(players: typeof linkedPlayers): AggregatedStatRow[] {
     return Array.from(
       players
         .flatMap((player) =>
-          player.playerStats.map((stat) => ({
-            ...stat,
-            _teamName: player.team.nameHe || player.team.nameEn,
-            _teamId: player.team.id,
-          }))
+          player.playerStats.map((stat) => {
+            // Prefer the season-correct team (the player record that owned
+            // that season), falling back to the host player's own team.
+            const seasonTeam = stat.seasonId ? teamBySeasonId.get(stat.seasonId) : null;
+            return {
+              ...stat,
+              _teamName: seasonTeam?.name || player.team.nameHe || player.team.nameEn,
+              _teamId: seasonTeam?.id || player.team.id,
+            };
+          })
         )
         .reduce((map, stat) => {
           // Key includes teamId so seasons with different teams produce separate rows

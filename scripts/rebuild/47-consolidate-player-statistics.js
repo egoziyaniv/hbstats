@@ -133,10 +133,31 @@ async function main() {
     if (touched) touchedCanonicals++;
   }
 
+  // Final pass — delete rows that carry no information at all (games, goals,
+  // assists, yellow, red, minutes all zero and no rating/position). They
+  // clutter the career table with empty entries like "2022 גביע המדינה 0/0/0".
+  let purgedEmpty = 0;
+  if (APPLY) {
+    const result = await prisma.playerStatistics.deleteMany({
+      where: {
+        gamesPlayed: 0,
+        goals: 0,
+        assists: 0,
+        yellowCards: 0,
+        redCards: 0,
+        minutesPlayed: 0,
+        rating: null,
+        position: null,
+      },
+    });
+    purgedEmpty = result.count;
+  }
+
   console.log('--- Summary ---');
   console.log(`Canonicals touched: ${touchedCanonicals}`);
   console.log(`Rows moved to canonical: ${moved}`);
   console.log(`Duplicates deleted: ${deleted}`);
+  console.log(`Empty rows purged: ${purgedEmpty}`);
   if (!APPLY) console.log('Re-run with --apply to write changes.');
 }
 
