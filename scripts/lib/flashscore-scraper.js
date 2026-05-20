@@ -20,11 +20,29 @@
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 
-const CHROME_PATH =
-  process.env.CHROME_PATH ||
-  (process.platform === 'darwin'
-    ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-    : path.join('C:', 'Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'));
+function detectChromePath() {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+  if (process.platform === 'darwin') {
+    return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  }
+  if (process.platform === 'linux') {
+    // Try common Linux locations in order of preference.
+    const candidates = [
+      '/usr/bin/google-chrome',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/snap/bin/chromium',
+    ];
+    for (const p of candidates) {
+      try {
+        require('fs').accessSync(p);
+        return p;
+      } catch {}
+    }
+  }
+  return path.join('C:', 'Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe');
+}
+const CHROME_PATH = detectChromePath();
 
 const FLASHSCORE_ORIGIN = 'https://www.flashscore.com';
 const DEFAULT_UA =
