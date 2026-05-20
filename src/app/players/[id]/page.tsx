@@ -909,6 +909,22 @@ function PremierPlayerView({
                         לא זמין — {currentSidelined.typeHe || currentSidelined.typeEn}
                       </div>
                     ) : null}
+                    {(flashscorePremier.marketValue || flashscorePremier.contractUntil) ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
+                        {flashscorePremier.marketValue ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/25 px-3 py-1 text-emerald-50">
+                            <span>שווי שוק</span>
+                            <span className="text-white">{flashscorePremier.marketValue}</span>
+                          </span>
+                        ) : null}
+                        {flashscorePremier.contractUntil ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-white/95">
+                            <span>חוזה עד</span>
+                            <span>{formatBirthDate(new Date(flashscorePremier.contractUntil))}</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
