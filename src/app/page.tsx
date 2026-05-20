@@ -399,6 +399,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       WHERE ge.type = 'YELLOW_CARD'
         AND ge."playerId" IS NOT NULL
         AND g."seasonId" = ${latestSeason.id}
+        AND g."competitionId" = 'comp_liga_haal'
       ORDER BY g."dateTime" ASC
     `,
     prisma.$queryRaw<Array<{ bucket: string; goals: number }>>`
