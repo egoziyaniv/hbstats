@@ -805,6 +805,28 @@ function PremierPlayerView({
     canonicalPlayer.lastNameEn ||
     playerDisplayName;
   const apiStats = aggregatePlayerApiStats(seasonPlayers);
+  // Pull Flashscore extras off whichever linked player has them. After
+  // script 47 the canonical record carries this data; we also fall back
+  // to any other linked record just in case.
+  const flashscorePremier = (() => {
+    function take(p: typeof canonicalPlayer | undefined) {
+      const fs = (p?.additionalInfo as { flashscore?: { marketValue?: string | null; contractUntil?: string | null } } | null | undefined)?.flashscore;
+      return {
+        marketValue: typeof fs?.marketValue === 'string' ? fs.marketValue : null,
+        contractUntil: typeof fs?.contractUntil === 'string' ? fs.contractUntil : null,
+      };
+    }
+    let out = take(canonicalPlayer);
+    if (!out.marketValue && !out.contractUntil) {
+      const linked = seasonPlayers.find((p) => {
+        const fs = (p.additionalInfo as { flashscore?: { marketValue?: unknown; contractUntil?: unknown } } | null | undefined)?.flashscore;
+        return fs?.marketValue || fs?.contractUntil;
+      });
+      if (linked) out = take(linked);
+    }
+    return out;
+  })();
+
   const overviewFacts = [
     { label: 'לאום', value: canonicalPlayer.nationalityHe || canonicalPlayer.nationalityEn || 'לא צוין' },
     { label: 'תאריך לידה', value: formatBirthDate(canonicalPlayer.birthDate) },
@@ -812,6 +834,8 @@ function PremierPlayerView({
     { label: 'גיל', value: canonicalPlayer.age ? String(canonicalPlayer.age) : 'לא צוין' },
     { label: 'גובה', value: canonicalPlayer.height || 'לא צוין' },
     { label: 'משקל', value: canonicalPlayer.weight || 'לא צוין' },
+    ...(flashscorePremier.marketValue ? [{ label: 'שווי שוק', value: flashscorePremier.marketValue }] : []),
+    ...(flashscorePremier.contractUntil ? [{ label: 'חוזה עד', value: formatBirthDate(new Date(flashscorePremier.contractUntil)) }] : []),
   ];
 
   const overviewCards = [
