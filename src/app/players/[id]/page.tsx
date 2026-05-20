@@ -165,6 +165,28 @@ export default async function PlayerPage({
   );
 
   const canonicalPlayer = linkedPlayers.find((player) => player.id === canonicalPlayerId) || linkedPlayers[0];
+  // Pull Flashscore extras (market value, contract, full career list) off
+  // additionalInfo. Set by scripts/rebuild/44-flashscore-enrichment.js +
+  // scripts/rebuild/46-career-to-player-statistics.js. Falls back to any
+  // linked record if the canonical one is empty.
+  function extractFlashscore(p: typeof canonicalPlayer | undefined) {
+    const fs = (p?.additionalInfo as { flashscore?: unknown } | null | undefined)?.flashscore as
+      | { marketValue?: string | null; contractUntil?: string | null; career?: Array<Record<string, unknown>> | null }
+      | undefined;
+    return {
+      marketValue: typeof fs?.marketValue === 'string' ? fs.marketValue : null,
+      contractUntil: typeof fs?.contractUntil === 'string' ? fs.contractUntil : null,
+      career: Array.isArray(fs?.career) ? fs.career : [],
+    };
+  }
+  let flashscoreExtras = extractFlashscore(canonicalPlayer);
+  if (!flashscoreExtras.marketValue && !flashscoreExtras.career.length) {
+    const fallback = linkedPlayers.find((p) => {
+      const fs = (p.additionalInfo as { flashscore?: { marketValue?: unknown; career?: unknown[] } } | null | undefined)?.flashscore;
+      return fs?.marketValue || (Array.isArray(fs?.career) && fs.career.length > 0);
+    });
+    if (fallback) flashscoreExtras = extractFlashscore(fallback);
+  }
   const latestSeasonEntry = [...linkedPlayers].sort(
     (left, right) => right.team.season.year - left.team.season.year || +new Date(right.updatedAt) - +new Date(left.updatedAt)
   )[0];
@@ -504,6 +526,12 @@ export default async function PlayerPage({
             <div className="mt-4 space-y-3 text-sm">
               <StatRow label="עמדה נוכחית" value={displayPlayerEntry.position || 'לא צוין'} />
               <StatRow label="לאום" value={canonicalPlayer.nationalityHe || canonicalPlayer.nationalityEn || 'לא צוין'} />
+              {flashscoreExtras.marketValue ? (
+                <StatRow label="שווי שוק" value={flashscoreExtras.marketValue} />
+              ) : null}
+              {flashscoreExtras.contractUntil ? (
+                <StatRow label="חוזה עד" value={formatBirthDate(new Date(flashscoreExtras.contractUntil))} />
+              ) : null}
               <StatRow label="קבוצות בקריירה" value={String(new Set(linkedPlayers.map((player) => player.teamId)).size)} />
               <StatRow label="עונות במערכת" value={String(new Set(linkedPlayers.map((player) => player.team.seasonId)).size)} />
               <StatRow label="תמונות נוספות" value={String(uploads.length)} />
