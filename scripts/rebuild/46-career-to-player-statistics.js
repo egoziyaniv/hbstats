@@ -68,8 +68,54 @@ async function main() {
   const seasons = await prisma.season.findMany({ select: { id: true, year: true } });
   const seasonByYear = new Map(seasons.map((s) => [s.year, s.id]));
 
-  // Load every canonical Player that has Flashscore career data. We treat
-  // canonical = the record where canonicalPlayerId is null (a primary row).
+  // Step 1: enrichment (script 44) writes Flashscore data onto the matched
+  // per-season Player record, not the canonical one. Propagate that data to
+  // the canonical so reads (player page, mobile, etc.) find it where they
+  // look. We pick the most-recent record that has data for each canonical
+  // key — multiple per-season records can have data if enrichment ran more
+  // than once, the latest wins.
+  const playersWithData = await prisma.player.findMany({
+    where: {
+      additionalInfo: { path: ['flashscore', 'career'], not: { equals: null } },
+    },
+    select: {
+      id: true,
+      canonicalPlayerId: true,
+      nameHe: true,
+      nameEn: true,
+      additionalInfo: true,
+      team: { select: { season: { select: { year: true } } } },
+    },
+  });
+  const byCanonical = new Map();
+  for (const row of playersWithData) {
+    const canonId = row.canonicalPlayerId ?? row.id;
+    const existing = byCanonical.get(canonId);
+    const newer = (row.team?.season?.year ?? 0) > (existing?.team?.season?.year ?? 0);
+    if (!existing || newer) byCanonical.set(canonId, row);
+  }
+  console.log(`Propagating Flashscore data to ${byCanonical.size} canonical records...`);
+  let propagated = 0;
+  for (const [canonId, src] of byCanonical) {
+    if (canonId === src.id) continue; // already canonical, nothing to copy
+    if (APPLY) {
+      const canonical = await prisma.player.findUnique({
+        where: { id: canonId },
+        select: { id: true, additionalInfo: true },
+      });
+      if (canonical) {
+        const merged = {
+          ...(canonical.additionalInfo || {}),
+          flashscore: src.additionalInfo.flashscore,
+        };
+        await prisma.player.update({ where: { id: canonId }, data: { additionalInfo: merged } });
+      }
+    }
+    propagated++;
+  }
+  console.log(`  propagated ${propagated} canonical records`);
+
+  // Step 2: Re-load all canonical Players that now have Flashscore career.
   const players = await prisma.player.findMany({
     where: {
       canonicalPlayerId: null,
