@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, ActivityIndicator, Pressable } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,7 +22,7 @@ export default function TeamScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
-  const { data, isLoading } = useTeam(id);
+  const { data, isLoading, refetch, isRefetching } = useTeam(id);
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -42,6 +42,7 @@ export default function TeamScreen() {
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: 32, gap: 12 }}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
     >
       {/* Hero header */}
       <LinearGradient

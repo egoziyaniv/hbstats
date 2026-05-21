@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
-import { ScrollView, View, Text, ActivityIndicator, Pressable } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -104,7 +104,7 @@ export default function MatchScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
-  const { data, isLoading } = useMatch(id);
+  const { data, isLoading, refetch, isRefetching } = useMatch(id);
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MatchTabId>('overview');
@@ -200,7 +200,11 @@ export default function MatchScreen() {
         onChange={(id) => setTab(id as MatchTabId)}
       />
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
+      >
         {tab === 'overview' ? (
           <>
             {/* Top stats highlights */}

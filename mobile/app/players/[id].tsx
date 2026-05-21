@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, ActivityIndicator, Pressable } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -43,7 +43,7 @@ export default function PlayerScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
-  const { data, isLoading } = usePlayer(id);
+  const { data, isLoading, refetch, isRefetching } = usePlayer(id);
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -61,7 +61,11 @@ export default function PlayerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32, paddingTop: insets.top + 8 }}>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32, paddingTop: insets.top + 8 }}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
+    >
       {/* Hero header — purple→blue gradient with photo + name + team. */}
       <LinearGradient
         colors={[brand.accent, brand.accentDeep]}
