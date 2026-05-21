@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { rtlRow } from '@/lib/rtl';
-import { ScrollView, View, Text, ActivityIndicator, Image, Pressable } from 'react-native';
+import { CachedImage } from '@/design-system/CachedImage';
+import { ScrollView, View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -145,7 +146,7 @@ export default function MatchScreen() {
           <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
             <View className="items-center flex-1">
               {absoluteImage(homeTeam.logoUrl) ? (
-                <Image source={{ uri: absoluteImage(homeTeam.logoUrl) }} className="w-16 h-16 rounded-md bg-white/10" />
+                <CachedImage source={{ uri: absoluteImage(homeTeam.logoUrl) }} className="w-16 h-16 rounded-md bg-white/10" />
               ) : (
                 <View className="w-16 h-16 rounded-md bg-white/15 items-center justify-center">
                   <Text className="text-2xl font-black text-white">{homeTeam.nameHe.slice(0, 1)}</Text>
@@ -169,7 +170,7 @@ export default function MatchScreen() {
             </View>
             <View className="items-center flex-1">
               {absoluteImage(awayTeam.logoUrl) ? (
-                <Image source={{ uri: absoluteImage(awayTeam.logoUrl) }} className="w-16 h-16 rounded-md bg-white/10" />
+                <CachedImage source={{ uri: absoluteImage(awayTeam.logoUrl) }} className="w-16 h-16 rounded-md bg-white/10" />
               ) : (
                 <View className="w-16 h-16 rounded-md bg-white/15 items-center justify-center">
                   <Text className="text-2xl font-black text-white">{awayTeam.nameHe.slice(0, 1)}</Text>

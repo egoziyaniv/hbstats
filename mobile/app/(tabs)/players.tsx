@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { rtlRow } from '@/lib/rtl';
-import { ScrollView, View, Text, ActivityIndicator, Image, Pressable, RefreshControl } from 'react-native';
+import { CachedImage } from '@/design-system/CachedImage';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStats } from '@/hooks/useStats';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -119,7 +120,7 @@ function LeaderRow({
         {entry.rank}
       </Text>
       {absoluteImage(entry.photoUrl) ? (
-        <Image source={{ uri: absoluteImage(entry.photoUrl) }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100] }} />
+        <CachedImage source={{ uri: absoluteImage(entry.photoUrl) }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100] }} />
       ) : (
         <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, fontWeight: '800', color: theme.ink[700] }}>

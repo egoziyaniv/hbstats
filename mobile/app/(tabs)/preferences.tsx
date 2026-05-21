@@ -1,6 +1,7 @@
-import { ScrollView, View, Text, Pressable, ActivityIndicator, Alert, Image } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
+import { CachedImage } from '@/design-system/CachedImage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePreferences, useUpdatePreferences } from '@/hooks/usePreferences';
@@ -182,7 +183,7 @@ function TeamChip({ team, selected, onPress, brandAccent, brandGlow }: {
       }}
     >
       {absoluteImage(team.logoUrl) ? (
-        <Image source={{ uri: absoluteImage(team.logoUrl) }} style={{ width: 18, height: 18, borderRadius: 4 }} />
+        <CachedImage source={{ uri: absoluteImage(team.logoUrl) }} style={{ width: 18, height: 18, borderRadius: 4 }} />
       ) : (
         <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: theme.ink[200] }} />
       )}

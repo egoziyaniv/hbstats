@@ -1,8 +1,9 @@
-import { ScrollView, View, Text, ActivityIndicator, Image, Pressable, RefreshControl } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { rtlRow } from '@/lib/rtl';
+import { CachedImage } from '@/design-system/CachedImage';
 import { absoluteImage } from '@/lib/config';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -191,7 +192,7 @@ function TeamSide({ team }: { team: PredictionItem['homeTeam'] }) {
   return (
     <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: 4 }}>
       {absoluteImage(team.logoUrl) ? (
-        <Image source={{ uri: absoluteImage(team.logoUrl) }} style={{ width: 44, height: 44, borderRadius: 6 }} />
+        <CachedImage source={{ uri: absoluteImage(team.logoUrl) }} style={{ width: 44, height: 44, borderRadius: 6 }} />
       ) : (
         <View
           style={{

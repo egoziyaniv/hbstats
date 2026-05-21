@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable, Image, Linking } from 'react-native';
+import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable, Linking } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
+import { CachedImage } from '@/design-system/CachedImage';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHome } from '@/hooks/useHome';
@@ -144,7 +145,7 @@ export default function HomeScreen() {
                       {row.rank}
                     </Text>
                     {absoluteImage(row.logoUrl) ? (
-                      <Image source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
+                      <CachedImage source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
                     ) : (
                       <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
                     )}
@@ -220,7 +221,7 @@ export default function HomeScreen() {
                       }}
                     >
                       {absoluteImage(n.imageUrl) ? (
-                        <Image
+                        <CachedImage
                           source={{ uri: absoluteImage(n.imageUrl) }}
                           style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: theme.ink[100] }}
                         />

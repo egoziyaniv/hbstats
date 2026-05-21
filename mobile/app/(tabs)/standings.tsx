@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable, Image } from 'react-native';
+import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
+import { CachedImage } from '@/design-system/CachedImage';
 import { useRouter } from 'expo-router';
 import { useStandings } from '@/hooks/useStandings';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -159,7 +160,7 @@ function StandingsRowView({
         </Text>
 
         {absoluteImage(row.logoUrl) ? (
-          <Image source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
+          <CachedImage source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
         ) : (
           <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
         )}

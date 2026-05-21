@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, ActivityIndicator, Image, Pressable } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
+import { CachedImage } from '@/design-system/CachedImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,7 +77,7 @@ export default function PlayerScreen() {
           </View>
           <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 16 }}>
             {absoluteImage(data.player.photoUrl) ? (
-              <Image source={{ uri: absoluteImage(data.player.photoUrl) }} className="w-24 h-24 rounded-full border-2 border-white/30" />
+              <CachedImage source={{ uri: absoluteImage(data.player.photoUrl) }} className="w-24 h-24 rounded-full border-2 border-white/30" />
             ) : (
               <View className="w-24 h-24 rounded-full bg-white/15 items-center justify-center border-2 border-white/30">
                 <Text className="text-3xl font-black text-white">{firstLetter}</Text>

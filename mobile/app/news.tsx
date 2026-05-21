@@ -1,8 +1,9 @@
-import { ScrollView, View, Text, ActivityIndicator, Image, Pressable, RefreshControl, Linking } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { rtlRow } from '@/lib/rtl';
+import { CachedImage } from '@/design-system/CachedImage';
 import { absoluteImage } from '@/lib/config';
 import { useNews } from '@/hooks/useNews';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -111,7 +112,7 @@ function NewsRow({
         }}
       >
         {absoluteImage(item.imageUrl) ? (
-          <Image
+          <CachedImage
             source={{ uri: absoluteImage(item.imageUrl) }}
             style={{ width: 76, height: 76, borderRadius: 10, backgroundColor: theme.ink[100] }}
           />
