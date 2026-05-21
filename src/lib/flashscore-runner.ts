@@ -124,7 +124,17 @@ export async function runFlashscoreImport(opts: FlashscoreOptions): Promise<void
     }
     if (!opts.skipMatches) {
       setStepStatus('matches', 'running');
-      const code = await runScript('scripts/scrape-flashscore-match.js', ['--all-missing', '--limit', '500', ...(opts.headful ? ['--headful'] : [])]);
+      // Pass --league-slug + --season so the match scraper only sees matches
+      // belonging to the competition the user selected. Without this, it
+      // would walk the entire flashscore_scraped_match table and pull in
+      // unrelated Leumit / cup matches that happen to be missing stats.
+      const code = await runScript('scripts/scrape-flashscore-match.js', [
+        '--all-missing',
+        '--limit', '500',
+        '--league-slug', opts.leagueSlug,
+        '--season', opts.season,
+        ...(opts.headful ? ['--headful'] : []),
+      ]);
       setStepStatus('matches', code === 0 ? 'done' : 'error', code === 0 ? undefined : `exit ${code}`);
     }
     if (!opts.skipPlayers) {

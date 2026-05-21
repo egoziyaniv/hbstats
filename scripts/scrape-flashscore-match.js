@@ -218,6 +218,8 @@ async function scrapeMatch(page, matchKey, url) {
 async function loadMatches() {
   const matchArg = arg('match', null);
   const since = arg('since', null);
+  const leagueSlug = arg('league-slug', null);
+  const season = arg('season', null);
   const allMissing = process.argv.includes('--all-missing');
 
   if (matchArg) {
@@ -225,6 +227,11 @@ async function loadMatches() {
   }
   const where = { kickoffAt: { lt: new Date() } };
   if (since) where.kickoffAt = { gte: new Date(since), lt: new Date() };
+  // Scope to a specific competition (and optionally season) when called from
+  // /admin/flashscore — avoids dragging in stale Leumit / cup matches while
+  // the user only asked to refresh ligat-ha-al 2025-2026.
+  if (leagueSlug) where.leagueSlug = leagueSlug;
+  if (season) where.season = season;
   const rows = await prisma.flashscoreScrapedMatch.findMany({
     where,
     orderBy: { kickoffAt: 'desc' },
