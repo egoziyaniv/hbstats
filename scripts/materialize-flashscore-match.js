@@ -130,10 +130,102 @@ async function findOrCreateTeamForSeason(seasonId, nameEn, hintsHe) {
   return created;
 }
 
+async function materializeOne(scraped) {
+  const payload = scraped.payload || {};
+  const competitionId = competitionIdFromSlug(scraped.leagueSlug);
+  if (!competitionId) {
+    return { ok: false, reason: `unknown competition for slug "${scraped.leagueSlug}"` };
+  }
+  const startYear = startYearFromSeason(scraped.season);
+  if (!startYear) return { ok: false, reason: `bad season string "${scraped.season}"` };
+  const season = await prisma.season.findFirst({ where: { year: startYear } });
+  if (!season) return { ok: false, reason: `season for year ${startYear} not found` };
+
+  const titleInfo = parseTitle(payload.title);
+  if (!titleInfo) return { ok: false, reason: 'no title' };
+  const score = parseScoreInfo(payload.scoreInfo);
+  const dt = parseDateTime(payload.datetime);
+
+  const heHints = {
+    'maccabi tel aviv': 'מכבי תל אביב', 'kiryat shmona': 'קריית שמונה', 'shmona': 'קריית שמונה',
+    'hapoel beer sheva': 'הפועל באר שבע', 'beer sheva': 'הפועל באר שבע',
+    'hapoel tel aviv': 'הפועל תל אביב', 'maccabi haifa': 'מכבי חיפה',
+    'maccabi netanya': 'מכבי נתניה', 'beitar jerusalem': 'בית"ר ירושלים',
+    'hapoel jerusalem': 'הפועל ירושלים', 'hapoel haifa': 'הפועל חיפה',
+    'maccabi petah tikva': 'מכבי פתח תקווה', 'hapoel petah tikva': 'הפועל פתח תקווה',
+    'bnei sakhnin': 'בני סכנין', 'ironi kiryat shmona': 'קריית שמונה',
+    'maccabi bnei raina': 'מכבי בני ריינה', 'ironi tiberias': 'עירוני טבריה',
+    'ashdod': 'מ.ס. אשדוד', 'hapoel katamon': 'הפועל קטמון',
+  };
+  const homeHint = heHints[titleInfo.homeNameEn.toLowerCase()] || null;
+  const awayHint = heHints[titleInfo.awayNameEn.toLowerCase()] || null;
+
+  let homeTeam, awayTeam;
+  try {
+    homeTeam = await findOrCreateTeamForSeason(season.id, titleInfo.homeNameEn, homeHint);
+    awayTeam = await findOrCreateTeamForSeason(season.id, titleInfo.awayNameEn, awayHint);
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+
+  const existing = await prisma.game.findFirst({
+    where: { seasonId: season.id, competitionId, homeTeamId: homeTeam.id, awayTeamId: awayTeam.id },
+  });
+
+  const gameData = {
+    seasonId: season.id,
+    competitionId,
+    homeTeamId: homeTeam.id,
+    awayTeamId: awayTeam.id,
+    homeScore: score ? score.homeReg : null,
+    awayScore: score ? score.awayReg : null,
+    dateTime: dt || new Date(`${season.year}-08-15`),
+    status: 'COMPLETED',
+    roundNameHe: null,
+    roundNameEn: null,
+    additionalInfo: score && score.penalties
+      ? { penaltyShootout: { homeScore: score.homeFull - score.homeReg, awayScore: score.awayFull - score.awayReg } }
+      : undefined,
+  };
+
+  if (existing) {
+    await prisma.game.update({ where: { id: existing.id }, data: gameData });
+    return { ok: true, action: 'updated', gameId: existing.id, home: titleInfo.homeNameEn, away: titleInfo.awayNameEn };
+  }
+  const created = await prisma.game.create({ data: gameData });
+  return { ok: true, action: 'created', gameId: created.id, home: titleInfo.homeNameEn, away: titleInfo.awayNameEn };
+}
+
 (async () => {
   const matchKey = arg('match');
+  const leagueSlug = arg('league-slug');
+  const season = arg('season');
+
+  // Batch mode — process every scraped match for a given league+season.
+  if (!matchKey && leagueSlug && season) {
+    const rows = await prisma.flashscoreScrapedMatch.findMany({
+      where: { leagueSlug, season },
+      orderBy: { kickoffAt: 'asc' },
+    });
+    console.log(`Materialize batch: ${rows.length} scraped matches for ${leagueSlug} / ${season}`);
+    let created = 0, updated = 0, skipped = 0;
+    for (const r of rows) {
+      const res = await materializeOne(r);
+      if (!res.ok) {
+        skipped++;
+        if (skipped <= 3) console.log(`  - ${r.matchKey}: ${res.reason}`);
+        continue;
+      }
+      if (res.action === 'created') created++;
+      else updated++;
+    }
+    console.log(`  Created: ${created}, Updated: ${updated}, Skipped: ${skipped}`);
+    await prisma.$disconnect();
+    return;
+  }
+
   if (!matchKey) {
-    console.error('Usage: --match <matchKey>');
+    console.error('Usage: --match <matchKey>  OR  --league-slug <slug> --season <YYYY-YYYY>');
     process.exit(1);
   }
 
