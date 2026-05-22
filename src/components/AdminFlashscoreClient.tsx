@@ -47,6 +47,7 @@ export default function AdminFlashscoreClient() {
   const [skipMatches, setSkipMatches] = useState(false);
   const [skipPlayers, setSkipPlayers] = useState(false);
   const [skipMerge, setSkipMerge] = useState(false);
+  const [singleUrl, setSingleUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
@@ -84,6 +85,37 @@ export default function AdminFlashscoreClient() {
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [status?.output]);
+
+  async function startSingleMatch() {
+    if (!singleUrl.trim()) {
+      setError('הכנס URL של משחק Flashscore');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/flashscore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'import-single',
+          url: singleUrl.trim(),
+          leagueSlug: derivedSlug,
+          season,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed');
+      }
+      setSingleUrl('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+      refresh();
+    }
+  }
 
   async function start(action: 'start' | 'merge') {
     setBusy(true);
@@ -195,6 +227,39 @@ export default function AdminFlashscoreClient() {
         </div>
         {error ? <div className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">{error}</div> : null}
         {status?.error ? <div className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">{status.error}</div> : null}
+      </div>
+
+      <div className="rounded-[24px] border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-black text-stone-900">ייבוא משחק בודד לפי URL</h2>
+        <p className="mt-2 text-sm text-stone-600">
+          להשתמש כשעמוד התוצאות של Flashscore לא מציג שורות משחק (לדוגמה: super-cup של עונה ישנה). בחר את המסגרת והעונה למעלה,
+          ואז הדבק כאן את ה-URL של המשחק מ-Flashscore.
+        </p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="flex-1">
+            <span className="text-xs font-semibold text-stone-700">URL של המשחק</span>
+            <input
+              type="text"
+              value={singleUrl}
+              onChange={(e) => setSingleUrl(e.target.value)}
+              placeholder="https://www.flashscore.com/match/football/.../.../?mid=..."
+              dir="ltr"
+              disabled={running}
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            onClick={startSingleMatch}
+            disabled={busy || running || !singleUrl.trim()}
+            className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40 sm:self-end"
+          >
+            ייבוא משחק
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-stone-500">
+          הסקריפט יזהה את ה-mid מה-URL, ישמור את המשחק ב-flashscore_scraped_match, יסרוק את עמוד הפרטים (אירועים/הרכבים),
+          ואז יריץ merge ל-DB הראשי.
+        </p>
       </div>
 
       <div className="rounded-[24px] border border-stone-200 bg-white p-6 shadow-sm">

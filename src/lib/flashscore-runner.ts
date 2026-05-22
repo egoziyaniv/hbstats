@@ -180,3 +180,35 @@ export async function runFlashscoreMergeOnly(): Promise<void> {
   state.running = false;
   state.finishedAt = new Date().toISOString();
 }
+
+// Single-match runner — used when the tournament page doesn't render rows
+// (e.g. super-cup-2015 final). Pass the Flashscore match URL and the
+// league-slug/season it belongs to, and we route through the
+// import-flashscore-single-match.js helper which upserts + scrapes + merges.
+export async function runFlashscoreSingleMatch(opts: { url: string; leagueSlug: string; season: string }): Promise<void> {
+  state = {
+    running: true,
+    options: { leagueSlug: opts.leagueSlug, season: opts.season },
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    steps: [{ key: 'single', label: `ייבוא משחק בודד: ${opts.leagueSlug}`, status: 'pending' }],
+    output: '',
+    error: null,
+  };
+  appendOutput(`\n=== Single match import: ${opts.url} ===\n`);
+  setStepStatus('single', 'running');
+  try {
+    const code = await runScript('scripts/import-flashscore-single-match.js', [
+      '--url', opts.url,
+      '--league-slug', opts.leagueSlug,
+      '--season', opts.season,
+    ]);
+    setStepStatus('single', code === 0 ? 'done' : 'error', code === 0 ? undefined : `exit ${code}`);
+  } catch (e) {
+    state.error = e instanceof Error ? e.message : String(e);
+    setStepStatus('single', 'error', state.error);
+  } finally {
+    state.running = false;
+    state.finishedAt = new Date().toISOString();
+  }
+}
