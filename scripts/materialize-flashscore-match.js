@@ -199,15 +199,15 @@ async function materializeOne(scraped) {
 (async () => {
   const matchKey = arg('match');
   const leagueSlug = arg('league-slug');
-  const season = arg('season');
+  const seasonArg = arg('season');
 
   // Batch mode — process every scraped match for a given league+season.
-  if (!matchKey && leagueSlug && season) {
+  if (!matchKey && leagueSlug && seasonArg) {
     const rows = await prisma.flashscoreScrapedMatch.findMany({
-      where: { leagueSlug, season },
+      where: { leagueSlug, season: seasonArg },
       orderBy: { kickoffAt: 'asc' },
     });
-    console.log(`Materialize batch: ${rows.length} scraped matches for ${leagueSlug} / ${season}`);
+    console.log(`Materialize batch: ${rows.length} scraped matches for ${leagueSlug} / ${seasonArg}`);
     let created = 0, updated = 0, skipped = 0;
     for (const r of rows) {
       const res = await materializeOne(r);
