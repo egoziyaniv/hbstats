@@ -103,7 +103,20 @@ function arg(name, fallback = null) {
     process.exit(r.status || 1);
   }
 
-  // 3. Run enrichment so the data flows into the main DB.
+  // 3. Materialize the Game + Team rows in the main DB from the Flashscore
+  //    payload (creates missing season-specific Team records by copying the
+  //    identity fields from any existing record — never carries a roster).
+  console.log('\n→ Materializing Game + Team rows...');
+  const m1 = spawnSync('node', ['scripts/materialize-flashscore-match.js', '--match', matchKey], {
+    stdio: 'inherit',
+    cwd: process.cwd(),
+  });
+  if (m1.status !== 0) {
+    console.error('Materialize failed');
+    process.exit(m1.status || 1);
+  }
+
+  // 4. Run enrichment so any Flashscore stats are merged into the new Game.
   console.log('\n→ Running Flashscore enrichment merge...');
   const m2 = spawnSync('node', ['scripts/rebuild/44-flashscore-enrichment.js', '--apply'], {
     stdio: 'inherit',
