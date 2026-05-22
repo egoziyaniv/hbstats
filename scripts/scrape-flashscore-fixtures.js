@@ -53,7 +53,17 @@ async function extractRows(page) {
     // Rows are anchored by id="g_1_<matchKey>" and contain time + home + away.
     const out = [];
     let currentDate = null;
-    const root = document.querySelector('.event--results, .leagues--static, body') || document.body;
+    // Single-match competitions (e.g. super-cup-2015 — one final) render
+    // without the .event--results container, so we cascade through
+    // alternative containers and finally documentElement. The createTreeWalker
+    // call requires a real Node, so guard against null at every step.
+    const root =
+      document.querySelector('.event--results') ||
+      document.querySelector('.leagues--static') ||
+      document.querySelector('.sportName') ||
+      document.body ||
+      document.documentElement;
+    if (!root) return out;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     let node;
     while ((node = walker.nextNode())) {
