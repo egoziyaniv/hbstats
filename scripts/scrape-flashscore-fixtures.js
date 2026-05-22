@@ -34,15 +34,26 @@ const SEASON = arg('season', '2025-2026');
 const HEADFUL = process.argv.includes('--headful');
 
 async function loadAllRows(page) {
-  // Flashscore's "Show more matches" button paginates older results.
+  // Flashscore's "Show more matches" button paginates older results. Older
+  // season URLs (e.g. ligat-ha-al-2017-2018) sometimes 302 mid-page when
+  // Flashscore decides the season is too old and reroutes — that throws
+  // "Execution context was destroyed". Catch and stop paginating instead of
+  // crashing the whole scrape; we'll work with what already loaded.
   for (let i = 0; i < 30; i++) {
-    const clicked = await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll('a, button')).find((b) =>
-        /show more matches|previous matches/i.test((b.innerText || '').trim()),
-      );
-      if (btn) { btn.click(); return true; }
-      return false;
-    });
+    let clicked = false;
+    try {
+      clicked = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('a, button')).find((b) =>
+          /show more matches|previous matches/i.test((b.innerText || '').trim()),
+        );
+        if (btn) { btn.click(); return true; }
+        return false;
+      });
+    } catch (e) {
+      // Navigation destroyed the context — give up on pagination, return.
+      if (/Execution context was destroyed/i.test(String(e))) return;
+      throw e;
+    }
     if (!clicked) break;
     await sleep(1500);
   }
@@ -111,10 +122,19 @@ async function scrapePage(browser, urlPath, label) {
   const page = await newPage(browser);
   const url = `${FLASHSCORE_ORIGIN}/football/israel/${LEAGUE_SLUG}/${urlPath}/`;
   console.log(`\n→ ${label}: ${url}`);
-  await gotoAndSettle(page, url, { settleMs: 3500 });
-  await loadAllRows(page);
-  const rows = await extractRows(page);
-  await page.close();
+  let rows = [];
+  try {
+    await gotoAndSettle(page, url, { settleMs: 3500 });
+    await loadAllRows(page);
+    rows = await extractRows(page);
+  } catch (e) {
+    // Older season URLs may redirect to the current season and destroy our
+    // execution context. Don't fail the whole run for that — return whatever
+    // rows we'd already collected (often zero, sometimes partial).
+    console.log(`  ! ${label} scrape error: ${e.message.slice(0, 120)}`);
+  } finally {
+    try { await page.close(); } catch {}
+  }
   return rows;
 }
 
