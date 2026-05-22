@@ -119,7 +119,14 @@ export async function runFlashscoreImport(opts: FlashscoreOptions): Promise<void
     }
     if (!opts.skipTeams) {
       setStepStatus('teams', 'running');
-      const code = await runScript('scripts/scrape-flashscore-team.js', ['--season', opts.season, '--all-in-league', ...(opts.headful ? ['--headful'] : [])]);
+      // Scope team enumeration to the selected league+season so a 1-match
+      // super-cup import doesn't fall back to the 14 ligat-ha-al teams.
+      const code = await runScript('scripts/scrape-flashscore-team.js', [
+        '--league-slug', opts.leagueSlug,
+        '--season', opts.season,
+        '--all-in-league',
+        ...(opts.headful ? ['--headful'] : []),
+      ]);
       setStepStatus('teams', code === 0 ? 'done' : 'error', code === 0 ? undefined : `exit ${code}`);
     }
     if (!opts.skipMatches) {

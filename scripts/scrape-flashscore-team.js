@@ -205,8 +205,17 @@ async function loadTeamKeys() {
   const oneTeam = arg('team', null);
   if (oneTeam) return [oneTeam];
   if (process.argv.includes('--all-in-league')) {
+    // Honour --league-slug + --season when provided; was hard-coded to
+    // ligat-ha-al, which made a super-cup-2016 import (1 match) scrape all
+    // 14 ligat-ha-al teams.
+    const where = {};
+    const leagueSlug = arg('league-slug', null);
+    const seasonFilter = arg('season', null);
+    if (leagueSlug) where.leagueSlug = leagueSlug;
+    if (seasonFilter) where.season = seasonFilter;
+    if (!leagueSlug && !seasonFilter) where.leagueSlug = 'ligat-ha-al'; // legacy default
     const matches = await prisma.flashscoreScrapedMatch.findMany({
-      where: { leagueSlug: 'ligat-ha-al' },
+      where,
       select: { homeKey: true, awayKey: true },
     });
     const set = new Set();
