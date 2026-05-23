@@ -134,6 +134,19 @@ export interface StandingsPayload {
   groups: StandingsGroup[];
 }
 
+// ---------- Seasons list (for global season picker) ----------
+
+export interface SeasonOption {
+  id: string;
+  year: number;
+  name: string;
+  gameCount: number;
+}
+
+export interface SeasonsPayload {
+  seasons: SeasonOption[];
+}
+
 // ---------- News (full list screen) ----------
 
 export interface NewsSource {

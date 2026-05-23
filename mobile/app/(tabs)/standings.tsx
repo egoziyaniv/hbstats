@@ -9,7 +9,9 @@ import { Header } from '@/design-system/Header';
 import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { FormRow } from '@/design-system/FormPill';
+import { SeasonChip } from '@/design-system/SeasonChip';
 import { theme } from '@/design-system/theme';
+import { useSeasonStore } from '@/lib/seasonStore';
 import type { StandingsRow } from '@shared/types/mobile-api';
 
 // Visual zone strip on each row. Israeli Premier League rules used here:
@@ -38,12 +40,16 @@ function zoneColor(rank: number, totalTable: number, brandAccent: string): strin
 export default function StandingsScreen() {
   const router = useRouter();
   const { brand } = useTheme();
-  const { data, isLoading, refetch, isRefetching } = useStandings();
+  const { selectedYear } = useSeasonStore();
+  const { data, isLoading, refetch, isRefetching } = useStandings(selectedYear);
+  const headerTitle = 'טבלת ליגה';
+  const headerSubtitle = data?.season?.name ? `עונת ${data.season.name}` : undefined;
+  const headerRight = <SeasonChip />;
 
   if (isLoading && !data) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
-        <Header />
+        <Header title={headerTitle} subtitle={headerSubtitle} rightSlot={headerRight} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={brand.accent} />
         </View>
@@ -54,7 +60,7 @@ export default function StandingsScreen() {
   if (!data || data.groups.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
-        <Header />
+        <Header title={headerTitle} subtitle={headerSubtitle} rightSlot={headerRight} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ color: theme.ink[700], fontSize: 14 }}>
             הטבלה לא זמינה כרגע.
@@ -66,7 +72,7 @@ export default function StandingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
-      <Header />
+      <Header title={headerTitle} subtitle={headerSubtitle} rightSlot={headerRight} />
       <ScrollView
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
         contentContainerStyle={{ paddingVertical: 16, gap: 16, paddingBottom: 32 }}

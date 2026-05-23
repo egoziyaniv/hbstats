@@ -7,10 +7,13 @@ export const dynamic = 'force-dynamic';
 
 const LIGAT_HAAL_ID = 'comp_liga_haal';
 
-export async function GET(_request: NextRequest) {
-  const season = await prisma.season.findFirst({
-    orderBy: { year: 'desc' },
-  });
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const yearParam = searchParams.get('year');
+
+  const season = yearParam
+    ? await prisma.season.findFirst({ where: { year: parseInt(yearParam, 10) } })
+    : await prisma.season.findFirst({ orderBy: { year: 'desc' } });
   if (!season) {
     return NextResponse.json({ season: null, groups: [] });
   }

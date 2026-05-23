@@ -9,7 +9,9 @@ import { absoluteImage } from '@/lib/config';
 import { Header } from '@/design-system/Header';
 import { Card } from '@/design-system/Card';
 import { TabBar } from '@/design-system/TabBar';
+import { SeasonChip } from '@/design-system/SeasonChip';
 import { theme } from '@/design-system/theme';
+import { useSeasonStore } from '@/lib/seasonStore';
 import type { StatsLeaderEntry } from '@shared/types/mobile-api';
 
 type StatTab = 'scorers' | 'assists' | 'yellow' | 'red';
@@ -31,8 +33,12 @@ const TAB_VALUE_LABEL: Record<StatTab, string> = {
 export default function PlayersTab() {
   const router = useRouter();
   const { brand } = useTheme();
-  const { data, isLoading, refetch, isRefetching } = useStats();
+  const { selectedYear } = useSeasonStore();
+  const { data, isLoading, refetch, isRefetching } = useStats(selectedYear);
   const [tab, setTab] = useState<StatTab>('scorers');
+  const headerTitle = 'שחקנים מובילים';
+  const headerSubtitle = data?.season?.name ? `עונת ${data.season.name}` : undefined;
+  const headerRight = <SeasonChip />;
 
   const rows = (() => {
     if (!data) return [];
@@ -47,7 +53,7 @@ export default function PlayersTab() {
   if (isLoading && !data) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
-        <Header />
+        <Header title={headerTitle} subtitle={headerSubtitle} rightSlot={headerRight} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={brand.accent} />
         </View>

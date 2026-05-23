@@ -14,9 +14,10 @@ interface HeaderProps {
   subtitle?: string | null;
   onBack?: () => void;
   showBack?: boolean;
+  rightSlot?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, onBack, showBack }: HeaderProps) {
+export function Header({ title, subtitle, onBack, showBack, rightSlot }: HeaderProps) {
   const { brand } = useTheme();
 
   return (
@@ -86,16 +87,22 @@ export function Header({ title, subtitle, onBack, showBack }: HeaderProps) {
             paddingBottom: 12,
             borderBottomWidth: 1,
             borderBottomColor: theme.ink[200],
+            flexDirection: rtlRow(),
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
           }}
         >
-          <Text style={{ color: theme.ink[900], fontSize: 24, fontWeight: '800', letterSpacing: -0.5, lineHeight: 26 }}>
-            {title}
-          </Text>
-          {subtitle ? (
-            <Text style={{ marginTop: 4, color: theme.ink[500], fontSize: 12.5, fontWeight: '500' }}>
-              {subtitle}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.ink[900], fontSize: 24, fontWeight: '800', letterSpacing: -0.5, lineHeight: 26 }}>
+              {title}
             </Text>
-          ) : null}
+            {subtitle ? (
+              <Text style={{ marginTop: 4, color: theme.ink[500], fontSize: 12.5, fontWeight: '500' }}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          {rightSlot ? <View style={{ marginTop: 4 }}>{rightSlot}</View> : null}
         </View>
       ) : null}
     </View>

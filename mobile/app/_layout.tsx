@@ -6,6 +6,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { queryClient, persister } from '@/lib/queryClient';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { SeasonContext, useSeasonStoreValue } from '@/lib/seasonStore';
 
 // Force native RTL on so flex-row auto-flips to row-reverse on real devices.
 // Components use `rtlRow()` helper which returns 'row' on native-RTL builds
@@ -34,6 +35,7 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
+  const seasonState = useSeasonStoreValue();
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -44,13 +46,15 @@ export default function RootLayout() {
       }}
     >
       <ThemeProvider>
-        <AuthProvider>
-          <AuthGate />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="login" />
-          </Stack>
-        </AuthProvider>
+        <SeasonContext.Provider value={seasonState}>
+          <AuthProvider>
+            <AuthGate />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="login" />
+            </Stack>
+          </AuthProvider>
+        </SeasonContext.Provider>
       </ThemeProvider>
     </PersistQueryClientProvider>
   );
