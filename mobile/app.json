@@ -86,11 +86,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "d47a7eca-da88-4598-b14a-49cdc48ea340"
-      }
-    },
-    "owner": "egoziy"
+      "router": {}
+    }
   }
 }
