@@ -375,6 +375,14 @@ function PremierGameView({
                   <span className="rounded-full bg-white/12 px-3 py-1.5">שופט: {refereeName}</span>
                   <span className="rounded-full bg-white/12 px-3 py-1.5">שערים: <span dir="ltr">{eventSummary.awayGoals}-{eventSummary.homeGoals}</span></span>
                   <span className="rounded-full bg-white/12 px-3 py-1.5">סטטוס: {formatGameStatus(game.status)}</span>
+                  {(() => {
+                    const info = game.additionalInfo as { awarded?: { noteHe?: string } } | null;
+                    return info?.awarded ? (
+                      <span className="rounded-full bg-amber-400 px-3 py-1.5 text-amber-950">
+                        {info.awarded.noteHe ?? 'תוצאה טכנית'}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 

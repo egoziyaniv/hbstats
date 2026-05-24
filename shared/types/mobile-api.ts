@@ -268,6 +268,7 @@ export interface MatchPayload {
     dates: { kickoff: string; finished: string | null };
     venue: { name: string; city: string | null } | null;
     referee: string | null;
+    awarded?: { winnerTeamId: string; noteHe: string } | null;
   };
   homeTeam: TeamHeader;
   awayTeam: TeamHeader;

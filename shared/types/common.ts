@@ -48,6 +48,8 @@ export interface MatchCard {
   away: { team: TeamSummary; score: number | null };
   leagueId: string;
   leagueName: string;
+  /** Set when the match wasn't actually played but a result was awarded (e.g. abandoned game). */
+  awarded?: boolean;
 }
 
 export interface NewsCard {

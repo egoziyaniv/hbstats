@@ -167,6 +167,11 @@ export default function MatchScreen() {
               <Text className="text-xs text-white/70 mt-1 font-semibold">
                 {isLive ? `דקה ${match.minute ?? '-'}'` : (STATUS_LABEL_HE[match.status] ?? match.status)}
               </Text>
+              {match.awarded ? (
+                <View className="mt-2 px-2.5 py-1 rounded-full bg-amber-400/95">
+                  <Text className="text-[10.5px] font-extrabold text-amber-950">{match.awarded.noteHe}</Text>
+                </View>
+              ) : null}
             </View>
             <View className="items-center flex-1">
               {absoluteImage(awayTeam.logoUrl) ? (

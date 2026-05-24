@@ -713,6 +713,9 @@ export async function getMobileGamePayload(gameId: string) {
       competition: getCompetitionDisplayName(game.competition),
       round: getRoundDisplayName(game.roundNameHe, game.roundNameEn),
       score: getGameScoreDisplay(game),
+      homeScore: game.homeScore,
+      awayScore: game.awayScore,
+      additionalInfo: game.additionalInfo,
       homeTeam: {
         id: game.homeTeam.id,
         name: getTeamLabel(game.homeTeam),

@@ -179,15 +179,21 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       }
     : null;
 
+  const info = raw.game.additionalInfo as { awarded?: { winnerTeamId: string; noteHe?: string } } | null;
+  const awarded = info?.awarded
+    ? { winnerTeamId: info.awarded.winnerTeamId, noteHe: info.awarded.noteHe ?? 'תוצאה טכנית' }
+    : null;
+  // For awarded games, raw event-summary scores are 0-0 (no on-field goals);
+  // use the stored final score instead so the badge + result stay consistent.
+  const scoreHome = awarded ? raw.game.homeScore : raw.sections.eventSummary.homeGoals ?? null;
+  const scoreAway = awarded ? raw.game.awayScore : raw.sections.eventSummary.awayGoals ?? null;
+
   const payload: MatchPayload = {
     match: {
       id: game.id,
       status: toMatchStatus(game.status),
       minute: null,
-      score: {
-        home: raw.sections.eventSummary.homeGoals ?? null,
-        away: raw.sections.eventSummary.awayGoals ?? null,
-      },
+      score: { home: scoreHome, away: scoreAway },
       halfTime: null,
       dates: {
         kickoff: game.dateTime,
@@ -195,6 +201,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       },
       venue: null,
       referee: null,
+      awarded,
     },
     homeTeam,
     awayTeam,
