@@ -367,6 +367,21 @@ export async function getTeamCardSummary(args: { teamName: string; seasonYear?: 
 // ─── Tool Dispatcher ───
 
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  const result = await dispatchTool(name, args);
+  // Temporary tracing: dump every tool call + truncated result so we can debug
+  // wrong/empty responses from the chatbot in production logs.
+  try {
+    const summary = Array.isArray(result)
+      ? `array(${result.length})`
+      : typeof result === 'object' && result
+        ? JSON.stringify(result).slice(0, 200)
+        : String(result);
+    console.log(`[ai-tool] ${name}(${JSON.stringify(args)}) → ${summary}`);
+  } catch {}
+  return result;
+}
+
+async function dispatchTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case 'searchPlayers':
       return searchPlayers(args as any);
