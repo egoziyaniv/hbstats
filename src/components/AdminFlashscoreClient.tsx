@@ -289,7 +289,7 @@ export default function AdminFlashscoreClient() {
           <li>עונה נוכחית: <code dir="ltr">ligat-ha-al</code></li>
           <li>עונה היסטורית: <code dir="ltr">ligat-ha-al-2024-2025</code> (מתבנה אוטומטית מהבחירה)</li>
           <li>סופר קאפ אישי: <code dir="ltr">super-cup-2024</code> (שנה אחת בלבד)</li>
-          <li>ייבוא מלא ~220 משחקים: 60–90 דק'. עונות גביע: 10–20 דק'.</li>
+          <li>{`ייבוא מלא ~220 משחקים: 60–90 דק'. עונות גביע: 10–20 דק'.`}</li>
           <li>אם שם קבוצה לא מתאים לאחר מיזוג — תוסיף alias ב-<code dir="ltr">scripts/rebuild/44-flashscore-enrichment.js</code> ופנה אלי.</li>
         </ul>
       </div>
