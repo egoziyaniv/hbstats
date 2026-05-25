@@ -2,7 +2,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { toolDefinitions, executeTool } from '@/lib/ai-tools';
 
-const SYSTEM_PROMPT = `אתה עוזר סטטיסטיקות כדורגל ישראלי. התפקיד שלך לענות על שאלות על שחקנים, קבוצות, משחקים, טבלאות וסטטיסטיקות מהכדורגל הישראלי.
+function buildSystemPrompt(): string {
+  // Israeli season runs Jul → Jun. Aug-Dec → first year is "this" season;
+  // Jan-Jul → previous calendar year is the start.
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const startYear = m >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  const seasonLabel = `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`;
+  const todayHe = now.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `אתה עוזר סטטיסטיקות כדורגל ישראלי. התפקיד שלך לענות על שאלות על שחקנים, קבוצות, משחקים, טבלאות וסטטיסטיקות מהכדורגל הישראלי.
+
+תאריך נוכחי: ${todayHe}. העונה הנוכחית בכדורגל הישראלי: ${seasonLabel} (seasonYear=${startYear}).
+כשהמשתמש שואל "העונה" / "השנה" / "עכשיו" — תמיד תשתמש ב-seasonYear=${startYear} בקריאות לכלים.
 
 כללים:
 - ענה רק על שאלות הקשורות לנתוני כדורגל ישראלי
@@ -28,6 +39,7 @@ const SYSTEM_PROMPT = `אתה עוזר סטטיסטיקות כדורגל ישר�
 - getPlayerEvents מחזיר אירועים מכל הקריירה של השחקן (חוצה עונות). לשאלה "השנה" — סנן ב-seasonYear (לדוגמה 2025).
 - כל אירוע חוזר עם שדה season — השתמש בו לקבוצת התוצאות לפי עונה.
 - אם הכלי החזיר רשימה ריקה, זה אומר באמת אין נתונים — אל תנסה לקרוא לכלי שוב עם פרמטרים שונים אלא אם השאלה היא ביחס לעונה אחרת.`;
+}
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -53,7 +65,7 @@ export async function chatWithClaude(apiKey: string, messages: ChatMessage[]): P
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(),
       tools: anthropicTools,
       messages: anthropicMessages,
     });
@@ -104,7 +116,7 @@ export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[]): P
   }));
 
   const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: buildSystemPrompt() },
     ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
   ];
 
