@@ -149,7 +149,7 @@ export default async function AdminFlashscorePage() {
                 <thead className="bg-stone-100">
                   <tr>
                     <th className="px-3 py-2">ליגה / עונה</th>
-                    <th className="px-3 py-2">סה"כ משחקים</th>
+                    <th className="px-3 py-2">{`סה"כ משחקים`}</th>
                     <th className="px-3 py-2">עם אירועים</th>
                     <th className="px-3 py-2">עם xG/סטטיסטיקה</th>
                   </tr>
