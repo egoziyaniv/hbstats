@@ -90,6 +90,10 @@ export const toolDefinitions = [
 // ─── Tool Implementations ───
 
 export async function searchPlayers(args: { name: string; seasonYear?: number }) {
+  // Each player has one Player row per season. We dedupe by canonicalPlayerId
+  // (falling back to id when canonical is null) and surface the most recent
+  // season's row — otherwise the chatbot gets 10 stale records of the same
+  // person and may pick one from 2016.
   const where: any = {
     OR: [
       { nameHe: { contains: args.name, mode: 'insensitive' } },
@@ -105,28 +109,56 @@ export async function searchPlayers(args: { name: string; seasonYear?: number })
   const players = await prisma.player.findMany({
     where,
     include: {
-      team: { select: { nameHe: true, nameEn: true } },
+      team: { select: { nameHe: true, nameEn: true, season: { select: { year: true } } } },
       playerStats: {
         select: { goals: true, assists: true, yellowCards: true, redCards: true, gamesPlayed: true, minutesPlayed: true },
         take: 1,
         orderBy: { season: { year: 'desc' } },
       },
     },
-    take: 10,
+    orderBy: [{ team: { season: { year: 'desc' } } }, { updatedAt: 'desc' }],
+    take: 50,
   });
 
-  return players.map((p) => ({
+  const seen = new Set<string>();
+  const deduped: typeof players = [];
+  for (const p of players) {
+    const key = p.canonicalPlayerId ?? p.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(p);
+    if (deduped.length >= 10) break;
+  }
+
+  return deduped.map((p) => ({
     id: p.id,
+    canonicalPlayerId: p.canonicalPlayerId ?? p.id,
     nameHe: p.nameHe,
     nameEn: p.nameEn,
     position: p.position,
     team: p.team?.nameHe || p.team?.nameEn,
+    season: p.team?.season?.year ?? null,
     stats: p.playerStats[0] || null,
   }));
 }
 
 export async function getPlayerEvents(args: { playerId: string; seasonYear?: number; eventType?: string }) {
-  const where: any = { playerId: args.playerId };
+  // Events are attached to season-specific Player rows. To answer questions
+  // like "in which games did <player> get a yellow card" across his career,
+  // gather every Player row linked to the same canonical entity and look up
+  // events on all of them.
+  const root = await prisma.player.findUnique({
+    where: { id: args.playerId },
+    select: { id: true, canonicalPlayerId: true },
+  });
+  const canonicalKey = root?.canonicalPlayerId ?? root?.id ?? args.playerId;
+  const linked = await prisma.player.findMany({
+    where: { OR: [{ id: canonicalKey }, { canonicalPlayerId: canonicalKey }] },
+    select: { id: true },
+  });
+  const playerIds = linked.length > 0 ? linked.map((p) => p.id) : [args.playerId];
+
+  const where: any = { playerId: { in: playerIds } };
   if (args.eventType) {
     where.type = args.eventType;
   }
@@ -145,6 +177,7 @@ export async function getPlayerEvents(args: { playerId: string; seasonYear?: num
           homeTeam: { select: { nameHe: true } },
           awayTeam: { select: { nameHe: true } },
           competition: { select: { nameHe: true } },
+          season: { select: { year: true, name: true } },
         },
       },
     },
@@ -157,6 +190,7 @@ export async function getPlayerEvents(args: { playerId: string; seasonYear?: num
     minute: e.minute,
     extraMinute: e.extraMinute,
     date: e.game.dateTime.toISOString().split('T')[0],
+    season: e.game.season?.name ?? null,
     match: `${e.game.homeTeam.nameHe} ${e.game.homeScore ?? '?'}-${e.game.awayScore ?? '?'} ${e.game.awayTeam.nameHe}`,
     competition: e.game.competition?.nameHe || '',
   }));
