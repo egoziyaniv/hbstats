@@ -944,7 +944,10 @@ export async function POST(request: NextRequest) {
       if (!nameEn) return null;
 
       const venueData = {
-        apiFootballId: typeof venue?.id === 'number' ? venue.id : null,
+        // API-Football sometimes returns id=0 as a "no real venue id" sentinel.
+        // Treat it as null so these rows take the nullable path (Postgres allows
+        // many NULLs) instead of colliding on the apiFootballId unique index.
+        apiFootballId: typeof venue?.id === 'number' && venue.id > 0 ? venue.id : null,
         nameEn,
         nameHe: translateName(nameEn),
         addressEn: typeof venue?.address === 'string' && venue.address ? venue.address : null,
