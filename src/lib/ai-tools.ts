@@ -110,11 +110,6 @@ export async function searchPlayers(args: { name: string; seasonYear?: number })
     where,
     include: {
       team: { select: { nameHe: true, nameEn: true, season: { select: { year: true } } } },
-      playerStats: {
-        select: { goals: true, assists: true, yellowCards: true, redCards: true, gamesPlayed: true, minutesPlayed: true },
-        take: 1,
-        orderBy: { season: { year: 'desc' } },
-      },
     },
     orderBy: [{ team: { season: { year: 'desc' } } }, { updatedAt: 'desc' }],
     take: 50,
@@ -130,16 +125,41 @@ export async function searchPlayers(args: { name: string; seasonYear?: number })
     if (deduped.length >= 10) break;
   }
 
-  return deduped.map((p) => ({
-    id: p.id,
-    canonicalPlayerId: p.canonicalPlayerId ?? p.id,
-    nameHe: p.nameHe,
-    nameEn: p.nameEn,
-    position: p.position,
-    team: p.team?.nameHe || p.team?.nameEn,
-    season: p.team?.season?.year ?? null,
-    stats: p.playerStats[0] || null,
-  }));
+  // Aggregate stats across every Player row that shares the canonical id —
+  // a season-specific row may show 0 yellows because the player moved teams
+  // mid-season and his other half-of-the-year stats live on a different row.
+  return Promise.all(
+    deduped.map(async (p) => {
+      const canonicalKey = p.canonicalPlayerId ?? p.id;
+      const linked = await prisma.player.findMany({
+        where: { OR: [{ id: canonicalKey }, { canonicalPlayerId: canonicalKey }] },
+        select: { id: true },
+      });
+      const linkedIds = linked.length > 0 ? linked.map((l) => l.id) : [p.id];
+      const seasonFilter = args.seasonYear ? { season: { year: args.seasonYear } } : undefined;
+      const agg = await prisma.playerStatistics.aggregate({
+        where: { playerId: { in: linkedIds }, ...(seasonFilter ?? {}) },
+        _sum: { goals: true, assists: true, yellowCards: true, redCards: true, gamesPlayed: true, minutesPlayed: true },
+      });
+      return {
+        id: p.id,
+        canonicalPlayerId: canonicalKey,
+        nameHe: p.nameHe,
+        nameEn: p.nameEn,
+        position: p.position,
+        team: p.team?.nameHe || p.team?.nameEn,
+        season: p.team?.season?.year ?? null,
+        stats: {
+          goals: agg._sum.goals ?? 0,
+          assists: agg._sum.assists ?? 0,
+          yellowCards: agg._sum.yellowCards ?? 0,
+          redCards: agg._sum.redCards ?? 0,
+          gamesPlayed: agg._sum.gamesPlayed ?? 0,
+          minutesPlayed: agg._sum.minutesPlayed ?? 0,
+        },
+      };
+    }),
+  );
 }
 
 export async function getPlayerEvents(args: { playerId: string; seasonYear?: number; eventType?: string }) {
