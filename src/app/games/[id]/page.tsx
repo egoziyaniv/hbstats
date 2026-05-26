@@ -910,7 +910,7 @@ function FootballPitch({
                         </span>
                       ) : null}
                       {player.rating != null ? (
-                        <span className={`absolute -top-1 -left-1 flex h-6 w-9 items-center justify-center rounded-md text-[10px] font-black text-white shadow-md ${ratingBg(player.rating)}`}>
+                        <span className={`absolute -top-3 left-1/2 -translate-x-1/2 flex h-5 w-9 items-center justify-center rounded-md text-[10px] font-black text-white shadow-md ${ratingBg(player.rating)}`}>
                           {player.rating.toFixed(1)}
                         </span>
                       ) : null}
