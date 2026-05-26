@@ -157,7 +157,18 @@ async function extractLineups(page) {
   });
 }
 
+/**
+ * Strip Flashscore sub-paths so we build clean derived URLs. URLs may arrive
+ * as either the base form ("/match/.../?mid=KEY") or with a tab suffix
+ * ("/match/.../summary/stats/overall/?mid=KEY"). Both should collapse to the
+ * base before we append "/summary/stats/" or "/summary/lineups/".
+ */
+function normalizeMatchUrl(url) {
+  return url.replace(/\/(summary|odds|h2h|standings|squads|news)\/[^?]*\/\?mid=/, '/?mid=');
+}
+
 async function scrapeMatch(page, matchKey, url) {
+  url = normalizeMatchUrl(url);
   console.log(`  → ${matchKey}: ${url}`);
   // 1. Summary page (with stats + events embedded) — scroll to hydrate full table.
   await gotoAndSettle(page, url, { settleMs: 4500 });
