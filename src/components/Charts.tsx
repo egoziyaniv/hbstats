@@ -183,3 +183,23 @@ export function GoalMinutesChart({ data }: { data: Array<{ name: string; goals: 
     </div>
   );
 }
+
+export function ContractExpiryChart({ data }: { data: Array<{ year: number; count: number }> }) {
+  return (
+    <div className="h-[260px] w-full" dir="ltr">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+          <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+          <Tooltip
+            contentStyle={{ borderRadius: 12, border: '1px solid #e7e5e4', fontSize: 12 }}
+            formatter={(value: number) => [`${value} שחקנים`, 'מסיימים חוזה']}
+            labelFormatter={(label) => `שנת ${label}`}
+          />
+          <Bar dataKey="count" fill="var(--accent, #b91c1c)" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

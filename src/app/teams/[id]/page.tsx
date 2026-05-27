@@ -7,8 +7,52 @@ import { formatPlayerName } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import TeamInjuryManager from '@/components/TeamInjuryManager';
+import { ContractExpiryChart } from '@/components/Charts';
 
-type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees';
+type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
+
+type ContractPlayer = { name: string; position: string | null; until: string };
+type ContractYearGroup = { year: number; count: number; players: ContractPlayer[] };
+
+function readContractUntil(additionalInfo: unknown): string | null {
+  if (!additionalInfo || typeof additionalInfo !== 'object') return null;
+  const fs = (additionalInfo as { flashscore?: { contractUntil?: unknown } }).flashscore;
+  const v = fs?.contractUntil;
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v : null;
+}
+
+async function buildContractExpiry(
+  players: Array<{ id: string; nameHe: string | null; nameEn: string | null; position: string | null; additionalInfo: unknown; canonicalPlayerId: string | null }>,
+): Promise<ContractYearGroup[]> {
+  // Resolve contract dates, using the canonical player row as a fallback when
+  // the season-specific row carries no Flashscore contract data.
+  const missingCanonical = players
+    .filter((p) => !readContractUntil(p.additionalInfo) && p.canonicalPlayerId)
+    .map((p) => p.canonicalPlayerId as string);
+  const canonicalRows = missingCanonical.length
+    ? await prisma.player.findMany({ where: { id: { in: missingCanonical } }, select: { id: true, additionalInfo: true } })
+    : [];
+  const canonicalById = new Map(canonicalRows.map((r) => [r.id, r.additionalInfo]));
+
+  const byYear = new Map<number, ContractPlayer[]>();
+  for (const p of players) {
+    let until = readContractUntil(p.additionalInfo);
+    if (!until && p.canonicalPlayerId) until = readContractUntil(canonicalById.get(p.canonicalPlayerId));
+    if (!until) continue;
+    const year = parseInt(until.slice(0, 4), 10);
+    if (!Number.isFinite(year)) continue;
+    if (!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year)!.push({ name: formatPlayerName(p), position: p.position, until });
+  }
+
+  return Array.from(byYear.entries())
+    .map(([year, list]) => ({
+      year,
+      count: list.length,
+      players: list.sort((a, b) => a.until.localeCompare(b.until)),
+    }))
+    .sort((a, b) => a.year - b.year);
+}
 
 function formatDate(date: Date, withTime = false) {
   return new Intl.DateTimeFormat('he-IL', {
@@ -149,6 +193,11 @@ export default async function TeamPage({
         orderBy: { startDate: 'desc' },
       })
     : [];
+
+  // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
+  // falling back to the canonical player row when the season-row lacks it,
+  // then group by the calendar year the contract ends.
+  const contractExpiry = await buildContractExpiry(team.players);
 
   // All-time home stats: find all team records with the same name across seasons
   const allTimeTeamIds = await prisma.team.findMany({
@@ -407,6 +456,7 @@ export default async function TeamPage({
                   { id: 'overview', label: 'סקירה' },
                   { id: 'matches', label: 'משחקים' },
                   { id: 'squad', label: 'סגל' },
+                  { id: 'contracts', label: 'חוזים' },
                   { id: 'stats', label: 'סטטיסטיקה' },
                   { id: 'referees', label: 'שופטים' },
                 ].map((tab) => (
@@ -836,6 +886,38 @@ export default async function TeamPage({
           <TeamInjuryManager players={adminPlayerOptions} sidelinedEntries={adminSidelinedEntries} />
         ) : null}
 
+        {displayMode !== 'premier' || selectedTab === 'contracts' ? (
+        <section>
+          <Panel title="סיום חוזים">
+            {contractExpiry.length === 0 ? (
+              <p className="text-sm text-stone-500">אין נתוני חוזים זמינים לסגל הנוכחי.</p>
+            ) : (
+              <div className="space-y-6">
+                <ContractExpiryChart data={contractExpiry.map((g) => ({ year: g.year, count: g.count }))} />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {contractExpiry.map((group) => (
+                    <div key={group.year} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                      <div className="mb-2 flex items-baseline justify-between">
+                        <span className="text-lg font-black text-stone-900">{group.year}</span>
+                        <span className="text-xs font-semibold text-stone-500">{group.count} שחקנים</span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {group.players.map((pl, i) => (
+                          <li key={`${pl.name}-${i}`} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="font-medium text-stone-800">{pl.name}</span>
+                            <span className="shrink-0 text-[11px] text-stone-400" dir="ltr">{pl.until}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Panel>
+        </section>
+        ) : null}
+
         {displayMode !== 'premier' || selectedTab === 'overview' || selectedTab === 'referees' || selectedTab === 'stats' ? (
         <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <Panel title="שופטים מול הקבוצה">
@@ -1183,6 +1265,7 @@ function normalizeTeamPremierTab(value: string | null | undefined): TeamPremierT
     case 'squad':
     case 'stats':
     case 'referees':
+    case 'contracts':
       return value;
     default:
       return 'overview';
