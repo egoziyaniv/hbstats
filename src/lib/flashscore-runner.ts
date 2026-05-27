@@ -204,6 +204,13 @@ export async function runFlashscoreSingleMatch(opts: { url: string; leagueSlug: 
       '--season', opts.season,
     ]);
     setStepStatus('single', code === 0 ? 'done' : 'error', code === 0 ? undefined : `exit ${code}`);
+    // Materialize only creates Game rows for brand-new matches; for matches we
+    // already have (most of them) the scraped stats/lineups/xG only reach the
+    // visible Game via the enrichment merge. Always run it after a single import.
+    if (code === 0) {
+      appendOutput('\n=== Enrichment merge ===\n');
+      await runScript('scripts/rebuild/44-flashscore-enrichment.js', ['--apply']);
+    }
   } catch (e) {
     state.error = e instanceof Error ? e.message : String(e);
     setStepStatus('single', 'error', state.error);
