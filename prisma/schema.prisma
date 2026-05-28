@@ -165,6 +165,10 @@ model Team {
   stadiumHe          String?
   venueId            String?
   footyStatsId       Int?
+  // Narrative + external-source enrichments. Cached blobs we refresh on a
+  // schedule rather than computing on every render.
+  aiSummary          Json?
+  wikiInfo           Json?
   leaderboardEntries CompetitionLeaderboardEntry[]
   fetchJobs          FetchJob[]
   homeEvents         GameEvent[]                   @relation("EventTeam")
