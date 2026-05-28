@@ -10,6 +10,7 @@ import TeamInjuryManager from '@/components/TeamInjuryManager';
 import { ContractExpiryChart } from '@/components/Charts';
 import { CoachTimeline } from '@/components/CoachTimeline';
 import { buildCoachTimelineBySeason } from '@/lib/coach-timeline';
+import { TeamOverviewPanel } from '@/components/TeamOverviewPanel';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
 
@@ -489,6 +490,14 @@ export default async function TeamPage({
             </div>
           ) : null}
         </section>
+
+        {displayMode !== 'premier' || selectedTab === 'overview' ? (
+        <TeamOverviewPanel
+          wiki={team.wikiInfo as any}
+          ai={team.aiSummary as any}
+          teamNameHe={team.nameHe || team.nameEn}
+        />
+        ) : null}
 
         {displayMode !== 'premier' || selectedTab === 'overview' ? (
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr_0.95fr]">
