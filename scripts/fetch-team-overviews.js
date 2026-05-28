@@ -48,21 +48,18 @@ async function fetchWiki(team) {
 }
 
 async function buildStatsSnapshot(team) {
-  // Gather the facts the AI narrative will use.
-  const [standing, games, topScorer, topAssist, coachLatest] = await Promise.all([
-    prisma.standing.findFirst({
-      where: { teamId: team.id, competition: { is: { id: 'comp_liga_haal' } } },
-      orderBy: { updatedAt: 'desc' },
+  const [allStandings, games, topScorer, topAssist, coachLatest, cupGames, superCupGame] = await Promise.all([
+    prisma.standing.findMany({
+      where: { teamId: team.id, seasonId: team.seasonId },
+      orderBy: { position: 'asc' },
     }),
     prisma.game.findMany({
       where: {
-        seasonId: team.seasonId,
-        status: 'COMPLETED',
+        seasonId: team.seasonId, status: 'COMPLETED',
         OR: [{ homeTeamId: team.id }, { awayTeamId: team.id }],
       },
       select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, dateTime: true },
-      orderBy: { dateTime: 'desc' },
-      take: 5,
+      orderBy: { dateTime: 'desc' }, take: 5,
     }),
     prisma.competitionLeaderboardEntry.findFirst({
       where: { seasonId: team.seasonId, category: 'TOP_SCORERS', teamNameEn: team.nameEn },
@@ -73,10 +70,61 @@ async function buildStatsSnapshot(team) {
       orderBy: { value: 'desc' },
     }),
     prisma.teamCoachAssignment.findFirst({
-      where: { teamId: team.id },
-      orderBy: { startDate: 'desc' },
+      where: { teamId: team.id }, orderBy: { startDate: 'desc' },
+    }),
+    // State Cup: pull final round if team participated
+    prisma.game.findFirst({
+      where: {
+        seasonId: team.seasonId,
+        competition: { nameEn: { contains: 'State Cup' } },
+        OR: [{ homeTeamId: team.id }, { awayTeamId: team.id }],
+        roundNameEn: { contains: 'Final' },
+        status: 'COMPLETED',
+      },
+      include: { homeTeam: { select: { nameHe: true, nameEn: true } }, awayTeam: { select: { nameHe: true, nameEn: true } } },
+      orderBy: { dateTime: 'desc' },
+    }),
+    // Super Cup
+    prisma.game.findFirst({
+      where: {
+        seasonId: team.seasonId,
+        competition: { nameEn: { contains: 'Super Cup' } },
+        OR: [{ homeTeamId: team.id }, { awayTeamId: team.id }],
+        status: 'COMPLETED',
+      },
+      include: { homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+      orderBy: { dateTime: 'desc' },
     }),
   ]);
+
+  // Determine league finish — prefer Championship Group position, else regular table
+  const champGroup = allStandings.find((s) => /championship/i.test(s.groupNameEn || ''));
+  const regular = allStandings.find((s) => !s.groupNameEn);
+  const finalStanding = champGroup || regular;
+
+  function whoWon(g, isCup = true) {
+    if (!g || g.homeScore == null || g.awayScore == null) return null;
+    const teamIsHome = g.homeTeamId === team.id;
+    const our = teamIsHome ? g.homeScore : g.awayScore;
+    const their = teamIsHome ? g.awayScore : g.homeScore;
+    if (our > their) return 'won';
+    if (our < their) return 'lost';
+    // Tie in cup → check penalties via gameStats not loaded here; report tie + opponent
+    return 'tied';
+  }
+
+  const cupResult = cupGames ? {
+    round: cupGames.roundNameHe || cupGames.roundNameEn,
+    result: whoWon(cupGames),
+    opponent: cupGames.homeTeamId === team.id ? (cupGames.awayTeam.nameHe || cupGames.awayTeam.nameEn) : (cupGames.homeTeam.nameHe || cupGames.homeTeam.nameEn),
+    score: `${cupGames.homeScore}-${cupGames.awayScore}`,
+  } : null;
+
+  const superCupResult = superCupGame ? {
+    result: whoWon(superCupGame),
+    opponent: superCupGame.homeTeamId === team.id ? (superCupGame.awayTeam.nameHe) : (superCupGame.homeTeam.nameHe),
+    score: `${superCupGame.homeScore}-${superCupGame.awayScore}`,
+  } : null;
 
   const last5 = games.map((g) => {
     const isHome = g.homeTeamId === team.id;
@@ -88,7 +136,7 @@ async function buildStatsSnapshot(team) {
     return 'D';
   }).join('');
 
-  return { standing, last5, topScorer, topAssist, coachLatest };
+  return { finalStanding, regular, champGroup, last5, topScorer, topAssist, coachLatest, cupResult, superCupResult };
 }
 
 async function generateAiNarrative(team, snapshot, wiki, apiKey) {
@@ -99,14 +147,25 @@ async function generateAiNarrative(team, snapshot, wiki, apiKey) {
   const client = new OpenAI({ apiKey });
 
   const facts = [];
-  if (snapshot.standing) facts.push(`מקום ${snapshot.standing.position} בליגה (${snapshot.standing.points} נק', ${snapshot.standing.wins}נ' ${snapshot.standing.draws}ת' ${snapshot.standing.losses}ה')`);
+  // Trophies first — most important for narrative impact.
+  if (snapshot.finalStanding?.position === 1) facts.push(`🏆 אלופת הליגה בעונה ${team.season.name}`);
+  else if (snapshot.finalStanding) facts.push(`מקום ${snapshot.finalStanding.position} בליגת העל${snapshot.finalStanding.groupNameEn ? ` (${snapshot.finalStanding.groupNameEn})` : ''} (${snapshot.finalStanding.points} נק', ${snapshot.finalStanding.wins}נ' ${snapshot.finalStanding.draws}ת' ${snapshot.finalStanding.losses}ה')`);
+  if (snapshot.cupResult) {
+    if (snapshot.cupResult.result === 'won') facts.push(`🏆 זוכת גביע המדינה — ניצחה את ${snapshot.cupResult.opponent} ${snapshot.cupResult.score} בגמר`);
+    else if (snapshot.cupResult.result === 'lost') facts.push(`סגנית בגמר גביע המדינה — הפסידה ל${snapshot.cupResult.opponent} ${snapshot.cupResult.score}`);
+    else facts.push(`הגיעה לגמר גביע המדינה מול ${snapshot.cupResult.opponent}`);
+  }
+  if (snapshot.superCupResult) {
+    if (snapshot.superCupResult.result === 'won') facts.push(`🏆 זוכת אלוף האלופים — ניצחה את ${snapshot.superCupResult.opponent} ${snapshot.superCupResult.score}`);
+    else if (snapshot.superCupResult.result === 'lost') facts.push(`הפסידה באלוף האלופים ל${snapshot.superCupResult.opponent} ${snapshot.superCupResult.score}`);
+  }
   if (snapshot.last5) facts.push(`5 משחקים אחרונים: ${snapshot.last5}`);
   if (snapshot.topScorer) facts.push(`כובש מוביל: ${snapshot.topScorer.playerNameHe || snapshot.topScorer.playerNameEn} עם ${snapshot.topScorer.value} שערים`);
   if (snapshot.topAssist) facts.push(`מבשל מוביל: ${snapshot.topAssist.playerNameHe || snapshot.topAssist.playerNameEn} עם ${snapshot.topAssist.value} בישולים`);
   if (snapshot.coachLatest) facts.push(`מאמן: ${snapshot.coachLatest.coachNameHe || snapshot.coachLatest.coachNameEn}`);
   if (wiki?.summary) facts.push(`רקע: ${wiki.summary.slice(0, 300)}`);
 
-  const prompt = `אתה מנתח כדורגל ישראלי. כתוב סקירה קצרה (3-4 משפטים, עברית) על ${team.nameHe} בעונה הנוכחית.\n\nעובדות לעיון:\n${facts.map((f) => `- ${f}`).join('\n')}\n\nהסקירה צריכה להיות נטרלית, עובדתית, ועם משפט סיום שמסכם את מצב הקבוצה. אל תמציא פרטים שלא נכללו בעובדות.`;
+  const prompt = `אתה מנתח כדורגל ישראלי. כתוב סקירה קצרה (3-5 משפטים, עברית) על ${team.nameHe} בעונת ${team.season.name}.\n\nעובדות מאומתות (השתמש אך ורק בהן):\n${facts.map((f) => `- ${f}`).join('\n')}\n\nכללים:\n- חובה לציין את שם העונה במשפט הראשון.\n- אם יש תארים (🏆), הם הדבר הכי חשוב — פתח איתם.\n- אל תמציא פרטים שלא נכללו בעובדות.\n- כתוב בטון עובדתי, לא דרמטי.`;
 
   const res = await client.chat.completions.create({
     model: 'gpt-4o-mini',
