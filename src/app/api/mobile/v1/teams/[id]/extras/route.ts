@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { TeamExtrasPayload } from '@shared/types/mobile-api';
-import { buildCoachTimeline } from '@/lib/coach-timeline';
+import { buildCoachTimelineBySeason } from '@/lib/coach-timeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +27,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       take: 20,
       include: { player: { select: { nameHe: true, nameEn: true } } },
     }),
-    buildCoachTimeline(team.id),
+    buildCoachTimelineBySeason(team.id),
   ]);
 
   const seen = new Set<string>();

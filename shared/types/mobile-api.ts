@@ -302,15 +302,21 @@ export interface CoachAssignment {
 
 export interface CoachTenureSummary {
   name: string;
+  photoUrl: string | null;
   firstMatch: string;
   lastMatch: string;
-  exactStart: string | null;
-  exactEnd: string | null;
   matches: number;
   wins: number;
   draws: number;
   losses: number;
   winPct: number;
+}
+
+export interface SeasonCoachGroupSummary {
+  seasonId: string;
+  seasonName: string;
+  year: number;
+  coaches: CoachTenureSummary[];
 }
 
 export interface TeamInjury {
@@ -323,7 +329,7 @@ export interface TeamInjury {
 export interface TeamExtrasPayload {
   teamId: string;
   coaches: CoachAssignment[];
-  coachTimeline: CoachTenureSummary[];
+  coachTimeline: SeasonCoachGroupSummary[];
   injuries: TeamInjury[];
 }
 

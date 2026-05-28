@@ -200,41 +200,49 @@ export default function TeamScreen() {
       {extras && extras.coachTimeline.length > 0 ? (
         <Section title="היסטוריית מאמנים">
           <Card>
-            <View style={{ gap: 8 }}>
-              {extras.coachTimeline.map((c) => {
-                const start = c.exactStart || c.firstMatch;
-                const endRaw = c.exactEnd || c.lastMatch;
-                const ongoing = !c.exactEnd && Date.now() - new Date(endRaw).getTime() < 14 * 24 * 60 * 60 * 1000;
-                const wPct = c.matches > 0 ? (c.wins / c.matches) * 100 : 0;
-                const dPct = c.matches > 0 ? (c.draws / c.matches) * 100 : 0;
-                const lPct = c.matches > 0 ? (c.losses / c.matches) * 100 : 0;
-                return (
-                  <View key={c.name + c.firstMatch} style={{ borderWidth: 1, borderColor: theme.ink[200], borderRadius: 12, padding: 10 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: theme.ink[900] }}>{c.name}</Text>
-                        <Text style={{ fontSize: 10, color: theme.ink[500], marginTop: 2 }} dir="ltr">
-                          {start} → {ongoing ? 'נוכחי' : endRaw}
-                        </Text>
-                      </View>
-                      <Text style={{ fontSize: 11, color: theme.ink[700], fontWeight: '700' }}>
-                        {c.matches} משחקים
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#047857', backgroundColor: '#d1fae5', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>נ' {c.wins}</Text>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[700], backgroundColor: theme.ink[100], paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>ת' {c.draws}</Text>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#b91c1c', backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>ה' {c.losses}</Text>
-                      <Text style={{ fontSize: 10, color: theme.ink[500], marginRight: 'auto' }}>{c.winPct}%</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', height: 6, marginTop: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: theme.ink[100] }}>
-                      <View style={{ width: `${wPct}%`, backgroundColor: '#10b981' }} />
-                      <View style={{ width: `${dPct}%`, backgroundColor: '#a8a29e' }} />
-                      <View style={{ width: `${lPct}%`, backgroundColor: '#ef4444' }} />
-                    </View>
+            <View style={{ gap: 12 }}>
+              {extras.coachTimeline.map((group) => (
+                <View key={group.seasonId}>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: theme.ink[900], marginBottom: 6 }}>{group.seasonName}</Text>
+                  <View style={{ gap: 6 }}>
+                    {group.coaches.map((c) => {
+                      const initials = c.name.split(/\s+/).filter(Boolean).map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+                      const wPct = c.matches > 0 ? (c.wins / c.matches) * 100 : 0;
+                      const dPct = c.matches > 0 ? (c.draws / c.matches) * 100 : 0;
+                      const lPct = c.matches > 0 ? (c.losses / c.matches) * 100 : 0;
+                      return (
+                        <View key={c.name + c.firstMatch} style={{ borderWidth: 1, borderColor: theme.ink[200], borderRadius: 10, padding: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            {c.photoUrl ? (
+                              <CachedImage source={{ uri: c.photoUrl }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100] }} />
+                            ) : (
+                              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 12, fontWeight: '900', color: theme.ink[600] }}>{initials || '?'}</Text>
+                              </View>
+                            )}
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900] }} numberOfLines={1}>{c.name}</Text>
+                              <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">{c.firstMatch} → {c.lastMatch}</Text>
+                            </View>
+                            <Text style={{ fontSize: 11, color: theme.ink[700], fontWeight: '700' }}>{c.matches}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 4, marginTop: 6 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: '#047857', backgroundColor: '#d1fae5', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 }}>נ' {c.wins}</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: theme.ink[700], backgroundColor: theme.ink[100], paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 }}>ת' {c.draws}</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: '#b91c1c', backgroundColor: '#fee2e2', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 }}>ה' {c.losses}</Text>
+                            <Text style={{ fontSize: 9, color: theme.ink[500], marginRight: 'auto' }}>{c.winPct}%</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', height: 4, marginTop: 4, borderRadius: 2, overflow: 'hidden', backgroundColor: theme.ink[100] }}>
+                            <View style={{ width: `${wPct}%`, backgroundColor: '#10b981' }} />
+                            <View style={{ width: `${dPct}%`, backgroundColor: '#a8a29e' }} />
+                            <View style={{ width: `${lPct}%`, backgroundColor: '#ef4444' }} />
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
-                );
-              })}
+                </View>
+              ))}
             </View>
           </Card>
         </Section>

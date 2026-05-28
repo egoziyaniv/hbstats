@@ -9,7 +9,7 @@ import { sortStandings } from '@/lib/standings';
 import TeamInjuryManager from '@/components/TeamInjuryManager';
 import { ContractExpiryChart } from '@/components/Charts';
 import { CoachTimeline } from '@/components/CoachTimeline';
-import { buildCoachTimeline } from '@/lib/coach-timeline';
+import { buildCoachTimelineBySeason } from '@/lib/coach-timeline';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
 
@@ -204,10 +204,10 @@ export default async function TeamPage({
     include: { player: { select: { nameHe: true, nameEn: true } } },
   });
 
-  // Coach tenures built from match-level lineup entries (role=COACH) — full
-  // history per coach incl. matches + W/D/L. Enriched with TeamCoachAssignment
-  // exact dates when available.
-  const coachTimeline = await buildCoachTimeline(team.id);
+  // Coach tenures grouped by season — built from match-level lineup entries
+  // (role=COACH), with name normalization ("R. Kozuch" + "Ran Kozuch" collapse)
+  // and photo URLs from API-Football via apiFootballCoachId.
+  const coachTimeline = await buildCoachTimelineBySeason(team.id);
 
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
@@ -813,7 +813,7 @@ export default async function TeamPage({
         {displayMode !== 'premier' || selectedTab === 'stats' ? (
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <Panel title="היסטוריית מאמנים">
-            <CoachTimeline coaches={coachTimeline} />
+            <CoachTimeline groups={coachTimeline} />
           </Panel>
           <Panel title="פציעות אחרונות">
             {teamInjuries.length === 0 ? (

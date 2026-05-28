@@ -1,12 +1,22 @@
 /**
- * coach-timeline.ts — build per-team coach tenures from GameLineupEntry rows
- * (role=COACH). Returns each distinct coach with the date range and W/D/L
- * record at this team. Sorted newest-first.
+ * coach-timeline.ts — per-team coach history grouped by season.
+ *
+ * Source: GameLineupEntry rows with role=COACH (one per match, from IFA).
+ * Coverage: every Israeli league/cup match 2016-present.
+ *
+ * We:
+ *   1. Normalize coach names (collapse "R. Kozuch" + "Ran Kozuch" to a single
+ *      canonical entity by lastname + first-initial).
+ *   2. Group by (seasonId, normalizedCoachName) so each season's row lists all
+ *      coaches who managed at least one match that season.
+ *   3. Attach photo URLs from API-Football via apiFootballCoachId on
+ *      TeamCoachAssignment.
  */
 import prisma from '@/lib/prisma';
 
 export interface CoachTenure {
   name: string;
+  photoUrl: string | null;
   firstMatch: string;
   lastMatch: string;
   matches: number;
@@ -14,95 +24,160 @@ export interface CoachTenure {
   draws: number;
   losses: number;
   winPct: number;
-  /** ISO dates from TeamCoachAssignment when available — more authoritative. */
-  exactStart: string | null;
-  exactEnd: string | null;
 }
 
-export async function buildCoachTimeline(teamId: string): Promise<CoachTenure[]> {
+export interface SeasonCoachGroup {
+  seasonId: string;
+  seasonName: string;
+  year: number;
+  coaches: CoachTenure[];
+}
+
+function normalizeKey(rawName: string): string {
+  // "R. Kozuch" / "Ran Kozuch" → "r kozuch" so they collapse.
+  // Take last whitespace-separated token (lastname) + the FIRST LETTER of the
+  // first token (first initial). Strip punctuation and lowercase.
+  const parts = rawName.replace(/[.,]/g, '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return rawName.toLowerCase();
+  const lastName = parts[parts.length - 1].toLowerCase();
+  const firstInitial = parts[0][0]?.toLowerCase() || '';
+  return `${firstInitial} ${lastName}`;
+}
+
+function preferLongerName(a: string, b: string): string {
+  // Display the longest name we've seen (Ran Kozuch beats R. Kozuch).
+  return b.length > a.length ? b : a;
+}
+
+export async function buildCoachTimelineBySeason(teamId: string): Promise<SeasonCoachGroup[]> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { nameEn: true, nameHe: true },
   });
   if (!team) return [];
 
-  // Aggregate match-level coach entries across ALL team records with this nameEn
-  // (one team record per season — we want the full multi-season history).
-  const rows = await prisma.$queryRaw<Array<{
-    coach: string;
-    matches: number;
-    first_match: Date;
-    last_match: Date;
-    wins: number;
-    draws: number;
-    losses: number;
-  }>>`
-    WITH match_coach AS (
-      SELECT
-        gle."participantName" AS coach,
-        g."dateTime",
-        g."homeScore", g."awayScore",
-        g."homeTeamId", g."awayTeamId",
-        gle."teamId"
-      FROM "game_lineup_entries" gle
-      JOIN "games" g ON g.id = gle."gameId"
-      JOIN "teams" t ON t.id = gle."teamId" AND t."nameEn" = ${team.nameEn}
-      WHERE gle.role = 'COACH'
-        AND gle."participantName" IS NOT NULL
-        AND g."homeScore" IS NOT NULL
-        AND g."awayScore" IS NOT NULL
-    )
-    SELECT
-      coach,
-      COUNT(*)::int AS matches,
-      MIN("dateTime") AS first_match,
-      MAX("dateTime") AS last_match,
-      SUM(CASE
-        WHEN ("homeTeamId" = "teamId" AND "homeScore" > "awayScore")
-          OR ("awayTeamId" = "teamId" AND "awayScore" > "homeScore")
-        THEN 1 ELSE 0 END)::int AS wins,
-      SUM(CASE WHEN "homeScore" = "awayScore" THEN 1 ELSE 0 END)::int AS draws,
-      SUM(CASE
-        WHEN ("homeTeamId" = "teamId" AND "homeScore" < "awayScore")
-          OR ("awayTeamId" = "teamId" AND "awayScore" < "homeScore")
-        THEN 1 ELSE 0 END)::int AS losses
-    FROM match_coach
-    GROUP BY coach
-    ORDER BY MAX("dateTime") DESC
-  `;
-
-  // Optional enrichment: TeamCoachAssignment has authoritative dates from API.
+  // Map normalized-key → apiFootballCoachId (for photos). Use the most-frequent
+  // assignment for that key. Many keys won't have an API id; their photo stays null.
   const assignments = await prisma.teamCoachAssignment.findMany({
     where: { team: { nameEn: team.nameEn } },
-    select: { coachNameEn: true, startDate: true, endDate: true },
+    select: { coachNameEn: true, apiFootballCoachId: true },
   });
-  const assignmentByName = new Map<string, { start: Date | null; end: Date | null }>();
+  const photoByKey = new Map<string, string>();
   for (const a of assignments) {
-    // Normalize names: API sometimes returns "R. Kozuch" while IFA returns "Ran Kozuch".
-    const variants = new Set<string>([a.coachNameEn]);
-    const parts = a.coachNameEn.split(/\s+/);
-    if (parts.length >= 2) variants.add(`${parts[0][0]}. ${parts[parts.length - 1]}`);
-    for (const v of variants) {
-      const existing = assignmentByName.get(v);
-      if (!existing || (a.startDate && (!existing.start || a.startDate < existing.start))) {
-        assignmentByName.set(v, { start: a.startDate, end: a.endDate });
-      }
+    if (!a.apiFootballCoachId) continue;
+    const k = normalizeKey(a.coachNameEn);
+    if (!photoByKey.has(k)) {
+      photoByKey.set(k, `https://media.api-sports.io/football/coachs/${a.apiFootballCoachId}.png`);
     }
   }
 
-  return rows.map((r) => {
-    const exact = assignmentByName.get(r.coach);
-    return {
-      name: r.coach,
-      firstMatch: r.first_match.toISOString().slice(0, 10),
-      lastMatch: r.last_match.toISOString().slice(0, 10),
-      matches: r.matches,
-      wins: r.wins,
-      draws: r.draws,
-      losses: r.losses,
-      winPct: r.matches > 0 ? Math.round((r.wins / r.matches) * 100) : 0,
-      exactStart: exact?.start ? exact.start.toISOString().slice(0, 10) : null,
-      exactEnd: exact?.end ? exact.end.toISOString().slice(0, 10) : null,
-    };
-  });
+  // Pull every match-level coach entry alongside game info + season.
+  const rows = await prisma.$queryRaw<Array<{
+    season_id: string;
+    season_name: string;
+    season_year: number;
+    coach_raw: string;
+    game_date: Date;
+    home_score: number;
+    away_score: number;
+    home_team_id: string;
+    away_team_id: string;
+    team_id: string;
+  }>>`
+    SELECT
+      g."seasonId" AS season_id,
+      s.name AS season_name,
+      s.year AS season_year,
+      gle."participantName" AS coach_raw,
+      g."dateTime" AS game_date,
+      g."homeScore" AS home_score,
+      g."awayScore" AS away_score,
+      g."homeTeamId" AS home_team_id,
+      g."awayTeamId" AS away_team_id,
+      gle."teamId" AS team_id
+    FROM "game_lineup_entries" gle
+    JOIN "games" g ON g.id = gle."gameId"
+    JOIN "seasons" s ON s.id = g."seasonId"
+    JOIN "teams" t ON t.id = gle."teamId" AND t."nameEn" = ${team.nameEn}
+    WHERE gle.role = 'COACH'
+      AND gle."participantName" IS NOT NULL
+      AND g."homeScore" IS NOT NULL
+      AND g."awayScore" IS NOT NULL
+  `;
+
+  // Group: seasonId → coachKey → tenure
+  type Bucket = {
+    name: string;
+    matches: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    firstMatch: Date;
+    lastMatch: Date;
+  };
+  const seasonMap = new Map<string, {
+    seasonName: string;
+    year: number;
+    coaches: Map<string, Bucket>;
+  }>();
+
+  for (const r of rows) {
+    let bySeason = seasonMap.get(r.season_id);
+    if (!bySeason) {
+      bySeason = { seasonName: r.season_name, year: r.season_year, coaches: new Map() };
+      seasonMap.set(r.season_id, bySeason);
+    }
+    const key = normalizeKey(r.coach_raw);
+    let bucket = bySeason.coaches.get(key);
+    if (!bucket) {
+      bucket = { name: r.coach_raw, matches: 0, wins: 0, draws: 0, losses: 0, firstMatch: r.game_date, lastMatch: r.game_date };
+      bySeason.coaches.set(key, bucket);
+    } else {
+      bucket.name = preferLongerName(bucket.name, r.coach_raw);
+    }
+    bucket.matches++;
+    if (r.game_date < bucket.firstMatch) bucket.firstMatch = r.game_date;
+    if (r.game_date > bucket.lastMatch) bucket.lastMatch = r.game_date;
+    const isHome = r.home_team_id === r.team_id;
+    const teamScore = isHome ? r.home_score : r.away_score;
+    const oppScore = isHome ? r.away_score : r.home_score;
+    if (teamScore > oppScore) bucket.wins++;
+    else if (teamScore < oppScore) bucket.losses++;
+    else bucket.draws++;
+  }
+
+  // Project to result, sorted newest-first
+  const result: SeasonCoachGroup[] = Array.from(seasonMap.entries()).map(([seasonId, { seasonName, year, coaches }]) => ({
+    seasonId,
+    seasonName,
+    year,
+    coaches: Array.from(coaches.entries())
+      .map(([key, b]) => ({
+        name: b.name,
+        photoUrl: photoByKey.get(key) || null,
+        firstMatch: b.firstMatch.toISOString().slice(0, 10),
+        lastMatch: b.lastMatch.toISOString().slice(0, 10),
+        matches: b.matches,
+        wins: b.wins,
+        draws: b.draws,
+        losses: b.losses,
+        winPct: b.matches > 0 ? Math.round((b.wins / b.matches) * 100) : 0,
+      }))
+      .sort((a, b) => a.firstMatch.localeCompare(b.firstMatch)),
+  }));
+  result.sort((a, b) => b.year - a.year);
+  return result;
+}
+
+// Legacy single-list export kept so existing callers keep compiling. Flatten the
+// season-grouped result into a single newest-first array.
+export interface CoachTenureFlat extends CoachTenure {
+  exactStart: string | null;
+  exactEnd: string | null;
+}
+export async function buildCoachTimeline(teamId: string): Promise<CoachTenureFlat[]> {
+  const groups = await buildCoachTimelineBySeason(teamId);
+  return groups.flatMap((g) =>
+    g.coaches.map((c) => ({ ...c, exactStart: null, exactEnd: null })),
+  );
 }
