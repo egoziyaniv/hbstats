@@ -18,6 +18,9 @@
   4. אני אעדכן את eas.json submit profile + `eas submit --platform android`
 
 ## 💡 רעיונות לעתיד
+- [ ] **Tighten team-overview AI prompt** — כרגע ה-AI לפעמים כותב שם עונה שגוי (גם בקבוצות נמוכות עם פחות נתונים). להזריק `seasonName` במפורש בפרומפט + הוראה "השתמש בדיוק בעונה הזו".
+- [ ] **Player AI narratives** — אותו דבר לדף שחקן (עם הסטטיסטיקה האישית + form אחרון + ציטוט סגנון Wikipedia).
+- [ ] **Cron יומי לחידוש AI summaries** — להריץ `fetch-team-overviews.js` כל בוקר.
 - [ ] **Heatmap מיקומי שחקנים** במשחק — דרך Sofascore scraper. הם משתמשים ב-Opta tracking. ה-API פנימי שלהם מחזיר JSON עם `heatmap: [{x, y}]`. דורש להתמודד עם Cloudflare + headers (יש לנו תשתית puppeteer-real-browser). מומלץ לסרוק רק ~1000-2000 משחקים עדכניים (2024+) — לא להיסטוריה.
 - [ ] **OTA updates למובייל** דרך `expo-updates` — כדי לא להריץ EAS build על כל שינוי JS קטן.
 - [ ] **Player trophies בדף שחקן** — יש לנו 9,126 רשומות `PlayerTrophy` שלא מוצגות בצורה ייעודית.
