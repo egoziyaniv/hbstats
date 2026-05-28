@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface PlayerMatchStats {
   apiFootballPlayerId: number;
@@ -70,9 +71,13 @@ export function PlayerMatchStatsModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  // Render via portal so the modal escapes any ancestor with overflow-hidden,
+  // transform, or filter — those would otherwise turn our `fixed` into a
+  // relative-to-ancestor positioning context and let the lineup pitch show
+  // through.
+  return createPortal((
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
@@ -148,7 +153,7 @@ export function PlayerMatchStatsModal({
         )}
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 /**
