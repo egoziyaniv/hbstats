@@ -280,6 +280,7 @@ model Player {
   events             GameEvent[]                   @relation("PrimaryPlayer")
   relatedEvents      GameEvent[]                   @relation("RelatedPlayer")
   lineupEntries      GameLineupEntry[]
+  gamePlayerStats    GamePlayerStats[]
   uploads            MediaAsset[]                  @relation("PlayerAssets")
   injuries           PlayerInjury[]
   sidelinedEntries   PlayerSidelinedEntry[]
@@ -342,6 +343,7 @@ model Game {
   predictionSnapshots GamePredictionSnapshot[]
   prediction          GamePrediction?
   gameStats           GameStatistics?
+  gamePlayerStats     GamePlayerStats[]
   awayTeam            Team                     @relation("AwayTeam", fields: [awayTeamId], references: [id])
   competition         Competition?             @relation(fields: [competitionId], references: [id])
   homeTeam            Team                     @relation("HomeTeam", fields: [homeTeamId], references: [id])
@@ -584,6 +586,48 @@ model GameStatistics {
   game               Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@map("game_statistics")
+}
+
+model GamePlayerStats {
+  id                  String   @id @default(cuid())
+  gameId              String
+  playerId            String?
+  teamId              String?
+  apiFootballPlayerId Int
+  playerName          String?
+  // Extracted common fields (from API-Football fixtures/players). Raw holds the full object.
+  rating              Float?
+  minutes             Int?
+  position            String?
+  captain             Boolean  @default(false)
+  substitute          Boolean  @default(false)
+  goals               Int?
+  assists             Int?
+  shotsTotal          Int?
+  shotsOn             Int?
+  passesTotal         Int?
+  passesKey           Int?
+  passAccuracy        Int?
+  tacklesTotal        Int?
+  interceptions       Int?
+  duelsTotal          Int?
+  duelsWon            Int?
+  dribblesAttempts    Int?
+  dribblesSuccess     Int?
+  foulsDrawn          Int?
+  foulsCommitted      Int?
+  yellowCards         Int?
+  redCards            Int?
+  raw                 Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  game                Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player              Player?  @relation(fields: [playerId], references: [id])
+
+  @@unique([gameId, apiFootballPlayerId])
+  @@index([gameId])
+  @@index([playerId])
+  @@map("game_player_stats")
 }
 
 model PlayerInjury {
