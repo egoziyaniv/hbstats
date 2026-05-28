@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTeam } from '@/hooks/useTeam';
+import { useTeamExtras } from '@/hooks/useTeamExtras';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
@@ -23,6 +24,7 @@ export default function TeamScreen() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const { data, isLoading, refetch, isRefetching } = useTeam(id);
+  const { data: extras } = useTeamExtras(id || null);
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -191,6 +193,44 @@ export default function TeamScreen() {
                 ))}
               </View>
             ))}
+          </Card>
+        </Section>
+      ) : null}
+
+      {extras && extras.coaches.length > 0 ? (
+        <Section title="היסטוריית מאמנים">
+          <Card>
+            <View style={{ gap: 4 }}>
+              {extras.coaches.slice(0, 10).map((c) => (
+                <View key={c.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900] }}>{c.nameHe || c.nameEn}</Text>
+                    <Text style={{ fontSize: 10, color: theme.ink[500] }}>{c.seasonName}</Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">
+                    {c.startDate || '?'} → {c.endDate || 'נוכחי'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Section>
+      ) : null}
+
+      {extras && extras.injuries.length > 0 ? (
+        <Section title="פציעות אחרונות">
+          <Card>
+            <View style={{ gap: 4 }}>
+              {extras.injuries.map((inj) => (
+                <View key={inj.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900] }}>{inj.playerName || '—'}</Text>
+                    <Text style={{ fontSize: 10, color: theme.ink[500] }}>{inj.reason || 'פציעה'}</Text>
+                  </View>
+                  {inj.date ? <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">{inj.date}</Text> : null}
+                </View>
+              ))}
+            </View>
           </Card>
         </Section>
       ) : null}

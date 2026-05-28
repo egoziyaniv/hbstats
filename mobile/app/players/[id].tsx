@@ -5,6 +5,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlayer } from '@/hooks/usePlayer';
+import { usePlayerMatchHistory } from '@/hooks/usePlayerMatchHistory';
+import { PlayerMatchHistorySection } from '@/design-system/PlayerMatchHistorySection';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
@@ -44,6 +46,7 @@ export default function PlayerScreen() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const { data, isLoading, refetch, isRefetching } = usePlayer(id);
+  const { data: matchHistory } = usePlayerMatchHistory(id || null);
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -150,6 +153,14 @@ export default function PlayerScreen() {
                 <CareerRow key={row.season + '-' + i} row={row} />
               ))}
             </View>
+          </Section>
+        </Card>
+      ) : null}
+
+      {matchHistory && matchHistory.entries.length > 0 ? (
+        <Card>
+          <Section title={`סטטיסטיקה פר-משחק · ${matchHistory.entries.length} אחרונים`}>
+            <PlayerMatchHistorySection entries={matchHistory.entries} />
           </Section>
         </Card>
       ) : null}

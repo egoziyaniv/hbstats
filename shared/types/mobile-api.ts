@@ -266,6 +266,72 @@ export interface GamePlayerStatsPayload {
   players: MatchPlayerStats[];
 }
 
+// ---------- Player match history (per-game stats over the last N matches) ----------
+
+export interface PlayerMatchHistoryEntry {
+  gameId: string;
+  date: string;
+  opponent: string;
+  scoreLine: string;
+  rating: number | null;
+  minutes: number | null;
+  goals: number | null;
+  assists: number | null;
+  shotsOn: number | null;
+  shotsTotal: number | null;
+  passesKey: number | null;
+  duelsWon: number | null;
+  duelsTotal: number | null;
+}
+
+export interface PlayerMatchHistoryPayload {
+  playerId: string;
+  entries: PlayerMatchHistoryEntry[];
+}
+
+// ---------- Team extras (coach history + recent injuries) ----------
+
+export interface CoachAssignment {
+  id: string;
+  nameHe: string | null;
+  nameEn: string;
+  seasonName: string;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export interface TeamInjury {
+  id: string;
+  playerName: string | null;
+  reason: string | null;
+  date: string | null;
+}
+
+export interface TeamExtrasPayload {
+  teamId: string;
+  coaches: CoachAssignment[];
+  injuries: TeamInjury[];
+}
+
+// ---------- Advanced leaderboards (key passes, duels, dribbles) ----------
+
+export type AdvancedMetric = 'passesKey' | 'duelsWon' | 'dribblesSuccess';
+
+export interface AdvancedLeaderboardEntry {
+  canonicalId: string;
+  name: string;
+  team: string;
+  value: number;
+  matches: number;
+}
+
+export interface AdvancedLeaderboardsPayload {
+  season: { id: string; year: number; name: string };
+  keyPasses: AdvancedLeaderboardEntry[];
+  duelsWon: AdvancedLeaderboardEntry[];
+  dribblesSuccess: AdvancedLeaderboardEntry[];
+}
+
 export interface MatchStats {
   possession: { home: number; away: number } | null;
   shots: { home: number; away: number } | null;

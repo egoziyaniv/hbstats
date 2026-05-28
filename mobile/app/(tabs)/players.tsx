@@ -65,6 +65,14 @@ export default function PlayersTab() {
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
       <Header />
       <TabBar items={TAB_ITEMS} value={tab} onChange={(id) => setTab(id as StatTab)} />
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', justifyContent: 'flex-end' }}>
+        <Pressable
+          onPress={() => router.push('/advanced-stats' as any)}
+          style={{ backgroundColor: theme.ink[100], paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.ink[900] }}>סטטיסטיקה מתקדמת ›</Text>
+        </Pressable>
+      </View>
       <ScrollView
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
         contentContainerStyle={{ paddingVertical: 16, gap: 12, paddingBottom: 32 }}
