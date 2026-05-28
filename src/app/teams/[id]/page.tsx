@@ -194,6 +194,22 @@ export default async function TeamPage({
       })
     : [];
 
+  // Recent injuries for this team (API-Football). Most-recent first.
+  const teamInjuries = await prisma.playerInjury.findMany({
+    where: { teamId: team.id, seasonId: team.seasonId },
+    orderBy: { fixtureDate: 'desc' },
+    take: 20,
+    include: { player: { select: { nameHe: true, nameEn: true } } },
+  });
+
+  // Coach history — all assignments for this team (across seasons), most recent first.
+  const coachHistory = await prisma.teamCoachAssignment.findMany({
+    where: { team: team.nameEn ? { nameEn: team.nameEn } : { nameHe: team.nameHe } },
+    orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+    take: 25,
+    include: { season: { select: { name: true } } },
+  });
+
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
   // then group by the calendar year the contract ends.
@@ -791,6 +807,51 @@ export default async function TeamPage({
                 </div>
               ))}
             </div>
+          </Panel>
+        </section>
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'stats' ? (
+        <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <Panel title="היסטוריית מאמנים">
+            {coachHistory.length === 0 ? (
+              <p className="text-sm text-stone-500">אין נתוני מאמנים זמינים.</p>
+            ) : (
+              <ul className="divide-y divide-stone-100">
+                {coachHistory.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <div>
+                      <div className="font-semibold text-stone-900">{c.coachNameHe || c.coachNameEn}</div>
+                      <div className="text-[11px] text-stone-500">{c.season.name}</div>
+                    </div>
+                    <div className="shrink-0 text-[11px] text-stone-500" dir="ltr">
+                      {c.startDate ? new Date(c.startDate).toISOString().slice(0, 10) : '?'}
+                      {' → '}
+                      {c.endDate ? new Date(c.endDate).toISOString().slice(0, 10) : 'נוכחי'}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+          <Panel title="פציעות אחרונות">
+            {teamInjuries.length === 0 ? (
+              <p className="text-sm text-stone-500">לא נרשמו פציעות לעונה זו.</p>
+            ) : (
+              <ul className="divide-y divide-stone-100">
+                {teamInjuries.map((inj) => (
+                  <li key={inj.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <div>
+                      <div className="font-semibold text-stone-900">{inj.player?.nameHe || inj.playerNameEn || '—'}</div>
+                      <div className="text-[11px] text-stone-500">{inj.reasonEn || inj.typeEn || 'פציעה'}</div>
+                    </div>
+                    <div className="shrink-0 text-[11px] text-stone-500" dir="ltr">
+                      {inj.fixtureDate ? new Date(inj.fixtureDate).toISOString().slice(0, 10) : ''}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </section>
         ) : null}
