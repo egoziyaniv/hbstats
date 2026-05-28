@@ -40,7 +40,7 @@ function ratingColor(rating: number | null): string {
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === '') return null;
   return (
-    <div className="flex items-center justify-between border-b border-stone-100 py-2 text-sm">
+    <div className="flex items-center justify-between border-b border-stone-100 py-1.5 text-[13px] last:border-b-0">
       <span className="text-stone-600">{label}</span>
       <span className="font-bold text-stone-900">{value}</span>
     </div>
@@ -57,11 +57,13 @@ export function PlayerMatchStatsModal({
   onClose,
   stats,
   playerLabel,
+  playerPhoto,
 }: {
   open: boolean;
   onClose: () => void;
   stats: PlayerMatchStats | null;
   playerLabel?: string;
+  playerPhoto?: string | null;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -83,59 +85,74 @@ export function PlayerMatchStatsModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         dir="rtl"
       >
-        <header className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
-          <div>
-            <h2 className="text-xl font-black text-stone-900">{stats?.name || playerLabel || 'שחקן'}</h2>
-            {stats?.position ? (
-              <p className="mt-0.5 text-xs font-semibold text-stone-500">
-                {stats.position}
-                {stats.captain ? ' · קפטן' : ''}
-                {stats.substitute ? ' · החליף' : ''}
-              </p>
-            ) : null}
+        {/* Accent-colored header — text-rtl prefers the Hebrew name from the lineup
+            (playerLabel) over the API-Football English fallback. */}
+        <header className="flex items-center justify-between gap-3 px-4 py-3 text-white" style={{ backgroundColor: 'var(--accent)' }}>
+          <div className="flex min-w-0 items-center gap-3">
+            {playerPhoto ? (
+              <img
+                src={playerPhoto}
+                alt=""
+                className="h-12 w-12 shrink-0 rounded-full border-2 border-white/40 object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 text-lg font-black">
+                {(playerLabel || stats?.name || '?').slice(0, 1)}
+              </div>
+            )}
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-black leading-tight">{playerLabel || stats?.name || 'שחקן'}</h2>
+              {stats?.position ? (
+                <p className="mt-0.5 truncate text-[11px] font-semibold opacity-90">
+                  {stats.position}
+                  {stats.captain ? ' · קפטן' : ''}
+                  {stats.substitute ? ' · החליף' : ''}
+                </p>
+              ) : null}
+            </div>
           </div>
-          <button onClick={onClose} className="rounded-full px-2 py-1 text-2xl leading-none text-stone-400 hover:text-stone-900" aria-label="סגור">×</button>
+          <button onClick={onClose} className="rounded-full px-2 py-1 text-2xl leading-none text-white/80 hover:text-white" aria-label="סגור">×</button>
         </header>
 
         {!stats ? (
-          <div className="p-8 text-center text-sm text-stone-500">אין נתונים מפורטים זמינים לשחקן זה במשחק זה.</div>
+          <div className="p-6 text-center text-sm text-stone-500">אין נתונים מפורטים זמינים לשחקן זה במשחק זה.</div>
         ) : (
           <>
             <div className="flex items-stretch border-b border-stone-200 bg-stone-50">
-              <div className="flex-1 px-5 py-4 text-center">
-                <div className="text-2xl font-black text-stone-900">{stats.minutes ?? '—'}{stats.minutes != null ? "'" : ''}</div>
-                <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-stone-500">דקות</div>
+              <div className="flex-1 px-4 py-3 text-center">
+                <div className="text-xl font-black text-stone-900">{stats.minutes ?? '—'}{stats.minutes != null ? "'" : ''}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">דקות</div>
               </div>
               {stats.rating != null ? (
-                <div className="flex flex-1 items-center justify-center px-5 py-4">
-                  <span className={`flex h-12 w-16 items-center justify-center rounded-lg text-xl font-black text-white shadow-sm ${ratingColor(stats.rating)}`}>
+                <div className="flex flex-1 items-center justify-center px-4 py-3">
+                  <span className={`flex h-10 w-14 items-center justify-center rounded-lg text-lg font-black text-white shadow-sm ${ratingColor(stats.rating)}`}>
                     {stats.rating.toFixed(1)}
                   </span>
                 </div>
               ) : null}
             </div>
 
-            <div className="px-5 py-3">
-              <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-stone-500">תקיפה</h3>
+            <div className="px-4 py-2">
+              <h3 className="mb-0.5 text-[10px] font-black uppercase tracking-wider text-stone-500">תקיפה</h3>
               <Row label="שערים" value={stats.goals} />
               <Row label="בישולים" value={stats.assists} />
               <Row label="בעיטות" value={pctText(stats.shots.on, stats.shots.total)} />
               <Row label="דריבלים מוצלחים" value={pctText(stats.dribbles.success, stats.dribbles.attempts)} />
             </div>
 
-            <div className="px-5 py-3 border-t border-stone-100">
-              <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-stone-500">משחק קישור</h3>
+            <div className="px-4 py-2 border-t border-stone-100">
+              <h3 className="mb-0.5 text-[10px] font-black uppercase tracking-wider text-stone-500">משחק קישור</h3>
               <Row label="מסירות מפתח" value={stats.passes.key} />
               <Row label="סך מסירות" value={stats.passes.total} />
               <Row label="דיוק מסירות" value={stats.passes.accuracy != null ? `${stats.passes.accuracy}%` : null} />
             </div>
 
-            <div className="px-5 py-3 border-t border-stone-100">
-              <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-stone-500">הגנה ועוצמה</h3>
+            <div className="px-4 py-2 border-t border-stone-100">
+              <h3 className="mb-0.5 text-[10px] font-black uppercase tracking-wider text-stone-500">הגנה ועוצמה</h3>
               <Row label="חטיפות" value={stats.tackles.total} />
               <Row label="יירוטים" value={stats.tackles.interceptions} />
               <Row label="דו-קרבות" value={pctText(stats.duels.won, stats.duels.total)} />
@@ -143,8 +160,8 @@ export function PlayerMatchStatsModal({
             </div>
 
             {(stats.cards.yellow || stats.cards.red) ? (
-              <div className="px-5 py-3 border-t border-stone-100">
-                <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-stone-500">כרטיסים</h3>
+              <div className="px-4 py-2 border-t border-stone-100">
+                <h3 className="mb-0.5 text-[10px] font-black uppercase tracking-wider text-stone-500">כרטיסים</h3>
                 <Row label="צהוב" value={stats.cards.yellow} />
                 <Row label="אדום" value={stats.cards.red} />
               </div>
@@ -160,11 +177,12 @@ export function PlayerMatchStatsModal({
  * GamePlayerStatsProvider — fetches all per-player stats for the game once
  * and exposes a button-trigger for each player by apiFootballId.
  */
-export function GamePlayerStatsTrigger({ gameId, apiFootballPlayerId, children, playerLabel }: {
+export function GamePlayerStatsTrigger({ gameId, apiFootballPlayerId, children, playerLabel, playerPhoto }: {
   gameId: string;
   apiFootballPlayerId: number | null;
   children: React.ReactNode;
   playerLabel?: string;
+  playerPhoto?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState<PlayerMatchStats | null>(null);
@@ -184,7 +202,7 @@ export function GamePlayerStatsTrigger({ gameId, apiFootballPlayerId, children, 
       <button type="button" onClick={handleOpen} className="block w-full cursor-pointer text-right">
         {children}
       </button>
-      <PlayerMatchStatsModal open={open} onClose={() => setOpen(false)} stats={stats} playerLabel={playerLabel} />
+      <PlayerMatchStatsModal open={open} onClose={() => setOpen(false)} stats={stats} playerLabel={playerLabel} playerPhoto={playerPhoto} />
     </>
   );
 }

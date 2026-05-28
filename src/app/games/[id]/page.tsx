@@ -898,7 +898,7 @@ function FootballPitch({
               <div key={`${side}-${index}`} className="flex items-start justify-center gap-2 sm:gap-4">
                 {row.map((player) => (
                   <div key={player.id} className="w-[72px] text-center sm:w-[84px]">
-                    <GamePlayerStatsTrigger gameId={gameId} apiFootballPlayerId={player.apiFootballPlayerId} playerLabel={player.displayName}>
+                    <GamePlayerStatsTrigger gameId={gameId} apiFootballPlayerId={player.apiFootballPlayerId} playerLabel={player.displayName} playerPhoto={player.photoUrl}>
                     <div className="group relative mx-auto h-11 w-11 sm:h-12 sm:w-12">
                       {player.photoUrl ? (
                         <img
