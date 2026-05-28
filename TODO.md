@@ -3,11 +3,19 @@
 רשימת רעיונות, פיצ'רים ובעיות לטיפול בהמשך. סדר עדיפויות גמיש — מטפלים תוך-כדי-תנועה כשיש זמן/הקשר מתאים.
 
 ## ⚙️ פעיל
-- [ ] **Mobile #2:** היסטוריית הופעות עם גרף בדף שחקן (port מ-v0.8.2)
-- [ ] **Mobile #3:** מאמנים + פציעות בדף קבוצה (port מ-v0.8.3)
-- [ ] **Mobile #4:** מסך "מתקדם" עם 3 leaderboards (port מ-v0.8.4)
-- [ ] **Android:** הוספת `app.json` config + preview APK build
-- [ ] **App Store:** production iOS build + הגשה לאחר יצירת רשומה ב-ASC
+- [x] **Mobile #1+#2+#3+#4** — כל 4 ה-ports נבנו ב-v0.8.9, build חדש ל-iOS + Android בתהליך
+- [ ] **App Store Connect record (אתה בדפדפן):**
+  1. https://appstoreconnect.apple.com/apps → "+" → New App
+  2. Platforms: iOS · Name: HBStats · Primary language: Hebrew (or English)
+  3. Bundle ID: `il.hbstats.app` (כבר רשום ב-Apple Developer)
+  4. SKU: `hbstats-001` (כל ערך ייחודי)
+  5. אחרי יצירה — שלח לי את ה-**App Apple ID** (מספר 10 ספרות בכותרת הרשומה)
+  6. אני אעדכן `mobile/eas.json` (ascAppId) → אריץ `eas build --profile production` → `eas submit --platform ios`
+- [ ] **Google Play Console record (אתה בדפדפן):**
+  1. https://play.google.com/console → Create app
+  2. App name: HBStats · Language: עברית · Category: Sports · Free
+  3. Setup → API access → Create service account → Download JSON key → תשלח אלי
+  4. אני אעדכן את eas.json submit profile + `eas submit --platform android`
 
 ## 💡 רעיונות לעתיד
 - [ ] **Heatmap מיקומי שחקנים** במשחק — דרך Sofascore scraper. הם משתמשים ב-Opta tracking. ה-API פנימי שלהם מחזיר JSON עם `heatmap: [{x, y}]`. דורש להתמודד עם Cloudflare + headers (יש לנו תשתית puppeteer-real-browser). מומלץ לסרוק רק ~1000-2000 משחקים עדכניים (2024+) — לא להיסטוריה.
