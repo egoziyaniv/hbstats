@@ -300,6 +300,19 @@ export interface CoachAssignment {
   endDate: string | null;
 }
 
+export interface CoachTenureSummary {
+  name: string;
+  firstMatch: string;
+  lastMatch: string;
+  exactStart: string | null;
+  exactEnd: string | null;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winPct: number;
+}
+
 export interface TeamInjury {
   id: string;
   playerName: string | null;
@@ -310,6 +323,7 @@ export interface TeamInjury {
 export interface TeamExtrasPayload {
   teamId: string;
   coaches: CoachAssignment[];
+  coachTimeline: CoachTenureSummary[];
   injuries: TeamInjury[];
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { TeamExtrasPayload } from '@shared/types/mobile-api';
+import { buildCoachTimeline } from '@/lib/coach-timeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   });
   if (!team) return NextResponse.json({ teamId: params.id, coaches: [], injuries: [] });
 
-  const [coachRows, injuryRows] = await Promise.all([
+  const [coachRows, injuryRows, coachTimeline] = await Promise.all([
     // Coach history — across all seasons for this team's name. Dedup by render-side
     // to handle API-Football's overlapping career entries.
     prisma.teamCoachAssignment.findMany({
@@ -26,6 +27,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       take: 20,
       include: { player: { select: { nameHe: true, nameEn: true } } },
     }),
+    buildCoachTimeline(team.id),
   ]);
 
   const seen = new Set<string>();
@@ -52,5 +54,5 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     date: i.fixtureDate ? i.fixtureDate.toISOString().slice(0, 10) : null,
   }));
 
-  return NextResponse.json<TeamExtrasPayload>({ teamId: team.id, coaches, injuries });
+  return NextResponse.json<TeamExtrasPayload>({ teamId: team.id, coaches, coachTimeline, injuries });
 }

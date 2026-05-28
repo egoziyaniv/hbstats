@@ -8,6 +8,8 @@ import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import TeamInjuryManager from '@/components/TeamInjuryManager';
 import { ContractExpiryChart } from '@/components/Charts';
+import { CoachTimeline } from '@/components/CoachTimeline';
+import { buildCoachTimeline } from '@/lib/coach-timeline';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
 
@@ -202,13 +204,10 @@ export default async function TeamPage({
     include: { player: { select: { nameHe: true, nameEn: true } } },
   });
 
-  // Coach history — all assignments for this team (across seasons), most recent first.
-  const coachHistory = await prisma.teamCoachAssignment.findMany({
-    where: { team: team.nameEn ? { nameEn: team.nameEn } : { nameHe: team.nameHe } },
-    orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
-    take: 25,
-    include: { season: { select: { name: true } } },
-  });
+  // Coach tenures built from match-level lineup entries (role=COACH) — full
+  // history per coach incl. matches + W/D/L. Enriched with TeamCoachAssignment
+  // exact dates when available.
+  const coachTimeline = await buildCoachTimeline(team.id);
 
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
@@ -814,38 +813,7 @@ export default async function TeamPage({
         {displayMode !== 'premier' || selectedTab === 'stats' ? (
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <Panel title="היסטוריית מאמנים">
-            {(() => {
-              // Dedup: API-Football returns multiple career entries per coach that
-              // can overlap into the same team-season. Group by (name, start, end)
-              // and keep one row.
-              const seen = new Set<string>();
-              const uniqueCoaches = coachHistory.filter((c) => {
-                const k = `${c.coachNameHe || c.coachNameEn}|${c.startDate?.toISOString().slice(0, 10) || ''}|${c.endDate?.toISOString().slice(0, 10) || ''}`;
-                if (seen.has(k)) return false;
-                seen.add(k);
-                return true;
-              });
-              if (uniqueCoaches.length === 0) {
-                return <p className="text-sm text-stone-500">אין נתוני מאמנים זמינים.</p>;
-              }
-              return (
-                <ul className="divide-y divide-stone-100">
-                  {uniqueCoaches.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                      <div>
-                        <div className="font-semibold text-stone-900">{c.coachNameHe || c.coachNameEn}</div>
-                        <div className="text-[11px] text-stone-500">{c.season.name}</div>
-                      </div>
-                      <div className="shrink-0 text-[11px] text-stone-500" dir="ltr">
-                        {c.startDate ? new Date(c.startDate).toISOString().slice(0, 10) : '?'}
-                        {' → '}
-                        {c.endDate ? new Date(c.endDate).toISOString().slice(0, 10) : 'נוכחי'}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              );
-            })()}
+            <CoachTimeline coaches={coachTimeline} />
           </Panel>
           <Panel title="פציעות אחרונות">
             {teamInjuries.length === 0 ? (
