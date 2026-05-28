@@ -21,7 +21,6 @@ function CoachCard({ c }: { c: CoachTenure }) {
             src={c.photoUrl}
             alt={c.name}
             className="h-12 w-12 shrink-0 rounded-full border border-stone-200 bg-stone-100 object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-stone-100 text-sm font-black text-stone-600">
