@@ -814,25 +814,38 @@ export default async function TeamPage({
         {displayMode !== 'premier' || selectedTab === 'stats' ? (
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <Panel title="היסטוריית מאמנים">
-            {coachHistory.length === 0 ? (
-              <p className="text-sm text-stone-500">אין נתוני מאמנים זמינים.</p>
-            ) : (
-              <ul className="divide-y divide-stone-100">
-                {coachHistory.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                    <div>
-                      <div className="font-semibold text-stone-900">{c.coachNameHe || c.coachNameEn}</div>
-                      <div className="text-[11px] text-stone-500">{c.season.name}</div>
-                    </div>
-                    <div className="shrink-0 text-[11px] text-stone-500" dir="ltr">
-                      {c.startDate ? new Date(c.startDate).toISOString().slice(0, 10) : '?'}
-                      {' → '}
-                      {c.endDate ? new Date(c.endDate).toISOString().slice(0, 10) : 'נוכחי'}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {(() => {
+              // Dedup: API-Football returns multiple career entries per coach that
+              // can overlap into the same team-season. Group by (name, start, end)
+              // and keep one row.
+              const seen = new Set<string>();
+              const uniqueCoaches = coachHistory.filter((c) => {
+                const k = `${c.coachNameHe || c.coachNameEn}|${c.startDate?.toISOString().slice(0, 10) || ''}|${c.endDate?.toISOString().slice(0, 10) || ''}`;
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+              });
+              if (uniqueCoaches.length === 0) {
+                return <p className="text-sm text-stone-500">אין נתוני מאמנים זמינים.</p>;
+              }
+              return (
+                <ul className="divide-y divide-stone-100">
+                  {uniqueCoaches.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <div>
+                        <div className="font-semibold text-stone-900">{c.coachNameHe || c.coachNameEn}</div>
+                        <div className="text-[11px] text-stone-500">{c.season.name}</div>
+                      </div>
+                      <div className="shrink-0 text-[11px] text-stone-500" dir="ltr">
+                        {c.startDate ? new Date(c.startDate).toISOString().slice(0, 10) : '?'}
+                        {' → '}
+                        {c.endDate ? new Date(c.endDate).toISOString().slice(0, 10) : 'נוכחי'}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </Panel>
           <Panel title="פציעות אחרונות">
             {teamInjuries.length === 0 ? (

@@ -38,6 +38,7 @@ const navLinks: NavItem[] = [
   { href: '/players',     label: 'שחקנים',         iconSrc: '/Icons/players-nav-96.png' },
   { href: '/statistics',  label: 'כובשים',         iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/statistics/insights', label: 'תובנות',  iconSrc: '/Icons/stats-nav-96.png' },
+  { href: '/statistics/advanced', label: 'מתקדם',  iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/predictions', label: 'תחזיות',         iconSrc: '/Icons/predictions-nav-96.svg' },
   { href: '/compare',     label: 'השוואה',         iconSrc: '/Icons/compare-nav-96.png' },
   { href: '/venues',      label: 'אצטדיונים',      iconSrc: '/Icons/venues-nav-96.png' },
