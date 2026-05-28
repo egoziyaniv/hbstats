@@ -5,6 +5,7 @@ import { derivePlayerDeepStats } from '@/lib/deep-stats';
 import { getDisplayMode } from '@/lib/display-mode';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
+import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
 
 type AggregatedStatRow = {
   key: string;
@@ -141,6 +142,30 @@ export default async function PlayerPage({
     ...(linkedPlayerIds.length > 0 ? [{ playerId: { in: linkedPlayerIds } }] : []),
     ...(linkedApiFootballIds.length > 0 ? [{ apiFootballPlayerId: { in: linkedApiFootballIds } }] : []),
   ];
+
+  // Per-match detailed stats from API-Football (most recent 30 matches).
+  const matchStatsRows = playerOrCondition.length > 0
+    ? await prisma.gamePlayerStats.findMany({
+        where: {
+          OR: [
+            ...(linkedPlayerIds.length > 0 ? [{ playerId: { in: linkedPlayerIds } }] : []),
+            ...(linkedApiFootballIds.length > 0 ? [{ apiFootballPlayerId: { in: linkedApiFootballIds } }] : []),
+          ],
+        },
+        include: {
+          game: {
+            select: {
+              id: true, dateTime: true, homeScore: true, awayScore: true,
+              homeTeam: { select: { nameHe: true, nameEn: true } },
+              awayTeam: { select: { nameHe: true, nameEn: true } },
+              season: { select: { name: true, year: true } },
+            },
+          },
+        },
+        orderBy: { game: { dateTime: 'desc' } },
+        take: 30,
+      })
+    : [];
 
   const [transfers, trophies, sidelinedEntries] = playerOrCondition.length > 0
     ? await Promise.all([
@@ -454,6 +479,29 @@ export default async function PlayerPage({
   }
   cardHistory.sort((a, b) => +new Date(b.dateTime) - +new Date(a.dateTime));
 
+  const matchHistoryEntries = matchStatsRows.map((r) => {
+    const g = r.game;
+    const homeNm = g.homeTeam?.nameHe || g.homeTeam?.nameEn || '';
+    const awayNm = g.awayTeam?.nameHe || g.awayTeam?.nameEn || '';
+    // Pick the OPPONENT (the team this player wasn't on). Use playerId→team
+    // when known; otherwise fall back to a neutral "home vs away" label.
+    return {
+      gameId: g.id,
+      date: g.dateTime.toISOString().slice(0, 10),
+      opponent: `${homeNm} - ${awayNm}`,
+      scoreLine: g.homeScore != null && g.awayScore != null ? `${g.homeScore}-${g.awayScore}` : '',
+      rating: r.rating,
+      minutes: r.minutes,
+      goals: r.goals,
+      assists: r.assists,
+      shotsOn: r.shotsOn,
+      shotsTotal: r.shotsTotal,
+      passesKey: r.passesKey,
+      duelsWon: r.duelsWon,
+      duelsTotal: r.duelsTotal,
+    };
+  });
+
   if (displayMode === 'premier') {
     return (
       <PremierPlayerView
@@ -479,6 +527,7 @@ export default async function PlayerPage({
         sidelinedEntries={sidelinedEntries}
         currentSidelined={currentSidelined || null}
         cardHistory={cardHistory}
+        matchHistoryEntries={matchHistoryEntries}
       />
     );
   }
@@ -754,6 +803,7 @@ function PremierPlayerView({
   sidelinedEntries,
   currentSidelined,
   cardHistory,
+  matchHistoryEntries,
 }: {
   canonicalPlayer: any;
   canonicalPlayerId: string;
@@ -764,6 +814,7 @@ function PremierPlayerView({
   selectedSeasonId: string;
   availableSeasons: Array<{ id: string; name: string; year: number }>;
   cardHistory: Array<{ id: string; type: string; minute: number; dateTime: Date; gameId: string; opponentNameHe: string; opponentNameEn: string; isHome: boolean }>;
+  matchHistoryEntries: Array<{ gameId: string; date: string; opponent: string; scoreLine: string; rating: number | null; minutes: number | null; goals: number | null; assists: number | null; shotsOn: number | null; shotsTotal: number | null; passesKey: number | null; duelsWon: number | null; duelsTotal: number | null }>;
   derivedTotals: {
     goals: number;
     assists: number;
@@ -1156,6 +1207,16 @@ function PremierPlayerView({
                 </div>
               );
             })()}
+          </section>
+        ) : null}
+
+        {activeTab === 'games' && matchHistoryEntries.length > 0 ? (
+          <section id="match-stats" className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+            <div className="mb-4">
+              <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">סטטיסטיקה פר-משחק</h2>
+              <p className="mt-1 text-sm text-stone-500">דירוג, בעיטות, מסירות מפתח, דו-קרבות ועוד — מ-30 ההופעות האחרונות.</p>
+            </div>
+            <PlayerMatchHistory entries={matchHistoryEntries} />
           </section>
         ) : null}
 

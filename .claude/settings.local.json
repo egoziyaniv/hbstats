@@ -306,7 +306,8 @@
       "Bash(curl -s http://localhost:8011/admin/flashscore -H \"Accept: text/html\")",
       "Bash(curl -s -w \"HTTP %{http_code}\\\\n\" -o /tmp/admin-page.html http://localhost:8011/admin/flashscore)",
       "Bash(curl -s \"http://localhost:8011/api/mobile/v1/players/cmoxgpu8t068vwfs2z5w3dill\")",
-      "Bash(curl -s \"https://hbs.co.il/api/mobile/v1/players/cmoxgpu8t068vwfs2z5w3dill\")"
+      "Bash(curl -s \"https://hbs.co.il/api/mobile/v1/players/cmoxgpu8t068vwfs2z5w3dill\")",
+      "Bash(ssh hbs@178.104.204.119 'pm2 status hbstats | tail -3; curl -sI http://localhost:3100/ | head -1')"
     ],
     "additionalDirectories": [
       "/Users/yaniv/Documents/AI/SoocerStats/src/app/api/mobile/v1/games/[id]",
