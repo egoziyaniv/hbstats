@@ -8,6 +8,7 @@ import { getDisplayMode } from '@/lib/display-mode';
 import { formatPlayerName } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 import { GameRefereeForm } from '@/components/GameRefereeForm';
+import { GamePlayerStatsTrigger } from '@/components/PlayerMatchStatsModal';
 import GameAdminQuickEditorClient from '@/components/GameAdminQuickEditorClient';
 
 const eventLabels: Record<string, string> = {
@@ -63,6 +64,7 @@ export default async function GamePage({
               nameEn: true,
               photoUrl: true,
               position: true,
+              apiFootballId: true,
             },
           },
           team: true,
@@ -303,8 +305,8 @@ export default async function GamePage({
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
-            <TeamLineupCard teamName={game.homeTeam.nameHe || game.homeTeam.nameEn} side="home" lineup={homeLineup} />
-            <TeamLineupCard teamName={game.awayTeam.nameHe || game.awayTeam.nameEn} side="away" lineup={awayLineup} />
+            <TeamLineupCard teamName={game.homeTeam.nameHe || game.homeTeam.nameEn} side="home" lineup={homeLineup} gameId={game.id} />
+            <TeamLineupCard teamName={game.awayTeam.nameHe || game.awayTeam.nameEn} side="away" lineup={awayLineup} gameId={game.id} />
           </div>
         </section>
 
@@ -522,8 +524,8 @@ function PremierGameView({
               ) : null}
             </div>
             <div className="grid gap-6 xl:grid-cols-2">
-              <TeamLineupCard teamName={homeTeamName} side="home" lineup={homeLineup} />
-              <TeamLineupCard teamName={awayTeamName} side="away" lineup={awayLineup} />
+              <TeamLineupCard teamName={homeTeamName} side="home" lineup={homeLineup} gameId={game.id} />
+              <TeamLineupCard teamName={awayTeamName} side="away" lineup={awayLineup} gameId={game.id} />
             </div>
           </PremierPanel>
         ) : null}
@@ -788,10 +790,12 @@ function TeamLineupCard({
   teamName,
   side,
   lineup,
+  gameId,
 }: {
   teamName: string;
   side: 'home' | 'away';
   lineup: ReturnType<typeof buildTeamLineup>;
+  gameId: string;
 }) {
   return (
     <div className="rounded-[24px] border border-stone-200 bg-stone-50 p-4">
@@ -808,7 +812,7 @@ function TeamLineupCard({
       </div>
 
       {lineup.starters.length > 0 ? (
-        <FootballPitch side={side} starters={lineup.starters} formation={lineup.formation} />
+        <FootballPitch side={side} starters={lineup.starters} formation={lineup.formation} gameId={gameId} />
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-stone-300 bg-white p-5 text-center text-sm text-stone-500">
           אין הרכב פותח שמור לקבוצה זו.
@@ -841,16 +845,18 @@ function TeamLineupCard({
   );
 }
 
-type LineupPlayer = { id: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; positionName: string | null; positionGrid: string | null; playerPosition: string | null; rating: number | null };
+type LineupPlayer = { id: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; positionName: string | null; positionGrid: string | null; playerPosition: string | null; rating: number | null; apiFootballPlayerId: number | null };
 
 function FootballPitch({
   side,
   starters,
   formation,
+  gameId,
 }: {
   side: 'home' | 'away';
   starters: LineupPlayer[];
   formation: string | null;
+  gameId: string;
 }) {
   const rows = buildFormationRows(starters, side, formation);
 
@@ -892,6 +898,7 @@ function FootballPitch({
               <div key={`${side}-${index}`} className="flex items-start justify-center gap-2 sm:gap-4">
                 {row.map((player) => (
                   <div key={player.id} className="w-[72px] text-center sm:w-[84px]">
+                    <GamePlayerStatsTrigger gameId={gameId} apiFootballPlayerId={player.apiFootballPlayerId} playerLabel={player.displayName}>
                     <div className="group relative mx-auto h-11 w-11 sm:h-12 sm:w-12">
                       {player.photoUrl ? (
                         <img
@@ -918,6 +925,7 @@ function FootballPitch({
                     <div className="mt-1.5 text-[11px] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                       {player.displayName}
                     </div>
+                    </GamePlayerStatsTrigger>
                   </div>
                 ))}
               </div>
@@ -1268,7 +1276,7 @@ function buildTeamLineup(
       positionGrid: string | null;
       jerseyNumber: number | null;
       rating: number | null;
-      player: { nameHe: string; nameEn: string; photoUrl: string | null; position: string | null } | null;
+      player: { nameHe: string; nameEn: string; photoUrl: string | null; position: string | null; apiFootballId: number | null } | null;
       teamId: string;
     }>;
   },
@@ -1295,7 +1303,7 @@ function mapLineupPlayer(entry: {
   positionGrid: string | null;
   jerseyNumber: number | null;
   rating: number | null;
-  player: { nameHe: string; nameEn: string; photoUrl: string | null; position: string | null } | null;
+  player: { nameHe: string; nameEn: string; photoUrl: string | null; position: string | null; apiFootballId: number | null } | null;
 }) {
   return {
     id: entry.id,
@@ -1306,6 +1314,7 @@ function mapLineupPlayer(entry: {
     jerseyNumber: entry.jerseyNumber,
     rating: entry.rating ?? null,
     playerPosition: entry.player?.position || null,
+    apiFootballPlayerId: entry.player?.apiFootballId ?? null,
   };
 }
 
