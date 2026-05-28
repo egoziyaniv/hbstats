@@ -241,6 +241,31 @@ export interface Lineup {
   players: LineupPlayer[];
 }
 
+export interface MatchPlayerStats {
+  apiFootballPlayerId: number;
+  playerId: string | null;
+  name: string | null;
+  rating: number | null;
+  minutes: number | null;
+  position: string | null;
+  captain: boolean;
+  substitute: boolean;
+  goals: number | null;
+  assists: number | null;
+  shots: { total: number | null; on: number | null };
+  passes: { total: number | null; key: number | null; accuracy: number | null };
+  tackles: { total: number | null; interceptions: number | null };
+  duels: { total: number | null; won: number | null };
+  dribbles: { attempts: number | null; success: number | null };
+  fouls: { drawn: number | null; committed: number | null };
+  cards: { yellow: number | null; red: number | null };
+}
+
+export interface GamePlayerStatsPayload {
+  gameId: string;
+  players: MatchPlayerStats[];
+}
+
 export interface MatchStats {
   possession: { home: number; away: number } | null;
   shots: { home: number; away: number } | null;

@@ -15,6 +15,8 @@ import { TabBar } from '@/design-system/TabBar';
 import { BackButton } from '@/design-system/BackButton';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
+import { PlayerMatchStatsSheet } from '@/design-system/PlayerMatchStatsSheet';
+import { useGamePlayerStats } from '@/hooks/useGamePlayerStats';
 import type { MatchEvent } from '@shared/types/mobile-api';
 
 type MatchTabId = 'overview' | 'events' | 'stats' | 'lineups';
@@ -108,6 +110,12 @@ export default function MatchScreen() {
   const { brand } = useTheme();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MatchTabId>('overview');
+  const [selectedPlayer, setSelectedPlayer] = useState<{ apiId: number | null; name: string; photo: string | null } | null>(null);
+  const sheetOpen = selectedPlayer != null;
+  const { data: playerStatsPayload, isLoading: playerStatsLoading } = useGamePlayerStats(id || null, sheetOpen);
+  const selectedStats = selectedPlayer && playerStatsPayload
+    ? playerStatsPayload.players.find((p) => p.apiFootballPlayerId === selectedPlayer.apiId) || null
+    : null;
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -302,13 +310,17 @@ export default function MatchScreen() {
                     </Text>
                   ) : null}
                   {data.lineups.home.players.filter((p) => p.isStarting).map((p) => (
-                    <View key={p.player.id} style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}>
+                    <Pressable
+                      key={p.player.id}
+                      onPress={() => setSelectedPlayer({ apiId: p.player.apiId, name: p.player.nameHe, photo: p.player.photoUrl })}
+                      style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}
+                    >
                       <View className="w-7 h-7 rounded-full bg-ink-100 items-center justify-center">
                         <Text className="text-[11px] font-black text-ink-700">{p.player.jerseyNumber ?? '—'}</Text>
                       </View>
                       <Text style={{ flex: 1, textAlign: 'right' }} className="text-sm text-ink-900" numberOfLines={1}>{p.player.nameHe}</Text>
                       {p.rating != null ? <RatingBadge rating={p.rating} /> : null}
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
                 <View className="flex-1">
@@ -319,13 +331,17 @@ export default function MatchScreen() {
                     </Text>
                   ) : null}
                   {data.lineups.away.players.filter((p) => p.isStarting).map((p) => (
-                    <View key={p.player.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}>
+                    <Pressable
+                      key={p.player.id}
+                      onPress={() => setSelectedPlayer({ apiId: p.player.apiId, name: p.player.nameHe, photo: p.player.photoUrl })}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}
+                    >
                       <View className="w-7 h-7 rounded-full bg-ink-100 items-center justify-center">
                         <Text className="text-[11px] font-black text-ink-700">{p.player.jerseyNumber ?? '—'}</Text>
                       </View>
                       <Text style={{ flex: 1, textAlign: 'left' }} className="text-sm text-ink-900" numberOfLines={1}>{p.player.nameHe}</Text>
                       {p.rating != null ? <RatingBadge rating={p.rating} /> : null}
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               </View>
@@ -340,6 +356,14 @@ export default function MatchScreen() {
         ) : null}
       </ScrollView>
       <BottomNav />
+      <PlayerMatchStatsSheet
+        open={sheetOpen}
+        onClose={() => setSelectedPlayer(null)}
+        stats={selectedStats}
+        loading={playerStatsLoading}
+        playerLabel={selectedPlayer?.name ?? null}
+        playerPhoto={selectedPlayer?.photo ?? null}
+      />
     </View>
   );
 }
