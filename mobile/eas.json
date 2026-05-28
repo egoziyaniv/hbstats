@@ -23,6 +23,9 @@
       "ios": {
         "simulator": false
       },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hbs.co.il"
       }
@@ -30,7 +33,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://hbstats.example.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://hbs.co.il"
       }
     }
   },
