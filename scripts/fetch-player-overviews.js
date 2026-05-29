@@ -164,10 +164,19 @@ async function main() {
   if (PLAYER_ID) {
     players = await prisma.player.findMany({ where: { id: PLAYER_ID }, include: { team: true } });
   } else {
-    // Players who have meaningful season-stats data in current season
+    // Only Ligat HaAl teams this season (skip lower-division cup participants).
+    const ligatHaalTeams = await prisma.team.findMany({
+      where: {
+        seasonId: season.id,
+        standings: { some: { competitionId: 'comp_liga_haal', seasonId: season.id } },
+      },
+      select: { id: true, nameHe: true },
+    });
+    const teamIds = ligatHaalTeams.map((t) => t.id);
+    console.log(`Ligat HaAl teams in ${season.name}: ${ligatHaalTeams.length}`);
     players = await prisma.player.findMany({
       where: {
-        team: { seasonId: season.id },
+        teamId: { in: teamIds },
         gamePlayerStats: { some: { game: { seasonId: season.id } } },
       },
       include: { team: { select: { nameHe: true, nameEn: true } } },
