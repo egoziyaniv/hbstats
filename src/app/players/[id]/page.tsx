@@ -6,6 +6,7 @@ import { getDisplayMode } from '@/lib/display-mode';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
+import { PlayerOverviewPanel } from '@/components/PlayerOverviewPanel';
 
 type AggregatedStatRow = {
   key: string;
@@ -1208,6 +1209,13 @@ function PremierPlayerView({
               );
             })()}
           </section>
+        ) : null}
+
+        {activeTab === 'overview' && (canonicalPlayer.additionalInfo as { aiSummary?: any } | null)?.aiSummary?.text ? (
+          <PlayerOverviewPanel
+            ai={(canonicalPlayer.additionalInfo as { aiSummary?: any }).aiSummary}
+            playerName={playerDisplayName}
+          />
         ) : null}
 
         {activeTab === 'games' && matchHistoryEntries.length > 0 ? (
