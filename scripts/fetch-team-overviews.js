@@ -48,7 +48,7 @@ async function fetchWiki(team) {
 }
 
 async function buildStatsSnapshot(team) {
-  const [allStandings, games, topScorer, topAssist, coachLatest, cupGames, superCupGame] = await Promise.all([
+  const [allStandings, games, leagueGames, topScorer, topAssist, coachLatest, cupGames, superCupGame] = await Promise.all([
     prisma.standing.findMany({
       where: { teamId: team.id, seasonId: team.seasonId },
       orderBy: { position: 'asc' },
@@ -60,6 +60,15 @@ async function buildStatsSnapshot(team) {
       },
       select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, dateTime: true },
       orderBy: { dateTime: 'desc' }, take: 5,
+    }),
+    // Full league season including playoff — used to compute true W/D/L/goals.
+    prisma.game.findMany({
+      where: {
+        seasonId: team.seasonId, status: 'COMPLETED',
+        competitionId: 'comp_liga_haal',
+        OR: [{ homeTeamId: team.id }, { awayTeamId: team.id }],
+      },
+      select: { homeTeamId: true, homeScore: true, awayScore: true },
     }),
     prisma.competitionLeaderboardEntry.findFirst({
       where: { seasonId: team.seasonId, category: 'TOP_SCORERS', teamNameEn: team.nameEn },
@@ -102,6 +111,21 @@ async function buildStatsSnapshot(team) {
   const regular = allStandings.find((s) => !s.groupNameEn);
   const finalStanding = champGroup || regular;
 
+  // True season totals from completed Ligat HaAl games — includes playoff.
+  const seasonAggregate = { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
+  for (const g of leagueGames) {
+    if (g.homeScore == null || g.awayScore == null) continue;
+    const isHome = g.homeTeamId === team.id;
+    const our = isHome ? g.homeScore : g.awayScore;
+    const their = isHome ? g.awayScore : g.homeScore;
+    seasonAggregate.played++;
+    seasonAggregate.goalsFor += our;
+    seasonAggregate.goalsAgainst += their;
+    if (our > their) seasonAggregate.wins++;
+    else if (our < their) seasonAggregate.losses++;
+    else seasonAggregate.draws++;
+  }
+
   function whoWon(g, isCup = true) {
     if (!g || g.homeScore == null || g.awayScore == null) return null;
     const teamIsHome = g.homeTeamId === team.id;
@@ -136,7 +160,7 @@ async function buildStatsSnapshot(team) {
     return 'D';
   }).join('');
 
-  return { finalStanding, regular, champGroup, last5, topScorer, topAssist, coachLatest, cupResult, superCupResult };
+  return { finalStanding, regular, champGroup, seasonAggregate, last5, topScorer, topAssist, coachLatest, cupResult, superCupResult };
 }
 
 async function generateAiNarrative(team, snapshot, wiki, apiKey) {
@@ -148,8 +172,13 @@ async function generateAiNarrative(team, snapshot, wiki, apiKey) {
 
   const facts = [];
   // Trophies first — most important for narrative impact.
-  if (snapshot.finalStanding?.position === 1) facts.push(`🏆 אלופת הליגה בעונה ${team.season.name}`);
-  else if (snapshot.finalStanding) facts.push(`מקום ${snapshot.finalStanding.position} בליגת העל${snapshot.finalStanding.groupNameEn ? ` (${snapshot.finalStanding.groupNameEn})` : ''} (${snapshot.finalStanding.points} נק', ${snapshot.finalStanding.wins}נ' ${snapshot.finalStanding.draws}ת' ${snapshot.finalStanding.losses}ה')`);
+  const agg = snapshot.seasonAggregate;
+  const aggText = agg && agg.played > 0
+    ? ` (${agg.played} משחקים בליגה כולל פלייאוף: ${agg.wins}נ' ${agg.draws}ת' ${agg.losses}ה', שערים ${agg.goalsFor}-${agg.goalsAgainst})`
+    : '';
+  if (snapshot.finalStanding?.position === 1) facts.push(`🏆 אלופת הליגה בעונה ${team.season.name}${aggText}`);
+  else if (snapshot.finalStanding) facts.push(`מקום ${snapshot.finalStanding.position} בליגת העל${snapshot.finalStanding.groupNameEn ? ` (${snapshot.finalStanding.groupNameEn})` : ''}${aggText}`);
+  else if (agg && agg.played > 0) facts.push(`עונת ${team.season.name}${aggText}`);
   if (snapshot.cupResult) {
     if (snapshot.cupResult.result === 'won') facts.push(`🏆 זוכת גביע המדינה — ניצחה את ${snapshot.cupResult.opponent} ${snapshot.cupResult.score} בגמר`);
     else if (snapshot.cupResult.result === 'lost') facts.push(`סגנית בגמר גביע המדינה — הפסידה ל${snapshot.cupResult.opponent} ${snapshot.cupResult.score}`);
