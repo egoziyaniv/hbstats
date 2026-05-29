@@ -51,6 +51,7 @@ async function buildStatsSnapshot(team) {
   const [allStandings, games, leagueGames, topScorer, topAssist, coachLatest, cupGames, superCupGame] = await Promise.all([
     prisma.standing.findMany({
       where: { teamId: team.id, seasonId: team.seasonId },
+      include: { competition: { select: { nameHe: true, nameEn: true } } },
       orderBy: { position: 'asc' },
     }),
     prisma.game.findMany({
@@ -62,11 +63,20 @@ async function buildStatsSnapshot(team) {
       orderBy: { dateTime: 'desc' }, take: 5,
     }),
     // Full league season including playoff — used to compute true W/D/L/goals.
+    // Excludes cup competitions, so works for both Ligat HaAl and National League teams.
     prisma.game.findMany({
       where: {
         seasonId: team.seasonId, status: 'COMPLETED',
-        competitionId: 'comp_liga_haal',
         OR: [{ homeTeamId: team.id }, { awayTeamId: team.id }],
+        competition: {
+          NOT: {
+            OR: [
+              { nameEn: { contains: 'Cup' } },
+              { nameEn: { contains: 'Toto' } },
+              { nameHe: { contains: 'גביע' } },
+            ],
+          },
+        },
       },
       select: { homeTeamId: true, homeScore: true, awayScore: true },
     }),
@@ -176,8 +186,9 @@ async function generateAiNarrative(team, snapshot, wiki, apiKey) {
   const aggText = agg && agg.played > 0
     ? ` (${agg.played} משחקים בליגה כולל פלייאוף: ${agg.wins}נ' ${agg.draws}ת' ${agg.losses}ה', שערים ${agg.goalsFor}-${agg.goalsAgainst})`
     : '';
-  if (snapshot.finalStanding?.position === 1) facts.push(`🏆 אלופת הליגה בעונה ${team.season.name}${aggText}`);
-  else if (snapshot.finalStanding) facts.push(`מקום ${snapshot.finalStanding.position} בליגת העל${snapshot.finalStanding.groupNameEn ? ` (${snapshot.finalStanding.groupNameEn})` : ''}${aggText}`);
+  const leagueName = snapshot.finalStanding?.competition?.nameHe || snapshot.finalStanding?.competition?.nameEn || 'הליגה';
+  if (snapshot.finalStanding?.position === 1) facts.push(`🏆 אלופת ${leagueName} בעונה ${team.season.name}${aggText}`);
+  else if (snapshot.finalStanding) facts.push(`מקום ${snapshot.finalStanding.position} ב${leagueName}${snapshot.finalStanding.groupNameEn ? ` (${snapshot.finalStanding.groupNameEn})` : ''}${aggText}`);
   else if (agg && agg.played > 0) facts.push(`עונת ${team.season.name}${aggText}`);
   if (snapshot.cupResult) {
     if (snapshot.cupResult.result === 'won') facts.push(`🏆 זוכת גביע המדינה — ניצחה את ${snapshot.cupResult.opponent} ${snapshot.cupResult.score} בגמר`);
