@@ -489,6 +489,7 @@ export default async function AdminPage({
               <Link href={`/admin/games?season=${selectedSeason?.id || ''}`} className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">משחקים</Link>
               <Link href="/admin/venues" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">אצטדיונים</Link>
               <Link href="/admin/referees" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">שופטים</Link>
+              <Link href="/admin/coaches" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">מאמנים</Link>
               <Link href="/admin/unlinked" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">קישור ידני</Link>
               <Link href="/admin/scrape" className="rounded-full bg-blue-500/30 px-3 py-1.5 transition hover:bg-blue-500/50">סריקת אתרים</Link>
               <Link href="/admin/flashscore" className="rounded-full bg-blue-500/30 px-3 py-1.5 transition hover:bg-blue-500/50">Flashscore</Link>
