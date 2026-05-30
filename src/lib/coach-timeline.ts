@@ -181,3 +181,64 @@ export async function buildCoachTimeline(teamId: string): Promise<CoachTenureFla
     g.coaches.map((c) => ({ ...c, exactStart: null, exactEnd: null })),
   );
 }
+
+/**
+ * Coach Win Chart — one entry per (coach, season) tenure with a CROSS-SEASON
+ * canonical display name and photo, so "R. Kozuch (24/25)" and "Ran Kozuch
+ * (25/26)" render identically. Sorted chronologically (oldest → newest).
+ */
+export interface CoachChartEntry {
+  coachKey: string;
+  displayName: string;
+  photoUrl: string | null;
+  seasonName: string;
+  year: number;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winPct: number;
+  pointsPerGame: number;
+}
+
+export async function buildCoachWinChart(teamId: string): Promise<CoachChartEntry[]> {
+  const groups = await buildCoachTimelineBySeason(teamId);
+
+  // First pass: pick the canonical (longest) display name + first photo we see
+  // for each normalized key across ALL seasons.
+  const canonicalName = new Map<string, string>();
+  const canonicalPhoto = new Map<string, string | null>();
+  for (const g of groups) {
+    for (const c of g.coaches) {
+      const key = normalizeKey(c.name);
+      const existing = canonicalName.get(key);
+      canonicalName.set(key, existing ? preferLongerName(existing, c.name) : c.name);
+      if (c.photoUrl && !canonicalPhoto.get(key)) canonicalPhoto.set(key, c.photoUrl);
+    }
+  }
+
+  // Second pass: flatten to (coach, season) rows using the canonical display name.
+  const rows: CoachChartEntry[] = [];
+  for (const g of groups) {
+    for (const c of g.coaches) {
+      const key = normalizeKey(c.name);
+      const points = c.wins * 3 + c.draws;
+      rows.push({
+        coachKey: key,
+        displayName: canonicalName.get(key) || c.name,
+        photoUrl: canonicalPhoto.get(key) || c.photoUrl,
+        seasonName: g.seasonName,
+        year: g.year,
+        matches: c.matches,
+        wins: c.wins,
+        draws: c.draws,
+        losses: c.losses,
+        winPct: c.winPct,
+        pointsPerGame: c.matches > 0 ? Math.round((points / c.matches) * 10) / 10 : 0,
+      });
+    }
+  }
+  // Sort chronologically: older seasons first, within a season older tenures first.
+  rows.sort((a, b) => a.year - b.year);
+  return rows;
+}

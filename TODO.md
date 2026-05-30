@@ -18,6 +18,10 @@
   4. אני אעדכן את eas.json submit profile + `eas submit --platform android`
 
 ## 💡 רעיונות לעתיד
+- [ ] **Coach Win Percentage (סגנון FotMob)** — בדף קבוצה, בר אופקי עם פרצופי המאמנים לאורך השנים. כל מאמן = עמודה אחת עם %ניצחונות + Pts/Game מתחת + תמונה עגולה. שורת זמן כרונולוגית.
+  - גרסה נוספת: **Coach Win Percentage כללי לליגה** — דירוג כל המאמנים שאי-פעם אימנו בליגת העל לפי % ניצחונות (עם מינימום משחקים, נניח 30).
+  - **לתקן dedup בין עונות** — אצלנו עדיין R. Kozuch (24/25) ו-Ran Kozuch (25/26) מופיעים כאילו מאמנים שונים. `normalizeKey()` עובד בתוך עונה אבל לא מאחד שמות מעונות שונות באותה תצוגה. צריך לאחד את הקאנוני (Ran Kozuch) ולמפות R. Kozuch אליו לפני הקיבוץ.
+  - **לבטל את התצוגה הוורטיקלית הנוכחית** — הבר האופקי עם הפרצופים יותר ברור וצפוף.
 - [ ] **Tighten team-overview AI prompt** — כרגע ה-AI לפעמים כותב שם עונה שגוי (גם בקבוצות נמוכות עם פחות נתונים). להזריק `seasonName` במפורש בפרומפט + הוראה "השתמש בדיוק בעונה הזו".
 - [ ] **Player AI narratives** — אותו דבר לדף שחקן (עם הסטטיסטיקה האישית + form אחרון + ציטוט סגנון Wikipedia).
 - [ ] **Cron יומי לחידוש AI summaries** — להריץ `fetch-team-overviews.js` כל בוקר.
@@ -29,6 +33,27 @@
 - [ ] **Filter advanced leaderboards by position** — להציג top key passes רק לקשרים, top duels רק לבלמים, וכו'.
 - [ ] **TestFlight beta testers** — אחרי שיש production iOS build, להוסיף testers.
 - [ ] **App Store screenshots + description** — צריך 6.7" + 5.5" screenshots, תיאור באנגלית ועברית, keywords.
+
+### רעיונות שנאספו מ-FotMob / Sofascore
+- [ ] **Top scorers cross-season** — דירוג היסטורי כובשים בליגת העל (4,122 רשומות זמינות).
+- [ ] **Best XI של עונה** — האחד-עשר הכי טובים לפי דירוג ממוצע ב-`GamePlayerStats`.
+- [ ] **Goal types breakdown** — שערים מבעיטות 11/קרן/ראש/חופשי. הנתון ב-`GameEvent.subType`.
+- [ ] **Form badges בטבלה** — W-W-D-L-W ליד כל שורה.
+- [ ] **Player season comparison** — השוואה side-by-side של 2-3 שחקנים.
+- [ ] **Referee statistics page** — צהובים/אדומים/פנדלים פר שופט.
+- [ ] **Stadium attendance averages** — לכל אצטדיון, ממוצע ו-total.
+- [ ] **Manager/coach profile page** — דף לכל מאמן עם הקריירה.
+- [ ] **Transfers** — לסרוק מ-FotMob/Transfermarkt, סכומים + תאריכים.
+- [ ] **Shot maps פר משחק** — מיקום x,y של כל בעיטה (Sofascore Opta).
+- [ ] **Player season rating 1-10** — Sofascore נותן 2018+.
+- [ ] **Predicted lineup** — תחזית הרכב לפני משחק.
+- [ ] **Player trophy cabinet** — להציג יפה את 9,126 ה-PlayerTrophy שלנו.
+- [ ] **H2H deep dive** — לפני משחק, היסטוריית 10 פגישות אחרונות + סטטיסטיקה.
+- [ ] **Goal timing chart** — באיזה דקות הקבוצה כובשת/סופגת (0-15, 15-30...).
+- [ ] **Squad age + nationality breakdown** — pie charts בדף קבוצה.
+- [ ] **xG over time chart** — לאורך עונה לקבוצה.
+- [ ] **Live momentum bar** — בר אופקי שזז לפי לחץ (יחושב מהיסטוריית אירועים).
+- [ ] **Best player of the match badge** — לפי הדירוג הגבוה ב-`GamePlayerStats`.
 
 ## 🐛 בעיות ידועות
 - [ ] **API-Football coverage** — חלק מהמשחקים מחזירים פחות שחקנים מ-22 בקריאה (חוסר כיסוי). אין מה לעשות מצד שלנו.
