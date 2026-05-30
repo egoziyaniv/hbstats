@@ -41,16 +41,16 @@ model SiteSetting {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   replacedAt DateTime?
   replacedBy String?
-  familyId  String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId   String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
@@ -242,13 +242,42 @@ model TeamCoachAssignment {
   updatedAt          DateTime  @updatedAt
   teamId             String
   seasonId           String
+  coachId            String?
+  coach              Coach?    @relation(fields: [coachId], references: [id], onDelete: SetNull)
   season             Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   team               Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, seasonId, coachNameEn, startDate])
   @@index([teamId, seasonId, startDate])
   @@index([seasonId, coachNameEn])
+  @@index([coachId])
   @@map("team_coach_assignments")
+}
+
+model Coach {
+  id                 String                @id @default(cuid())
+  nameEn             String                @unique
+  nameHe             String?
+  photoUrl           String?
+  apiFootballCoachId Int?                  @unique
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  aliases            CoachAlias[]
+  assignments        TeamCoachAssignment[]
+
+  @@index([nameEn])
+  @@map("coaches")
+}
+
+model CoachAlias {
+  id      String @id @default(cuid())
+  coachId String
+  alias   String @unique
+  coach   Coach  @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@index([alias])
+  @@index([coachId])
+  @@map("coach_aliases")
 }
 
 model Player {
@@ -479,7 +508,7 @@ model PlayerStatistics {
   // Rich API-Football per-season stats
   shotsOnTarget         Int?
   passesTotal           Int?
-  passesAccuracy        Int?         // percent 0-100
+  passesAccuracy        Int? // percent 0-100
   tacklesTotal          Int?
   tacklesBlocks         Int?
   tacklesInterceptions  Int?
@@ -489,10 +518,10 @@ model PlayerStatistics {
   foulsDrawn            Int?
   dribblesAttempts      Int?
   dribblesSuccess       Int?
-  rating                Float?       // 0-10 player rating
+  rating                Float? // 0-10 player rating
   position              String?
-  appearances           Int?         // distinct from gamesPlayed (number of games where player was in squad)
-  additionalInfo        Json?        // raw API-Football statistics block for any extra fields
+  appearances           Int? // distinct from gamesPlayed (number of games where player was in squad)
+  additionalInfo        Json? // raw API-Football statistics block for any extra fields
   competition           Competition? @relation(fields: [competitionId], references: [id])
   player                Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
   season                Season?      @relation(fields: [seasonId], references: [id])
@@ -1394,12 +1423,12 @@ model FootyStatsRawLeagueList {
 }
 
 model FootyStatsRawSeasonSummary {
-  id          Int      @id @default(autoincrement())
-  leagueKey   String
-  year        Int
-  seasonId    Int
-  payload     Json
-  fetchedAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  leagueKey String
+  year      Int
+  seasonId  Int
+  payload   Json
+  fetchedAt DateTime @default(now())
 
   @@unique([leagueKey, year], name: "leagueKey_year_unique")
   @@index([seasonId])
@@ -1407,60 +1436,60 @@ model FootyStatsRawSeasonSummary {
 }
 
 model FootyStatsRawTeams {
-  id          Int      @id @default(autoincrement())
-  leagueKey   String
-  year        Int
-  seasonId    Int
-  payload     Json
-  fetchedAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  leagueKey String
+  year      Int
+  seasonId  Int
+  payload   Json
+  fetchedAt DateTime @default(now())
 
   @@unique([leagueKey, year])
   @@map("footystats_raw_teams")
 }
 
 model FootyStatsRawPlayers {
-  id          Int      @id @default(autoincrement())
-  leagueKey   String
-  year        Int
-  seasonId    Int
-  payload     Json
-  fetchedAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  leagueKey String
+  year      Int
+  seasonId  Int
+  payload   Json
+  fetchedAt DateTime @default(now())
 
   @@unique([leagueKey, year])
   @@map("footystats_raw_players")
 }
 
 model FootyStatsRawReferees {
-  id          Int      @id @default(autoincrement())
-  leagueKey   String
-  year        Int
-  seasonId    Int
-  payload     Json
-  fetchedAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  leagueKey String
+  year      Int
+  seasonId  Int
+  payload   Json
+  fetchedAt DateTime @default(now())
 
   @@unique([leagueKey, year])
   @@map("footystats_raw_referees")
 }
 
 model FootyStatsRawMatchList {
-  id          Int      @id @default(autoincrement())
-  leagueKey   String
-  year        Int
-  seasonId    Int
-  payload     Json
-  fetchedAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  leagueKey String
+  year      Int
+  seasonId  Int
+  payload   Json
+  fetchedAt DateTime @default(now())
 
   @@unique([leagueKey, year])
   @@map("footystats_raw_match_list")
 }
 
 model FootyStatsRawMatch {
-  matchId     Int      @id
-  leagueKey   String
-  year        Int
-  seasonId    Int
-  payload     Json
-  fetchedAt   DateTime @default(now())
+  matchId   Int      @id
+  leagueKey String
+  year      Int
+  seasonId  Int
+  payload   Json
+  fetchedAt DateTime @default(now())
 
   @@index([leagueKey, year])
   @@map("footystats_raw_match")
@@ -1484,16 +1513,16 @@ model FootyStatsScrapedMatch {
 // ──────────────────────────────────────────────────────────────────────
 
 model FlashscoreScrapedMatch {
-  matchKey    String   @id              // Flashscore match id, e.g. "lEXcjwx9"
-  url         String
-  leagueSlug  String                    // e.g. "ligat-haal" — for filtering
-  season      String                    // e.g. "2025-2026"
-  kickoffAt   DateTime?
-  homeKey     String?                   // Flashscore team key, e.g. "h-beer-sheva-EXAD1YZP"
-  awayKey     String?
-  status      String?                   // "FT" | "Scheduled" | "Live" | etc.
-  payload     Json                      // { summary, events, stats, lineups, headToHead }
-  scrapedAt   DateTime @default(now())
+  matchKey   String    @id // Flashscore match id, e.g. "lEXcjwx9"
+  url        String
+  leagueSlug String // e.g. "ligat-haal" — for filtering
+  season     String // e.g. "2025-2026"
+  kickoffAt  DateTime?
+  homeKey    String? // Flashscore team key, e.g. "h-beer-sheva-EXAD1YZP"
+  awayKey    String?
+  status     String? // "FT" | "Scheduled" | "Live" | etc.
+  payload    Json // { summary, events, stats, lineups, headToHead }
+  scrapedAt  DateTime  @default(now())
 
   @@index([leagueSlug, season])
   @@index([kickoffAt])
@@ -1501,31 +1530,31 @@ model FlashscoreScrapedMatch {
 }
 
 model FlashscoreScrapedTeam {
-  teamKey     String   @id              // e.g. "h-beer-sheva-EXAD1YZP"
-  url         String
-  nameEn      String?
-  leagueSlug  String?
-  season      String?
-  payload     Json                      // { overview, squad, standingsRow, fixtures }
-  scrapedAt   DateTime @default(now())
+  teamKey    String   @id // e.g. "h-beer-sheva-EXAD1YZP"
+  url        String
+  nameEn     String?
+  leagueSlug String?
+  season     String?
+  payload    Json // { overview, squad, standingsRow, fixtures }
+  scrapedAt  DateTime @default(now())
 
   @@index([leagueSlug, season])
   @@map("flashscore_scraped_team")
 }
 
 model FlashscoreScrapedTransfer {
-  id          Int      @id @default(autoincrement())
-  teamKey     String                    // owning team page where the transfer was scraped
-  season      String                    // e.g. "2025-2026"
-  direction   String                    // "in" | "out"
-  playerKey   String?                   // Flashscore player id if linked, e.g. "K8ECARcG"
-  playerName  String
-  fromTeam    String?
-  toTeam      String?
-  fee         String?
+  id           Int       @id @default(autoincrement())
+  teamKey      String // owning team page where the transfer was scraped
+  season       String // e.g. "2025-2026"
+  direction    String // "in" | "out"
+  playerKey    String? // Flashscore player id if linked, e.g. "K8ECARcG"
+  playerName   String
+  fromTeam     String?
+  toTeam       String?
+  fee          String?
   transferDate DateTime?
-  payload     Json                      // raw row + any extras
-  scrapedAt   DateTime @default(now())
+  payload      Json // raw row + any extras
+  scrapedAt    DateTime  @default(now())
 
   @@unique([teamKey, season, direction, playerName, transferDate], name: "transfer_natural_key")
   @@index([playerKey])
@@ -1533,17 +1562,17 @@ model FlashscoreScrapedTransfer {
 }
 
 model FlashscoreScrapedPlayer {
-  playerKey   String   @id              // e.g. "K8ECARcG"
-  url         String
-  nameEn      String?
-  birthDate   DateTime?
-  position    String?
-  nationality String?
-  marketValue String?                   // e.g. "€1.2m" — string to preserve formatting
-  contractUntil DateTime?
+  playerKey      String    @id // e.g. "K8ECARcG"
+  url            String
+  nameEn         String?
+  birthDate      DateTime?
+  position       String?
+  nationality    String?
+  marketValue    String? // e.g. "€1.2m" — string to preserve formatting
+  contractUntil  DateTime?
   currentTeamKey String?
-  payload     Json                      // { profile, career[], stats }
-  scrapedAt   DateTime @default(now())
+  payload        Json // { profile, career[], stats }
+  scrapedAt      DateTime  @default(now())
 
   @@index([currentTeamKey])
   @@map("flashscore_scraped_player")

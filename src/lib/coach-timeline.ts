@@ -217,6 +217,24 @@ export async function buildCoachWinChart(teamId: string): Promise<CoachChartEntr
     }
   }
 
+  // Overlay admin-curated Coach data (Hebrew name + manual photo) — when a
+  // CoachAlias matches one of our variants, prefer the canonical Coach.nameHe
+  // and photoUrl for display.
+  const allRawNames = new Set<string>();
+  for (const g of groups) for (const c of g.coaches) allRawNames.add(c.name);
+  if (allRawNames.size > 0) {
+    const aliasRows = await prisma.coachAlias.findMany({
+      where: { alias: { in: Array.from(allRawNames) } },
+      select: { alias: true, coach: { select: { nameEn: true, nameHe: true, photoUrl: true } } },
+    });
+    for (const ar of aliasRows) {
+      const key = normalizeKey(ar.alias);
+      const displayName = ar.coach.nameHe || ar.coach.nameEn;
+      canonicalName.set(key, displayName);
+      if (ar.coach.photoUrl) canonicalPhoto.set(key, ar.coach.photoUrl);
+    }
+  }
+
   // Second pass: flatten to (coach, season) rows using the canonical display name.
   const rows: CoachChartEntry[] = [];
   for (const g of groups) {
