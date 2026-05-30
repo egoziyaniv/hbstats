@@ -107,6 +107,20 @@ export default async function GamePage({
   const eventSummary = buildEventSummary(game);
   const homeLineup = buildTeamLineup(game, game.homeTeamId);
   const awayLineup = buildTeamLineup(game, game.awayTeamId);
+
+  // Player of the match — highest-rated player from either team (starter or sub).
+  const allRatedPlayers = [
+    ...homeLineup.starters, ...homeLineup.substitutes,
+    ...awayLineup.starters, ...awayLineup.substitutes,
+  ]
+    .filter((p) => p.rating != null && p.rating >= 6)
+    .map((p) => ({
+      player: p,
+      side: homeLineup.starters.includes(p) || homeLineup.substitutes.includes(p) ? 'home' as const : 'away' as const,
+    }));
+  const bestPlayer = allRatedPlayers.length > 0
+    ? allRatedPlayers.reduce((best, cur) => (cur.player.rating! > best.player.rating! ? cur : best))
+    : null;
   const comparisonRows = buildComparisonRows(game.gameStats, eventSummary);
   const summaryCards = buildSummaryCards(game.gameStats, eventSummary);
   const adminEditorProps = {
@@ -166,6 +180,7 @@ export default async function GamePage({
         summaryCards={summaryCards}
         homeLineup={homeLineup}
         awayLineup={awayLineup}
+        bestPlayer={bestPlayer}
         hasDetailedStats={hasDetailedStats}
         selectedTab={selectedTab}
         adminEditorProps={adminEditorProps}
@@ -304,6 +319,29 @@ export default async function GamePage({
             ) : null}
           </div>
 
+          {bestPlayer ? (
+            <div className="mt-6 flex items-center gap-4 rounded-2xl border border-amber-200 bg-gradient-to-l from-amber-50 to-white p-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 text-2xl">⭐</div>
+              <div className="flex flex-1 items-center gap-3">
+                {bestPlayer.player.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={bestPlayer.player.photoUrl} alt={bestPlayer.player.displayName} className="h-12 w-12 rounded-full border border-stone-200 object-cover" />
+                ) : null}
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">שחקן המשחק</div>
+                  <div className="text-lg font-black text-stone-900">{bestPlayer.player.displayName}</div>
+                  <div className="text-xs text-stone-500">
+                    {bestPlayer.side === 'home' ? (game.homeTeam.nameHe || game.homeTeam.nameEn) : (game.awayTeam.nameHe || game.awayTeam.nameEn)}
+                    {bestPlayer.player.positionName ? ` · ${bestPlayer.player.positionName}` : ''}
+                  </div>
+                </div>
+              </div>
+              <span className={`flex h-12 w-16 items-center justify-center rounded-xl text-lg font-black text-white ${ratingBg(bestPlayer.player.rating!)}`}>
+                {bestPlayer.player.rating!.toFixed(1)}
+              </span>
+            </div>
+          ) : null}
+
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <TeamLineupCard teamName={game.homeTeam.nameHe || game.homeTeam.nameEn} side="home" lineup={homeLineup} gameId={game.id} />
             <TeamLineupCard teamName={game.awayTeam.nameHe || game.awayTeam.nameEn} side="away" lineup={awayLineup} gameId={game.id} />
@@ -323,6 +361,7 @@ function PremierGameView({
   summaryCards,
   homeLineup,
   awayLineup,
+  bestPlayer,
   hasDetailedStats,
   selectedTab,
   adminEditorProps,
@@ -334,6 +373,7 @@ function PremierGameView({
   summaryCards: ReturnType<typeof buildSummaryCards>;
   homeLineup: ReturnType<typeof buildTeamLineup>;
   awayLineup: ReturnType<typeof buildTeamLineup>;
+  bestPlayer: { player: LineupPlayer; side: 'home' | 'away' } | null;
   hasDetailedStats: boolean;
   selectedTab: GamePremierTab;
   adminEditorProps: any;

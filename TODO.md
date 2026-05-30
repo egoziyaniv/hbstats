@@ -41,7 +41,7 @@
 - [ ] **Top scorers cross-season** — דירוג היסטורי כובשים בליגת העל (4,122 רשומות זמינות).
 - [ ] **Best XI של עונה** — האחד-עשר הכי טובים לפי דירוג ממוצע ב-`GamePlayerStats`.
 - [ ] **Goal types breakdown** — שערים מבעיטות 11/קרן/ראש/חופשי. הנתון ב-`GameEvent.subType`.
-- [ ] **Form badges בטבלה** — W-W-D-L-W ליד כל שורה.
+- [x] **Form badges בטבלה** ✅ כבר קיים — `FormDot` ב-PremierStandingsView.
 - [ ] **Player season comparison** — השוואה side-by-side של 2-3 שחקנים.
 - [ ] **Referee statistics page** — צהובים/אדומים/פנדלים פר שופט.
 - [ ] **Stadium attendance averages** — לכל אצטדיון, ממוצע ו-total.
@@ -56,7 +56,7 @@
 - [ ] **Squad age + nationality breakdown** — pie charts בדף קבוצה.
 - [ ] **xG over time chart** — לאורך עונה לקבוצה.
 - [ ] **Live momentum bar** — בר אופקי שזז לפי לחץ (יחושב מהיסטוריית אירועים).
-- [ ] **Best player of the match badge** — לפי הדירוג הגבוה ב-`GamePlayerStats`.
+- [x] **Best player of the match badge** ✅ v0.9.8 — קלף "שחקן המשחק" בכותרת ההרכבים.
 
 ## 🐛 בעיות ידועות
 - [ ] **API-Football coverage** — חלק מהמשחקים מחזירים פחות שחקנים מ-22 בקריאה (חוסר כיסוי). אין מה לעשות מצד שלנו.
