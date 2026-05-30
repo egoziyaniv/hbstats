@@ -52,7 +52,7 @@
 - [ ] **Predicted lineup** — תחזית הרכב לפני משחק.
 - [ ] **Player trophy cabinet** — להציג יפה את 9,126 ה-PlayerTrophy שלנו.
 - [ ] **H2H deep dive** — לפני משחק, היסטוריית 10 פגישות אחרונות + סטטיסטיקה.
-- [ ] **Goal timing chart** — באיזה דקות הקבוצה כובשת/סופגת (0-15, 15-30...).
+- [x] **Goal timing chart** ✅ v0.9.9 — בדף קבוצה (טאב סטטיסטיקה), 6 דליים של 15 דק'.
 - [ ] **Squad age + nationality breakdown** — pie charts בדף קבוצה.
 - [ ] **xG over time chart** — לאורך עונה לקבוצה.
 - [ ] **Live momentum bar** — בר אופקי שזז לפי לחץ (יחושב מהיסטוריית אירועים).

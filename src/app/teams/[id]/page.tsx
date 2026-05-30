@@ -9,7 +9,9 @@ import { sortStandings } from '@/lib/standings';
 import TeamInjuryManager from '@/components/TeamInjuryManager';
 import { ContractExpiryChart } from '@/components/Charts';
 import { CoachWinChart } from '@/components/CoachWinChart';
+import { GoalTimingChart } from '@/components/GoalTimingChart';
 import { buildCoachWinChart } from '@/lib/coach-timeline';
+import { buildGoalTimingForTeam } from '@/lib/goal-timing';
 import { TeamOverviewPanel } from '@/components/TeamOverviewPanel';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
@@ -209,6 +211,7 @@ export default async function TeamPage({
   // (role=COACH), with name normalization ("R. Kozuch" + "Ran Kozuch" collapse)
   // and photo URLs from API-Football via apiFootballCoachId.
   const coachChart = await buildCoachWinChart(team.id);
+  const goalTiming = await buildGoalTimingForTeam(team.id);
 
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
@@ -817,6 +820,10 @@ export default async function TeamPage({
             </div>
           </Panel>
         </section>
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'stats' ? (
+          <GoalTimingChart buckets={goalTiming} />
         ) : null}
 
         {displayMode !== 'premier' || selectedTab === 'stats' ? (
