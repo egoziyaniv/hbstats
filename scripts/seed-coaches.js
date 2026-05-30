@@ -73,8 +73,15 @@ async function main() {
     let coach = existingAlias?.coach;
 
     if (!coach) {
-      // Check if coach already exists by nameEn (idempotent).
+      // Check by nameEn first (idempotent).
       coach = await prisma.coach.findUnique({ where: { nameEn: canonicalName } });
+    }
+
+    // Also check by apiFootballCoachId — two normalized keys may share the same
+    // person (different spellings of "R. Kozuch" / "Ran Kozuch") but the unique
+    // constraint on apiFootballCoachId would block a second create.
+    if (!coach && b.apiFootballCoachId) {
+      coach = await prisma.coach.findUnique({ where: { apiFootballCoachId: b.apiFootballCoachId } });
     }
 
     if (!coach) {
@@ -87,6 +94,16 @@ async function main() {
         },
       });
       created++;
+    } else if (b.apiFootballCoachId && !coach.apiFootballCoachId) {
+      // Backfill API id + photo on an existing coach that didn't have them.
+      coach = await prisma.coach.update({
+        where: { id: coach.id },
+        data: {
+          apiFootballCoachId: b.apiFootballCoachId,
+          photoUrl: coach.photoUrl || `https://media.api-sports.io/football/coachs/${b.apiFootballCoachId}.png`,
+          nameHe: coach.nameHe || b.nameHe,
+        },
+      });
     }
 
     for (const v of variants) {
