@@ -65,6 +65,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     founded: null,
     venueName: null,
     city: null,
+    aiSummaryText: null,
+    wikiSummary: null,
+    wikiThumbnail: null,
+    wikiSourceUrl: null,
   };
 
   const awayTeam: TeamHeader = {
@@ -76,6 +80,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     founded: null,
     venueName: null,
     city: null,
+    aiSummaryText: null,
+    wikiSummary: null,
+    wikiThumbnail: null,
+    wikiSourceUrl: null,
   };
 
   // Build events array. Drop events whose type doesn't render on mobile

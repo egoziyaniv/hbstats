@@ -81,6 +81,34 @@ export default function TeamScreen() {
         </View>
       </LinearGradient>
 
+      {/* AI / Wikipedia overview */}
+      {data.team.aiSummaryText || data.team.wikiSummary ? (
+        <Section title="סקירה" dense>
+          <Card>
+            {data.team.aiSummaryText ? (
+              <View style={{ backgroundColor: '#FAFAF7', borderRadius: 12, padding: 12, marginBottom: data.team.wikiSummary ? 12 : 0 }}>
+                <Text style={{ fontSize: 14, lineHeight: 21, color: '#222', textAlign: 'right' }}>
+                  {data.team.aiSummaryText}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#999', marginTop: 6, textAlign: 'right', fontWeight: '700', letterSpacing: 0.5 }}>
+                  ניתוח AI
+                </Text>
+              </View>
+            ) : null}
+            {data.team.wikiSummary ? (
+              <View style={{ flexDirection: rtlRow(), gap: 12 }}>
+                {data.team.wikiThumbnail ? (
+                  <CachedImage source={{ uri: data.team.wikiThumbnail }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                ) : null}
+                <Text style={{ fontSize: 13, lineHeight: 19, color: '#555', textAlign: 'right', flex: 1 }}>
+                  {data.team.wikiSummary}
+                </Text>
+              </View>
+            ) : null}
+          </Card>
+        </Section>
+      ) : null}
+
       {/* Recent form */}
       {data.recentForm.length > 0 ? (
         <Section title="צורה אחרונה" dense>

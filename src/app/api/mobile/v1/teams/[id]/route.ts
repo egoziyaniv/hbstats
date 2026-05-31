@@ -89,7 +89,9 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
   const rawTeam = raw.team;
 
-  // Build TeamHeader
+  // Build TeamHeader — includes AI / Wikipedia overview when cached.
+  const aiSummary = (rawTeam as any).aiSummary as { text?: string } | null;
+  const wikiInfo = (rawTeam as any).wikiInfo as { summary?: string; thumbnail?: string; sourceUrl?: string } | null;
   const teamHeader: TeamHeader = {
     id: rawTeam.id,
     apiId: rawTeam.apiFootballId ?? null,
@@ -99,6 +101,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     founded: null,
     venueName: null,
     city: null,
+    aiSummaryText: aiSummary?.text ?? null,
+    wikiSummary: wikiInfo?.summary ?? null,
+    wikiThumbnail: wikiInfo?.thumbnail ?? null,
+    wikiSourceUrl: wikiInfo?.sourceUrl ?? null,
   };
 
   // Build coach

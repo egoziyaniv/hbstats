@@ -24,6 +24,10 @@ export interface TeamHeader extends TeamSummary {
   founded: number | null;
   venueName: string | null;
   city: string | null;
+  aiSummaryText: string | null;
+  wikiSummary: string | null;
+  wikiThumbnail: string | null;
+  wikiSourceUrl: string | null;
 }
 
 export interface PlayerSummary {

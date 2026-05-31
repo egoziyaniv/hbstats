@@ -343,7 +343,7 @@ export async function getMobileTeamPayload(teamId: string) {
   // nameHe + nameEn). Falls back to the requested id if no newer record exists.
   const requested = await prisma.team.findUnique({
     where: { id: teamId },
-    select: { id: true, seasonId: true, apiFootballId: true, nameHe: true, nameEn: true, season: { select: { year: true } } },
+    select: { id: true, seasonId: true, apiFootballId: true, nameHe: true, nameEn: true, aiSummary: true, wikiInfo: true, season: { select: { year: true } } },
   });
   const latestSeason = await prisma.season.findFirst({ orderBy: { year: 'desc' } });
   let resolvedTeamId = teamId;
@@ -585,6 +585,8 @@ export async function getMobileTeamPayload(teamId: string) {
       nameEn: team.nameEn,
       logoUrl: team.logoUrl,
       coach: team.coachHe || team.coach || null,
+      aiSummary: team.aiSummary,
+      wikiInfo: team.wikiInfo,
       season: {
         id: team.season.id,
         name: team.season.name,
