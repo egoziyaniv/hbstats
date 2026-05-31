@@ -21,6 +21,14 @@ export interface PredictedPlayer {
   totalGamesConsidered: number;
 }
 
+export type FormationId = '4-4-2' | '4-3-3' | '5-3-2';
+
+const FORMATION_SLOTS: Record<FormationId, { GK: number; DEF: number; MID: number; FWD: number }> = {
+  '4-4-2': { GK: 1, DEF: 4, MID: 4, FWD: 2 },
+  '4-3-3': { GK: 1, DEF: 4, MID: 3, FWD: 3 },
+  '5-3-2': { GK: 1, DEF: 5, MID: 3, FWD: 2 },
+};
+
 function categorize(position: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
   const p = (position || '').toLowerCase();
   if (p.includes('goal') || p === 'gk' || p.includes('שוער')) return 'GK';
@@ -29,7 +37,7 @@ function categorize(position: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
   return 'MID';
 }
 
-export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date, lookback = 5): Promise<PredictedPlayer[]> {
+export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date, lookback = 5, formation: FormationId = '4-4-2'): Promise<PredictedPlayer[]> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { id: true, seasonId: true, nameHe: true },
@@ -90,9 +98,9 @@ export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date
     totalGamesConsidered: recent.length,
   }));
 
-  // Fill the lineup according to standard formation slots. If a team has many
+  // Fill the lineup according to the requested formation. If a team has many
   // candidates in one position group, we take the most-frequent starters.
-  const limits = { GK: 1, DEF: 4, MID: 4, FWD: 2 } as const;
+  const limits = FORMATION_SLOTS[formation];
   const picked: PredictedPlayer[] = [];
   const counts = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
   for (const c of candidates) {

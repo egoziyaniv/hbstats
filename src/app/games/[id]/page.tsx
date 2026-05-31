@@ -33,7 +33,7 @@ export default async function GamePage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { view?: string; tab?: string };
+  searchParams?: { view?: string; tab?: string; formation?: string };
 }) {
   const displayMode = await getDisplayMode(searchParams?.view);
   const selectedTab = normalizeGamePremierTab(searchParams?.tab);
@@ -115,11 +115,16 @@ export default async function GamePage({
 
   // Predicted lineups — only useful before kickoff, when actual lineups aren't
   // yet known. We use the last 5 completed games of each team in this season.
+  // The user can switch formations via ?formation= in the URL.
   const isPreMatch = game.status === 'SCHEDULED' && homeLineup.starters.length === 0 && awayLineup.starters.length === 0;
+  const predictedFormation: import('@/lib/predicted-lineup').FormationId =
+    searchParams?.formation === '4-3-3' || searchParams?.formation === '5-3-2'
+      ? searchParams.formation
+      : '4-4-2';
   const predictedLineups = isPreMatch
     ? await Promise.all([
-        (await import('@/lib/predicted-lineup')).buildPredictedLineup(game.homeTeamId, game.dateTime),
-        (await import('@/lib/predicted-lineup')).buildPredictedLineup(game.awayTeamId, game.dateTime),
+        (await import('@/lib/predicted-lineup')).buildPredictedLineup(game.homeTeamId, game.dateTime, 5, predictedFormation),
+        (await import('@/lib/predicted-lineup')).buildPredictedLineup(game.awayTeamId, game.dateTime, 5, predictedFormation),
       ])
     : null;
 
@@ -215,6 +220,7 @@ export default async function GamePage({
         h2hSummary={h2hSummary}
         ratingPlayers={ratingPlayers}
         predictedLineups={predictedLineups}
+        predictedFormation={predictedFormation}
         isLoggedIn={!!currentUser}
         hasDetailedStats={hasDetailedStats}
         selectedTab={selectedTab}
@@ -412,6 +418,7 @@ function PremierGameView({
   h2hSummary,
   ratingPlayers,
   predictedLineups,
+  predictedFormation,
   isLoggedIn,
   hasDetailedStats,
   selectedTab,
@@ -428,6 +435,7 @@ function PremierGameView({
   h2hSummary: import('@/lib/h2h').H2HSummary | null;
   ratingPlayers: Array<{ playerId: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; position: string | null; side: 'home' | 'away' }>;
   predictedLineups: [import('@/lib/predicted-lineup').PredictedPlayer[], import('@/lib/predicted-lineup').PredictedPlayer[]] | null;
+  predictedFormation: import('@/lib/predicted-lineup').FormationId;
   isLoggedIn: boolean;
   hasDetailedStats: boolean;
   selectedTab: GamePremierTab;
@@ -624,6 +632,8 @@ function PremierGameView({
                   awayTeamName={awayTeamName}
                   homeLineup={predictedLineups[0]}
                   awayLineup={predictedLineups[1]}
+                  formation={predictedFormation}
+                  gameId={game.id}
                 />
               </PremierPanel>
             ) : null}

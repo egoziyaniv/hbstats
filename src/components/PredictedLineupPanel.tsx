@@ -1,10 +1,12 @@
 /**
  * PredictedLineupPanel — side-by-side predicted XI for both teams on a
- * scheduled (not-yet-played) game. Each player shows their start-count from
- * the last 5 matches so the user can sanity-check the confidence.
+ * scheduled (not-yet-played) game. The user can switch between formations
+ * (4-4-2 / 4-3-3 / 5-3-2) via a URL-based toggle.
  */
 import Link from 'next/link';
-import type { PredictedPlayer } from '@/lib/predicted-lineup';
+import type { PredictedPlayer, FormationId } from '@/lib/predicted-lineup';
+
+const FORMATIONS: FormationId[] = ['4-4-2', '4-3-3', '5-3-2'];
 
 function PlayerCard({ p }: { p: PredictedPlayer }) {
   const confidence = p.totalGamesConsidered > 0 ? Math.round((p.startsInLast5 / p.totalGamesConsidered) * 100) : 0;
@@ -37,11 +39,15 @@ export function PredictedLineupPanel({
   awayTeamName,
   homeLineup,
   awayLineup,
+  formation,
+  gameId,
 }: {
   homeTeamName: string;
   awayTeamName: string;
   homeLineup: PredictedPlayer[];
   awayLineup: PredictedPlayer[];
+  formation: FormationId;
+  gameId: string;
 }) {
   if (homeLineup.length === 0 && awayLineup.length === 0) {
     return <p className="text-sm text-stone-500">אין מספיק היסטוריית הרכבים לתחזית.</p>;
@@ -73,9 +79,23 @@ export function PredictedLineupPanel({
 
   return (
     <div className="space-y-3">
-      <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-        תחזית מבוססת על שכיחות הרכב פותח ב-5 המשחקים האחרונים.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          תחזית מבוססת על שכיחות הרכב פותח ב-5 המשחקים האחרונים.
+        </p>
+        <div className="flex gap-1.5">
+          {FORMATIONS.map((f) => (
+            <Link
+              key={f}
+              href={`/games/${gameId}?tab=lineups&formation=${f}`}
+              scroll={false}
+              className={`rounded-full px-3 py-1 text-xs font-bold ${f === formation ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}
+            >
+              {f}
+            </Link>
+          ))}
+        </div>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         {renderTeam(homeTeamName, homeLineup)}
         {renderTeam(awayTeamName, awayLineup)}
