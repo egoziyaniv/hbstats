@@ -31,23 +31,28 @@ const API_KEY = process.env.FIRECRAWL_API_KEY;
 
 if (!API_KEY) { console.error('Missing FIRECRAWL_API_KEY env var'); process.exit(1); }
 
-async function firecrawl(url) {
-  const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url,
-      formats: ['markdown'],
-      waitFor: 5000,
-      onlyMainContent: false,
-    }),
-  });
-  const data = await res.json();
-  if (!data?.success) { console.error('  firecrawl error:', data?.error); return null; }
-  return data.data;
+async function firecrawl(url, attempt = 1) {
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, formats: ['markdown'], waitFor: 5000, onlyMainContent: false }),
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      // Firecrawl sometimes returns a plain "Bad Gateway" 502 page. Retry once.
+      console.error(`  firecrawl non-JSON (HTTP ${res.status}): ${text.slice(0, 60)}`);
+      if (attempt < 2) { await sleep(2000); return firecrawl(url, attempt + 1); }
+      return null;
+    }
+    if (!data?.success) { console.error('  firecrawl error:', data?.error); return null; }
+    return data.data;
+  } catch (e) {
+    console.error('  firecrawl exception:', e.message);
+    if (attempt < 2) { await sleep(2000); return firecrawl(url, attempt + 1); }
+    return null;
+  }
 }
 
 function normalizeName(s) {
@@ -195,6 +200,59 @@ async function discoverHbsUrls() {
   return Array.from(all);
 }
 
+async function firecrawlSearch(query, limit = 3) {
+  const res = await fetch('https://api.firecrawl.dev/v1/search', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, limit }),
+  });
+  const data = await res.json();
+  return data?.data || [];
+}
+
+async function findSofascoreTeamUrl(teamNameEn) {
+  // Use Firecrawl web search to discover the Sofascore team URL. Sofascore's
+  // team URLs follow /football/team/{slug}/{id}. We pick the FIRST result
+  // that matches the expected pattern AND has the team name in its title.
+  const results = await firecrawlSearch(`site:sofascore.com football/team ${teamNameEn}`, 5);
+  for (const r of results) {
+    if (!r.url) continue;
+    const m = r.url.match(/sofascore\.com\/football\/team\/([a-z0-9-]+)\/(\d+)\b/);
+    if (!m) continue;
+    // Skip youth/U19/U21 etc.
+    if (m[1].match(/u\d+|junior|youth|reserve/i)) continue;
+    return r.url;
+  }
+  return null;
+}
+
+async function discoverAllLeagueMatches(teamNamesEn) {
+  console.log(`\nDiscovering Sofascore URLs for ${teamNamesEn.length} teams…`);
+  const teamUrls = [];
+  for (const name of teamNamesEn) {
+    const url = await findSofascoreTeamUrl(name);
+    if (url) {
+      console.log(`  ✓ ${name} → ${url}`);
+      teamUrls.push(url);
+    } else {
+      console.log(`  ✗ ${name} (not found)`);
+    }
+    await sleep(300);
+  }
+
+  console.log(`\nScraping ${teamUrls.length} team pages for match URLs…`);
+  const matchUrls = new Set();
+  for (const teamUrl of teamUrls) {
+    const d = await firecrawl(teamUrl);
+    const md = d?.markdown || '';
+    const found = md.match(/https:\/\/www\.sofascore\.com\/football\/match\/[a-z0-9-]+\/[A-Za-z0-9]+/g) || [];
+    for (const m of found) matchUrls.add(m);
+    await sleep(300);
+  }
+  console.log(`Total unique match URLs: ${matchUrls.size}`);
+  return Array.from(matchUrls);
+}
+
 async function saveRatings(gameId, ratings, playerLookup) {
   let saved = 0, unmatched = 0;
   for (const r of ratings) {
@@ -259,6 +317,34 @@ async function main() {
       console.log('\nPlayers + ratings:');
       for (const r of result.ratings) console.log(`  ${r.rating} — ${r.name}`);
     }
+    await prisma.$disconnect();
+    return;
+  }
+
+  if (TEAM_NAME && TEAM_NAME.toLowerCase().includes('all')) {
+    // --team "all" — full league mode.
+    const teams = await prisma.team.findMany({
+      where: { season: { year: 2025 }, standings: { some: { competitionId: 'comp_liga_haal' } } },
+      select: { nameEn: true },
+    });
+    const teamNames = teams.map((t) => t.nameEn).filter(Boolean);
+    const urls = await discoverAllLeagueMatches(teamNames);
+    console.log(`\nProcessing ${urls.length} matches…`);
+    const playerLookup = await loadPlayerLookupAllRecent();
+    let totalSaved = 0, totalUnmatched = 0, totalMatched = 0;
+    const cap = LIMIT > 0 ? Math.min(LIMIT, urls.length) : urls.length;
+    for (let i = 0; i < cap; i++) {
+      const result = await processMatch(urls[i]);
+      if (!result?.ratings?.length) continue;
+      const game = await findGameByTeams(result.homeTeamName, result.awayTeamName);
+      if (!game) { console.log(`  no DB game found for ${result.homeTeamName} vs ${result.awayTeamName}`); continue; }
+      console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
+      const { saved, unmatched } = await saveRatings(game.id, result.ratings, playerLookup);
+      totalSaved += saved;
+      totalUnmatched += unmatched;
+      totalMatched++;
+    }
+    console.log(`\nDONE — matches: ${totalMatched}, ratings: ${totalSaved}, unmatched names: ${totalUnmatched}`);
     await prisma.$disconnect();
     return;
   }
