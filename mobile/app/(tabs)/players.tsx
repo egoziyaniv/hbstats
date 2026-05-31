@@ -142,22 +142,25 @@ function LeaderRow({
           </Text>
         </View>
       )}
-      <View style={{ flex: 1 }}>
+      {/* Name + team take their natural width and sit right next to the
+          photo. The value badge below uses `marginStart: 'auto'` to push it
+          to the opposite (visual left) edge of the row. */}
+      <View style={{ flexShrink: 1 }}>
         <Text
-          style={{ fontSize: 14, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl', width: '100%' }}
+          style={{ fontSize: 14, fontWeight: '700', color: theme.ink[900], textAlign: 'right' }}
           numberOfLines={1}
         >
           {entry.playerNameHe}
         </Text>
         <Text
-          style={{ fontSize: 11, color: theme.ink[500], marginTop: 2, textAlign: 'right', writingDirection: 'rtl', width: '100%' }}
+          style={{ fontSize: 11, color: theme.ink[500], marginTop: 2, textAlign: 'right' }}
           numberOfLines={1}
         >
           {entry.teamNameHe}
           {entry.gamesPlayed != null ? ` · ${entry.gamesPlayed} משחקים` : ''}
         </Text>
       </View>
-      <View style={{ alignItems: 'center', minWidth: 50, backgroundColor: brandGlow, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 }}>
+      <View style={{ marginStart: 'auto', alignItems: 'center', minWidth: 50, backgroundColor: brandGlow, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 }}>
         <Text style={{ fontSize: 17, fontWeight: '900', color: theme.ink[900] }}>
           {entry.value}
         </Text>

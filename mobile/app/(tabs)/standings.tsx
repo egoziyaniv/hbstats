@@ -170,14 +170,17 @@ function StandingsRowView({
         ) : (
           <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
         )}
+        {/* Team name attached to the logo (auto width). The numeric columns
+            after this get pushed to the opposite (visual left) edge via
+            marginStart on the first stat. */}
         <Text
-          style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}
+          style={{ flexShrink: 1, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right' }}
           numberOfLines={1}
         >
           {row.teamNameHe}
         </Text>
 
-        <Text style={{ width: 24, fontSize: 11, color: theme.ink[500], textAlign: 'center' }}>{row.played}</Text>
+        <Text style={{ marginStart: 'auto', width: 24, fontSize: 11, color: theme.ink[500], textAlign: 'center' }}>{row.played}</Text>
         <Text
           style={{ width: 36, fontSize: 11, fontWeight: '600', color: row.goalsDiff > 0 ? theme.result.win : row.goalsDiff < 0 ? theme.result.loss : theme.ink[500], textAlign: 'center' }}
         >
