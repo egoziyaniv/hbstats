@@ -3,11 +3,13 @@
  * Matches the prototype's ILHeader (docs/hbs-mobile/components/il-shared.jsx).
  */
 
+import { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Svg, Path, Circle } from 'react-native-svg';
 import { useTheme } from '@/contexts/ThemeContext';
 import { rtlRow } from '@/lib/rtl';
 import { theme } from './theme';
+import { SideMenu } from './SideMenu';
 
 interface HeaderProps {
   title?: string;
@@ -19,9 +21,11 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, onBack, showBack, rightSlot }: HeaderProps) {
   const { brand } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <View style={{ flexShrink: 0 }}>
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
       {/* Brand-colored bar — row-reverse so the HBS badge sits centred while
           the hamburger lands on the right (RTL start) and search on the left. */}
       <View
@@ -42,7 +46,7 @@ export function Header({ title, subtitle, onBack, showBack, rightSlot }: HeaderP
             </Svg>
           </Pressable>
         ) : (
-          <Pressable hitSlop={10}>
+          <Pressable hitSlop={10} onPress={() => setMenuOpen(true)}>
             <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <Path d="M4 6h16M4 12h16M4 18h10" />
             </Svg>

@@ -213,7 +213,7 @@ export default function TeamScreen() {
                       <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: 11, fontWeight: '800', color: theme.ink[700] }}>{p.jerseyNumber ?? '—'}</Text>
                       </View>
-                      <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 14, color: theme.ink[900], textAlign: 'right' }} numberOfLines={1}>
+                      <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 14, color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
                         {p.nameHe}
                       </Text>
                     </View>
