@@ -76,7 +76,7 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
           // Stop touches inside the panel from closing the overlay.
           onStartShouldSetResponder={() => true}
         >
-          <View style={{ direction: 'rtl', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <View style={{ flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <Text style={{ fontSize: 20, fontWeight: '900', color: theme.ink[900] }}>HBStats</Text>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={{ fontSize: 22, fontWeight: '800', color: theme.ink[500] }}>×</Text>
@@ -88,10 +88,8 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
               key={item.path}
               onPress={() => go(item.path)}
               style={({ pressed }) => ({
-                direction: 'rtl',
-                flexDirection: 'row',
+                flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
                 alignItems: 'center',
-                gap: 12,
                 paddingVertical: 12,
                 paddingHorizontal: 6,
                 borderBottomWidth: 1,
@@ -99,10 +97,14 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
                 backgroundColor: pressed ? theme.ink[50] : 'transparent',
               })}
             >
-              <Text style={{ fontSize: 20, width: 24, textAlign: 'center' }}>{item.icon}</Text>
-              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}>
-                {item.label}
-              </Text>
+              {/* Icon — pinned to the visual right via row direction */}
+              <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{item.icon}</Text>
+              {/* Label — wrapped in a View so flex:1 has an explicit container */}
+              <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}>
+                  {item.label}
+                </Text>
+              </View>
             </Pressable>
           ))}
 
