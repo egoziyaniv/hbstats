@@ -1,9 +1,10 @@
 /**
  * BestXiPitch — football pitch with the season's top XI placed by position.
- * Renders the goalkeeper at the bottom, defenders, midfielders, forwards
- * upwards toward goal, fanning each row horizontally based on count.
  *
- * If fewer than 11 players qualified, leaves empty slots gracefully.
+ * Orientation: vertical, attacking upward. The defenders + goalkeeper sit at
+ * the BOTTOM (their own goal), and the forwards push toward the TOP. Pitch
+ * markings use SVG for crisp lines: top + bottom goal/penalty boxes, a
+ * horizontal halfway line, and a center circle.
  */
 import Link from 'next/link';
 import type { BestXiPlayer } from '@/lib/best-xi';
@@ -20,26 +21,27 @@ function PlayerCard({ p }: { p: BestXiPlayer }) {
             {p.displayName.split(/\s+/).map((s) => s[0]).join('').toUpperCase().slice(0, 2)}
           </div>
         )}
-        <span className="absolute -bottom-1 -left-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white shadow">
-          {p.avgRating}
-        </span>
+        {p.avgRating != null ? (
+          <span className="absolute -bottom-1 -left-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white shadow">
+            {p.avgRating}
+          </span>
+        ) : null}
       </div>
       <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-center text-[11px] font-black leading-tight text-white max-w-[100px] truncate">
         {p.displayName}
       </div>
       <div className="text-[10px] font-bold text-white/80">{p.team} · {p.matches} מ&apos;</div>
+      {p.goals > 0 || p.assists > 0 ? (
+        <div className="text-[10px] font-bold text-amber-200">
+          {p.goals > 0 ? `${p.goals}⚽` : ''}{p.goals > 0 && p.assists > 0 ? ' · ' : ''}{p.assists > 0 ? `${p.assists}🅰️` : ''}
+        </div>
+      ) : null}
     </Link>
   );
 }
 
-function Row({ players, label }: { players: BestXiPlayer[]; label: string }) {
-  if (players.length === 0) {
-    return (
-      <div className="flex items-center justify-center gap-4 opacity-30">
-        <span className="text-[10px] font-bold text-white">{label}: לא נמצאו מועמדים</span>
-      </div>
-    );
-  }
+function Row({ players }: { players: BestXiPlayer[] }) {
+  if (players.length === 0) return <div className="h-20" />;
   return (
     <div className="flex items-center justify-around gap-3">
       {players.map((p) => <PlayerCard key={p.playerId} p={p} />)}
@@ -54,22 +56,46 @@ export function BestXiPitch({ players }: { players: BestXiPlayer[] }) {
   const fwds = players.filter((p) => p.posCategory === 'FWD');
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-emerald-700 via-emerald-600 to-emerald-700 p-6 shadow-2xl">
-      {/* Pitch markings */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-full w-px bg-white/20" />
-        <div className="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20" />
-        <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20" />
-        {/* Goal areas */}
-        <div className="absolute left-1/2 top-0 h-12 w-40 -translate-x-1/2 border-2 border-t-0 border-white/20" />
-        <div className="absolute left-1/2 bottom-0 h-12 w-40 -translate-x-1/2 border-2 border-b-0 border-white/20" />
+    <div className="relative overflow-hidden rounded-3xl shadow-2xl">
+      {/* Stripes for visual depth */}
+      <div className="absolute inset-0 bg-emerald-700">
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <div
+            key={i}
+            className={`absolute left-0 right-0 h-[12.5%] ${i % 2 === 0 ? 'bg-emerald-600/40' : ''}`}
+            style={{ top: `${i * 12.5}%` }}
+          />
+        ))}
       </div>
 
-      <div className="relative flex flex-col gap-6 py-3 text-white">
-        <Row players={fwds} label="חלוץ" />
-        <Row players={mids} label="קישור" />
-        <Row players={defs} label="הגנה" />
-        <Row players={gks} label="שוער" />
+      {/* Pitch markings as SVG so they scale cleanly */}
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox="0 0 100 140"
+        preserveAspectRatio="none"
+      >
+        {/* Outer boundary */}
+        <rect x="2" y="2" width="96" height="136" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        {/* Halfway line (horizontal) */}
+        <line x1="2" y1="70" x2="98" y2="70" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        {/* Center circle */}
+        <circle cx="50" cy="70" r="9" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        <circle cx="50" cy="70" r="0.8" fill="rgba(255,255,255,0.45)" />
+        {/* Top penalty area (opponent half) */}
+        <rect x="22" y="2" width="56" height="14" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        <rect x="36" y="2" width="28" height="5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        <circle cx="50" cy="11" r="0.8" fill="rgba(255,255,255,0.45)" />
+        {/* Bottom penalty area (our half — goalkeeper) */}
+        <rect x="22" y="124" width="56" height="14" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        <rect x="36" y="133" width="28" height="5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" />
+        <circle cx="50" cy="129" r="0.8" fill="rgba(255,255,255,0.45)" />
+      </svg>
+
+      <div className="relative flex flex-col justify-between gap-4 px-4 py-8 text-white" style={{ minHeight: '600px' }}>
+        <Row players={fwds} />
+        <Row players={mids} />
+        <Row players={defs} />
+        <Row players={gks} />
       </div>
     </div>
   );

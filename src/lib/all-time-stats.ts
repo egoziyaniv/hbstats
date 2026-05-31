@@ -1,15 +1,15 @@
 /**
- * all-time-stats.ts — cross-season leaderboards.
+ * all-time-stats.ts — cross-season leaderboards unified across data sources.
  *
- * Two data eras coexist:
- *   - **2016+**: PlayerStatistics — comprehensive, canonical-keyed, includes
- *     playoff totals. Joins through Player → canonicalPlayer for Hebrew names.
- *   - **2000-2015**: scraped_leaderboards (Walla) — top-5 per season only,
- *     keyed by plain text name. Best-effort lookup for player linking.
+ * Two underlying sources are merged transparently for the user:
+ *   - PlayerStatistics (rich, 2016+) — joined to Player → canonical so we get
+ *     the proper canonical id + Hebrew name + photo.
+ *   - scraped_leaderboards (Walla, top-5 per season, 2000-2026) — text-only
+ *     names; we best-effort match to canonical Players by Hebrew/English name
+ *     so the link works when possible, and silently fall back to text rows.
  *
- * Within one (player, season) there can be multiple PlayerStatistics rows
- * (per competition); we pick MAX per (canonical, season) to avoid double
- * counting when a player has both league + cup stats.
+ * Within one (player, season) we pick MAX per metric to avoid double-counting
+ * league + cup entries.
  */
 import prisma from '@/lib/prisma';
 
@@ -33,8 +33,10 @@ const METRIC_MAP = {
 
 export type AllTimeCategory = keyof typeof METRIC_MAP;
 
-export async function buildAllTimeLeaderboard(category: AllTimeCategory, limit = 50): Promise<AllTimeEntry[]> {
+export async function buildAllTimeLeaderboard(category: AllTimeCategory, limit = 50, sinceYear?: number): Promise<AllTimeEntry[]> {
   const column = METRIC_MAP[category];
+  const sinceFilter = sinceYear ? ` AND s.year >= ${sinceYear}` : '';
+  const sinceJoin = sinceYear ? ` JOIN "seasons" s ON s.id = ps."seasonId"` : '';
 
   // Pick MAX per (canonical, season) to avoid double-counting across competitions,
   // then SUM per canonical player. Names/photos/teams come from subqueries on
@@ -56,7 +58,8 @@ export async function buildAllTimeLeaderboard(category: AllTimeCategory, limit =
         MAX(ps."${column}") AS value
       FROM "player_statistics" ps
       JOIN "players" p ON p.id = ps."playerId"
-      WHERE ps."${column}" IS NOT NULL AND ps."${column}" > 0
+      ${sinceJoin}
+      WHERE ps."${column}" IS NOT NULL AND ps."${column}" > 0${sinceFilter}
       GROUP BY canonical, ps."seasonId"
     )
     SELECT
@@ -125,4 +128,132 @@ export async function buildWallaHistorical(category: AllTimeCategory): Promise<W
     teamName: r.teamName,
     value: Math.round(r.value),
   }));
+}
+
+// ── Unified leaderboard combining all sources ───────────────────────────────
+export interface UnifiedEntry {
+  rank: number;
+  canonicalId: string | null;
+  displayName: string;
+  photoUrl: string | null;
+  total: number;
+  seasons: number;
+  bestSeason: { seasonName: string; value: number } | null;
+  teams: string[];
+}
+
+function normalizeName(name: string): string {
+  return name.replace(/[.,'"]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * Build a unified leaderboard combining PlayerStatistics (rich data) with the
+ * Walla scrape (historical seasons). Walla entries are matched to canonical
+ * players when the (Hebrew or English) name resolves; otherwise they appear
+ * as text-only rows. The display table shows one unified ranking.
+ */
+export async function buildUnifiedLeaderboard(category: AllTimeCategory, limit = 100, sinceYear?: number): Promise<UnifiedEntry[]> {
+  const psRows = await buildAllTimeLeaderboard(category, 500, sinceYear);
+
+  const wallaCat = WALLA_CATEGORY[category];
+  const wallaRows = await prisma.scrapedLeaderboard.findMany({
+    where: {
+      source: 'walla',
+      category: wallaCat,
+      ...(sinceYear ? { season: { gte: `${sinceYear}/` } } : {}),
+    },
+    orderBy: { season: 'desc' },
+    select: { season: true, playerName: true, teamName: true, value: true },
+  });
+
+  // For Walla entries: try to match each playerName to a canonical Player so
+  // we can merge into an existing PlayerStatistics entry rather than create a
+  // duplicate text-only row.
+  const allPlayers = await prisma.player.findMany({
+    select: { id: true, nameHe: true, nameEn: true, canonicalPlayerId: true },
+  });
+  const byName = new Map<string, string>(); // normalized name → canonical id
+  for (const p of allPlayers) {
+    const canon = p.canonicalPlayerId ?? p.id;
+    if (p.nameHe) byName.set(normalizeName(p.nameHe), canon);
+    if (p.nameEn) byName.set(normalizeName(p.nameEn), canon);
+  }
+
+  // Index PlayerStatistics rows by canonical id for quick merge.
+  const byCanonical = new Map<string, UnifiedEntry>();
+  for (const r of psRows) {
+    byCanonical.set(r.canonicalId, {
+      rank: 0,
+      canonicalId: r.canonicalId,
+      displayName: r.displayName,
+      photoUrl: r.photoUrl,
+      total: r.total,
+      seasons: r.seasons,
+      bestSeason: r.bestSeason,
+      teams: r.teams,
+    });
+  }
+
+  // Index Walla entries — also handle text-only rows that don't resolve.
+  type TextOnly = { displayName: string; total: number; seasons: Set<string>; best: { seasonName: string; value: number } | null; teams: Set<string> };
+  const textOnly = new Map<string, TextOnly>();
+
+  for (const w of wallaRows) {
+    const value = Math.round(w.value);
+    const canon = byName.get(normalizeName(w.playerName));
+    if (canon && byCanonical.has(canon)) {
+      // Already accounted for in PlayerStatistics era — skip (avoid double).
+      continue;
+    }
+    if (canon) {
+      // Player exists but had no PlayerStatistics row (pre-2016) — create unified entry.
+      const existing = byCanonical.get(canon);
+      const p = allPlayers.find((pp) => (pp.canonicalPlayerId ?? pp.id) === canon)!;
+      const name = p.nameHe || p.nameEn;
+      if (!existing) {
+        byCanonical.set(canon, {
+          rank: 0,
+          canonicalId: canon,
+          displayName: name,
+          photoUrl: null,
+          total: value,
+          seasons: 1,
+          bestSeason: { seasonName: w.season, value },
+          teams: [w.teamName],
+        });
+      } else {
+        existing.total += value;
+        existing.seasons += 1;
+        if (!existing.bestSeason || value > existing.bestSeason.value) existing.bestSeason = { seasonName: w.season, value };
+        if (!existing.teams.includes(w.teamName)) existing.teams.push(w.teamName);
+      }
+    } else {
+      // Text-only row.
+      const key = normalizeName(w.playerName);
+      let t = textOnly.get(key);
+      if (!t) { t = { displayName: w.playerName, total: 0, seasons: new Set(), best: null, teams: new Set() }; textOnly.set(key, t); }
+      t.total += value;
+      t.seasons.add(w.season);
+      if (!t.best || value > t.best.value) t.best = { seasonName: w.season, value };
+      if (w.teamName) t.teams.add(w.teamName);
+    }
+  }
+
+  const merged: UnifiedEntry[] = [
+    ...byCanonical.values(),
+    ...Array.from(textOnly.values()).map<UnifiedEntry>((t) => ({
+      rank: 0,
+      canonicalId: null,
+      displayName: t.displayName,
+      photoUrl: null,
+      total: t.total,
+      seasons: t.seasons.size,
+      bestSeason: t.best,
+      teams: Array.from(t.teams).slice(0, 4),
+    })),
+  ];
+
+  merged.sort((a, b) => b.total - a.total);
+  merged.forEach((e, i) => { e.rank = i + 1; });
+  return merged.slice(0, limit);
 }
