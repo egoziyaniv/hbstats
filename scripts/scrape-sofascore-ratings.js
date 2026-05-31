@@ -87,23 +87,24 @@ function matchGame(gameLookup, eventDateISO, homeName, awayName) {
 }
 
 async function pageFetchJson(page, url) {
-  // Use in-page fetch — same-origin from the page Cloudflare already cleared.
+  // Navigate the page directly to the API endpoint — Chrome renders JSON in a
+  // <pre>. CORS doesn't apply for navigations, only for cross-origin fetches.
   try {
-    const result = await page.evaluate(async (u) => {
-      try {
-        const r = await fetch(u, {
-          credentials: 'include',
-          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        });
-        return { status: r.status, ok: r.ok, text: await r.text() };
-      } catch (e) {
-        return { error: String(e) };
-      }
-    }, url);
-    if (result?.error) { console.log('  fetch err:', result.error); return null; }
-    if (!result?.ok) { console.log('  fetch status:', result?.status, 'body:', (result?.text || '').slice(0, 120)); return null; }
-    return JSON.parse(result.text);
-  } catch (e) { console.log('  outer err:', e?.message); return null; }
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!res) { console.log('  no response for', url); return null; }
+    const status = res.status();
+    if (status !== 200) {
+      console.log('  http', status, 'for', url);
+      return null;
+    }
+    const text = await page.evaluate(() => document.body?.innerText || '');
+    const trimmed = text.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      console.log('  non-json body (' + trimmed.length + 'b):', trimmed.slice(0, 80));
+      return null;
+    }
+    return JSON.parse(trimmed);
+  } catch (e) { console.log('  err:', e?.message); return null; }
 }
 
 async function main() {
