@@ -393,6 +393,17 @@ export interface H2H {
   wins: { home: number; away: number; draw: number };
 }
 
+export interface PredictedLineupPlayerSummary {
+  playerId: string;
+  displayName: string;
+  photoUrl: string | null;
+  position: string | null;
+  posCategory: 'GK' | 'DEF' | 'MID' | 'FWD';
+  jerseyNumber: number | null;
+  startsInLast5: number;
+  totalGamesConsidered: number;
+}
+
 export interface MatchPayload {
   match: {
     id: string;
@@ -411,6 +422,7 @@ export interface MatchPayload {
   lineups: { home: Lineup; away: Lineup };
   matchStats: MatchStats | null;
   h2h: H2H | null;
+  predicted: { home: PredictedLineupPlayerSummary[]; away: PredictedLineupPlayerSummary[] } | null;
 }
 
 // ---------- Team ----------

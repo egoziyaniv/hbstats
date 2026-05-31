@@ -220,9 +220,25 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     },
     matchStats,
     h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
+    predicted: await buildPredictedBlock(raw),
   };
 
   return NextResponse.json(payload);
+}
+
+async function buildPredictedBlock(raw: NonNullable<Awaited<ReturnType<typeof import('@/lib/mobile-details-api').getMobileGamePayload>>>) {
+  // Only predict for not-yet-started matches without known lineups.
+  if (raw.game.status !== 'SCHEDULED') return null;
+  const homeStarters = raw.sections.lineups.home.starters.length;
+  const awayStarters = raw.sections.lineups.away.starters.length;
+  if (homeStarters > 0 || awayStarters > 0) return null;
+  const { buildPredictedLineup } = await import('@/lib/predicted-lineup');
+  const kickoff = new Date(raw.game.dateTime);
+  const [home, away] = await Promise.all([
+    buildPredictedLineup(raw.game.homeTeam.id, kickoff, 5, '4-4-2'),
+    buildPredictedLineup(raw.game.awayTeam.id, kickoff, 5, '4-4-2'),
+  ]);
+  return { home, away };
 }
 
 async function buildH2HBlock(homeTeamId: string, awayTeamId: string, currentGameId: string): Promise<import('@shared/types/mobile-api').H2H | null> {

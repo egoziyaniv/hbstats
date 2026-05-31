@@ -300,6 +300,37 @@ export default function MatchScreen() {
           )
         ) : null}
 
+        {tab === 'lineups' && data.predicted && (data.predicted.home.length > 0 || data.predicted.away.length > 0) ? (
+          <Card>
+            <Section title="תחזית הרכב פותח" dense>
+              <Text style={{ fontSize: 11, color: theme.ink[500], marginBottom: 8, textAlign: 'right' }}>
+                לפי שכיחות הרכב פותח ב-5 משחקים אחרונים
+              </Text>
+              <View style={{ flexDirection: rtlRow(), gap: 12 }}>
+                {[
+                  { name: homeTeam.nameHe, list: data.predicted.home },
+                  { name: awayTeam.nameHe, list: data.predicted.away },
+                ].map((side) => (
+                  <View key={side.name} style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '900', marginBottom: 4, textAlign: 'right' }}>{side.name}</Text>
+                    {side.list.map((p) => {
+                      const conf = p.totalGamesConsidered > 0 ? Math.round((p.startsInLast5 / p.totalGamesConsidered) * 100) : 0;
+                      return (
+                        <View key={p.playerId} style={{ flexDirection: rtlRow(), gap: 6, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}>
+                          <Text style={{ flex: 1, fontSize: 11, fontWeight: '700', textAlign: 'right' }} numberOfLines={1}>
+                            {p.jerseyNumber ? `${p.jerseyNumber}. ` : ''}{p.displayName}
+                          </Text>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: conf >= 80 ? '#047857' : conf >= 50 ? '#b45309' : theme.ink[500] }}>{conf}%</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            </Section>
+          </Card>
+        ) : null}
+
         {tab === 'lineups' && (data.lineups.home.players.length > 0 || data.lineups.away.players.length > 0) ? (
           <Pressable
             onPress={() => setRatingOpen(true)}
