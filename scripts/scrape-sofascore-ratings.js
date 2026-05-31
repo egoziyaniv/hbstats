@@ -120,57 +120,54 @@ async function main() {
 
   try {
     await page.setViewport({ width: 1440, height: 900 });
+    // First — pass Cloudflare on the main domain. After this, our cookies +
+    // session work for subsequent navigations across the same site.
     await page.goto('https://www.sofascore.com/tournament/football/israel/ligat-haal/266', { waitUntil: 'networkidle2', timeout: 60000 });
-    // Wait through Cloudflare if needed.
     const cfStart = Date.now();
     while (Date.now() - cfStart < 60000) {
       const title = await page.title().catch(() => '');
       if (!/just a moment|attention required|cloudflare/i.test(title)) break;
       await sleep(2000);
     }
-    console.log('Page open:', await page.title());
+    console.log('Cloudflare cleared. Title:', await page.title());
+
+    // Helper to navigate to an API URL and parse the JSON body. The browser
+    // session now has the Cloudflare cookies — try again, this time inside
+    // the puppeteer context.
+    async function apiGet(url) {
+      try {
+        const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        if (!res) return null;
+        const status = res.status();
+        if (status !== 200) { console.log(`  api ${status} ${url}`); return null; }
+        const text = await page.evaluate(() => document.body?.innerText || '');
+        const t = text.trim();
+        if (!t.startsWith('{') && !t.startsWith('[')) {
+          console.log('  non-json body:', t.slice(0, 80));
+          return null;
+        }
+        return JSON.parse(t);
+      } catch (e) { console.log('  err:', e?.message); return null; }
+    }
 
     let totalEvents = 0, totalRatings = 0, unmatchedGames = 0, unmatchedPlayers = 0;
 
-    // Walk every round in the season. For each, navigate to the schedule view
-    // — the page calls /events/round/X internally, which we intercept.
     for (let round = 1; round <= 36; round++) {
-      const before = captured.size;
-      captured.clear();
-      const roundUrl = `https://www.sofascore.com/tournament/football/israel/ligat-haal/266/season/${ssSeasonId}#round=${round}`;
-      try {
-        await page.goto(roundUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-      } catch { continue; }
-      await sleep(2000); // let lazy fetches settle
+      const eventsApi = `https://api.sofascore.com/api/v1/unique-tournament/266/season/${ssSeasonId}/events/round/${round}`;
+      const eventsData = await apiGet(eventsApi);
+      if (!eventsData?.events?.length) continue;
+      console.log(`Round ${round}: ${eventsData.events.length} events`);
 
-      // Find the events response for this round.
-      let events = null;
-      for (const [url, data] of captured) {
-        if (url.includes(`/events/round/${round}`)) { events = data?.events; break; }
-      }
-      if (!events?.length) continue;
-      console.log(`Round ${round}: ${events.length} events`);
-
-      for (const ev of events) {
+      for (const ev of eventsData.events) {
         if (LIMIT && totalEvents >= LIMIT) break;
         totalEvents++;
         const eventDate = new Date(ev.startTimestamp * 1000).toISOString();
         const gameId = matchGame(gameLookup, eventDate, ev.homeTeam?.name, ev.awayTeam?.name);
         if (!gameId) { unmatchedGames++; continue; }
 
-        // Visit the match's lineups tab. URL pattern: /football/match/{slug}/{shortcode}/lineups#id:{eventId}
-        const slug = ev.slug || `${ev.homeTeam?.slug || 'home'}-${ev.awayTeam?.slug || 'away'}`;
-        const matchUrl = `https://www.sofascore.com/event/${ev.id}/lineups`;
-        captured.clear();
-        try {
-          await page.goto(matchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-        } catch { continue; }
-        await sleep(2000);
-
-        let lineups = null;
-        for (const [url, data] of captured) {
-          if (url.endsWith(`/event/${ev.id}/lineups`) || url.includes(`/event/${ev.id}/lineups`)) { lineups = data; break; }
-        }
+        const lineupsApi = `https://api.sofascore.com/api/v1/event/${ev.id}/lineups`;
+        const lineups = await apiGet(lineupsApi);
+        await sleep(500);
         if (!lineups) continue;
 
         for (const side of ['home', 'away']) {
