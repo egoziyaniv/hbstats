@@ -30,6 +30,9 @@ export default function AdminRefereesClient({ initialReferees, countries }: { in
     setTimeout(() => setMessage(null), 4000);
   }, []);
 
+  const [draftHe, setDraftHe] = useState<Record<string, string>>({});
+  const [savedFlash, setSavedFlash] = useState<string | null>(null);
+
   const saveNameHe = async (id: string, nameHe: string) => {
     const ref = referees.find((r) => r.id === id);
     if (!ref || nameHe === (ref.nameHe || '')) return;
@@ -42,6 +45,9 @@ export default function AdminRefereesClient({ initialReferees, countries }: { in
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed'); }
       setReferees((prev) => prev.map((r) => (r.id === id ? { ...r, nameHe: nameHe || null } : r)));
+      setDraftHe((prev) => { const { [id]: _, ...rest } = prev; return rest; });
+      setSavedFlash(id);
+      setTimeout(() => setSavedFlash((cur) => (cur === id ? null : cur)), 1500);
     } catch (e: any) {
       showMessage(e.message, 'error');
     } finally {
@@ -274,7 +280,8 @@ export default function AdminRefereesClient({ initialReferees, countries }: { in
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1.5">
                     <input
-                      defaultValue={ref.nameHe || ''}
+                      value={draftHe[ref.id] ?? (ref.nameHe || '')}
+                      onChange={(e) => setDraftHe((prev) => ({ ...prev, [ref.id]: e.target.value }))}
                       placeholder="הזן שם בעברית..."
                       onBlur={(e) => saveNameHe(ref.id, e.target.value.trim())}
                       onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
@@ -284,7 +291,17 @@ export default function AdminRefereesClient({ initialReferees, countries }: { in
                           : 'border-red-200 bg-red-50 text-stone-500 placeholder:text-red-300'
                       } focus:border-red-400 focus:bg-white focus:text-stone-900`}
                     />
-                    {savingId === ref.id && <span className="text-xs text-stone-400">...</span>}
+                    {(draftHe[ref.id] !== undefined && draftHe[ref.id].trim() !== (ref.nameHe || '')) ? (
+                      <button
+                        type="button"
+                        onClick={() => saveNameHe(ref.id, (draftHe[ref.id] || '').trim())}
+                        disabled={savingId === ref.id}
+                        className="shrink-0 rounded-md bg-emerald-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-60"
+                      >
+                        {savingId === ref.id ? '...' : 'שמור'}
+                      </button>
+                    ) : null}
+                    {savedFlash === ref.id ? <span className="text-xs font-bold text-emerald-600">✓</span> : null}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-stone-600">{ref.mainCompetition || '—'}</td>

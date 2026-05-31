@@ -23,6 +23,8 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [mergeTarget, setMergeTarget] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
+  const [draftHe, setDraftHe] = useState<Record<string, string>>({});
+  const [savedFlash, setSavedFlash] = useState<string | null>(null);
 
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setMessage({ text, type });
@@ -41,7 +43,9 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed'); }
       setCoaches((prev) => prev.map((x) => (x.id === id ? { ...x, nameHe: nameHe || null } : x)));
-      showMessage('נשמר', 'success');
+      setDraftHe((prev) => { const { [id]: _, ...rest } = prev; return rest; });
+      setSavedFlash(id);
+      setTimeout(() => setSavedFlash((cur) => (cur === id ? null : cur)), 1500);
     } catch (e: any) {
       showMessage(e.message, 'error');
     } finally {
@@ -184,15 +188,29 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
                 </td>
                 <td className="px-3 py-2 font-bold" dir="ltr">{c.nameEn}</td>
                 <td className="px-3 py-2">
-                  <input
-                    type="text"
-                    defaultValue={c.nameHe || ''}
-                    placeholder="הוסף שם בעברית"
-                    onBlur={(e) => saveNameHe(c.id, e.target.value.trim())}
-                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                    disabled={savingId === c.id}
-                    className="w-full rounded border border-stone-300 px-2 py-1 text-sm disabled:opacity-60"
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={draftHe[c.id] ?? (c.nameHe || '')}
+                      placeholder="הוסף שם בעברית"
+                      onChange={(e) => setDraftHe((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                      onBlur={(e) => saveNameHe(c.id, e.target.value.trim())}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                      disabled={savingId === c.id}
+                      className="flex-1 rounded border border-stone-300 px-2 py-1 text-sm disabled:opacity-60"
+                    />
+                    {(draftHe[c.id] !== undefined && draftHe[c.id].trim() !== (c.nameHe || '')) ? (
+                      <button
+                        type="button"
+                        onClick={() => saveNameHe(c.id, (draftHe[c.id] || '').trim())}
+                        disabled={savingId === c.id}
+                        className="shrink-0 rounded-md bg-emerald-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-60"
+                      >
+                        {savingId === c.id ? '...' : 'שמור'}
+                      </button>
+                    ) : null}
+                    {savedFlash === c.id ? <span className="text-xs font-bold text-emerald-600">✓</span> : null}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-xs text-stone-600">
                   {c.aliases.length > 1 ? (
