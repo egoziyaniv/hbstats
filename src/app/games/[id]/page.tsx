@@ -12,6 +12,7 @@ import { GamePlayerStatsTrigger } from '@/components/PlayerMatchStatsModal';
 import GameAdminQuickEditorClient from '@/components/GameAdminQuickEditorClient';
 import GameRatingForm from '@/components/GameRatingForm';
 import { H2HPanel } from '@/components/H2HPanel';
+import { LiveMomentumBar } from '@/components/LiveMomentumBar';
 import { PredictedLineupPanel } from '@/components/PredictedLineupPanel';
 
 const eventLabels: Record<string, string> = {
@@ -108,8 +109,9 @@ export default async function GamePage({
 
   const hasDetailedStats = hasDetailedGameStats(game.gameStats);
   const eventSummary = buildEventSummary(game);
-  const homeLineup = buildTeamLineup(game, game.homeTeamId);
-  const awayLineup = buildTeamLineup(game, game.awayTeamId);
+  const homeLineupRaw = buildTeamLineup(game, game.homeTeamId);
+  const awayLineupRaw = buildTeamLineup(game, game.awayTeamId);
+  const { homeLineup, awayLineup } = await enrichCoaches(homeLineupRaw, awayLineupRaw);
   const { buildH2H } = await import('@/lib/h2h');
   const h2hSummary = await buildH2H(game.homeTeamId, game.awayTeamId);
 
@@ -516,6 +518,21 @@ function PremierGameView({
             </div>
           </div>
         </section>
+
+        {selectedTab === 'overview' && game.status === 'ONGOING' ? (
+          <div className="mb-6">
+            <LiveMomentumBar
+              currentMinute={Math.min(120, Math.max(0, Math.round((Date.now() - new Date(game.dateTime).getTime()) / 60000)))}
+              events={game.events.map((e: any) => ({
+                minute: e.minute || 0,
+                type: e.type,
+                team: e.teamId === game.homeTeamId ? 'home' as const : 'away' as const,
+              }))}
+              homeTeamName={homeTeamName}
+              awayTeamName={awayTeamName}
+            />
+          </div>
+        ) : null}
 
         {selectedTab === 'overview' ? (
           <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
@@ -934,10 +951,37 @@ function TeamLineupCard({
   return (
     <div className="rounded-[24px] border border-stone-200 bg-stone-50 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-xl font-black text-stone-900">{teamName}</h3>
-          <div className="mt-1 text-xs text-stone-500">
-            {lineup.coachName ? `מאמן: ${lineup.coachName}` : 'מאמן לא זמין'}
+        <div className="flex items-center gap-3">
+          {lineup.coachPhotoUrl || lineup.coachName ? (
+            <div className="relative shrink-0">
+              {lineup.coachPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={lineup.coachPhotoUrl}
+                  alt={lineup.coachNameHe || lineup.coachName || 'coach'}
+                  className="h-10 w-10 rounded-full border-2 border-white bg-stone-100 object-cover shadow"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-stone-200 text-[10px] font-black text-stone-500 shadow">
+                  {(lineup.coachNameHe || lineup.coachName || '').split(/\s+/).map((s) => s[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+              )}
+              <span className="absolute -top-1 -right-1 rounded-full bg-amber-500 px-1 text-[8px] font-black text-white">מאמן</span>
+            </div>
+          ) : null}
+          <div>
+            <h3 className="text-xl font-black text-stone-900">{teamName}</h3>
+            <div className="mt-1 text-xs text-stone-500">
+              {lineup.coachId ? (
+                <Link href={`/coaches/${lineup.coachId}`} className="hover:text-[var(--accent)]">
+                  {lineup.coachNameHe || lineup.coachName}
+                </Link>
+              ) : lineup.coachName ? (
+                lineup.coachName
+              ) : (
+                'מאמן לא זמין'
+              )}
+            </div>
           </div>
         </div>
         {lineup.formation ? (
@@ -1425,9 +1469,40 @@ function buildTeamLineup(
   return {
     formation,
     coachName: coach?.participantName || null,
+    coachId: null as string | null,
+    coachPhotoUrl: null as string | null,
+    coachNameHe: null as string | null,
     starters,
     substitutes,
   };
+}
+
+/**
+ * Look up coach photo + Hebrew name from the Coach model via CoachAlias on
+ * the raw participantName. Only one round-trip per game (both teams' coaches
+ * resolved in a single query).
+ */
+async function enrichCoaches(
+  homeLineup: ReturnType<typeof buildTeamLineup>,
+  awayLineup: ReturnType<typeof buildTeamLineup>,
+) {
+  const aliases = [homeLineup.coachName, awayLineup.coachName].filter((n): n is string => !!n);
+  if (aliases.length === 0) return { homeLineup, awayLineup };
+  const rows = await prisma.coachAlias.findMany({
+    where: { alias: { in: aliases } },
+    select: { alias: true, coach: { select: { id: true, nameHe: true, photoUrl: true } } },
+  });
+  const byAlias = new Map(rows.map((r) => [r.alias, r.coach]));
+  const enrich = (l: ReturnType<typeof buildTeamLineup>) => {
+    if (!l.coachName) return l;
+    const c = byAlias.get(l.coachName);
+    if (!c) return l;
+    l.coachId = c.id;
+    l.coachNameHe = c.nameHe;
+    l.coachPhotoUrl = c.photoUrl;
+    return l;
+  };
+  return { homeLineup: enrich(homeLineup), awayLineup: enrich(awayLineup) };
 }
 
 function mapLineupPlayer(entry: {
