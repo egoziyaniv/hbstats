@@ -225,8 +225,81 @@ export default function TeamScreen() {
         </Section>
       ) : null}
 
+      {extras && extras.coachChart && extras.coachChart.length > 0 ? (
+        <Section title="היסטוריית מאמנים — אחוז ניצחונות">
+          <Card pad={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 16 }}>
+              {extras.coachChart.map((e, i) => {
+                const initials = e.displayName.split(/\s+/).filter(Boolean).map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+                const barHeight = Math.max(20, Math.min(120, (e.pointsPerGame / 3) * 120));
+                return (
+                  <View key={`${e.coachKey}-${e.seasonName}-${i}`} style={{ alignItems: 'center', width: 72 }}>
+                    <View style={{ backgroundColor: '#dc2626', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 2 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '900', color: 'white' }}>{e.winPct}%</Text>
+                    </View>
+                    <View style={{ width: 36, height: barHeight, backgroundColor: '#dc2626', borderRadius: 4 }} />
+                    <View style={{ backgroundColor: 'black', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3, marginTop: 2 }}>
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: 'white' }}>{e.pointsPerGame.toFixed(1)} Pts</Text>
+                    </View>
+                    <View style={{ marginTop: 6, alignItems: 'center' }}>
+                      {e.photoUrl ? (
+                        <CachedImage source={{ uri: e.photoUrl }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100] }} />
+                      ) : (
+                        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 10, fontWeight: '900', color: theme.ink[600] }}>{initials}</Text>
+                        </View>
+                      )}
+                      <Text style={{ fontSize: 10, fontWeight: '800', textAlign: 'center', marginTop: 2 }} numberOfLines={1}>{e.displayName.split(' ').slice(-1)[0]}</Text>
+                      <Text style={{ fontSize: 9, color: theme.ink[500] }}>{e.seasonName}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </Card>
+        </Section>
+      ) : null}
+
+      {extras && extras.goalTiming && extras.goalTiming.length > 0 ? (
+        <Section title="תזמון שערים">
+          <Card>
+            <View style={{ flexDirection: rtlRow(), justifyContent: 'space-between', gap: 6 }}>
+              {extras.goalTiming.map((b) => {
+                const maxV = Math.max(...extras.goalTiming!.map((x) => Math.max(x.scored, x.conceded)), 1);
+                const sh = (b.scored / maxV) * 64;
+                const ch = (b.conceded / maxV) * 64;
+                return (
+                  <View key={b.label} style={{ alignItems: 'center', flex: 1 }}>
+                    <View style={{ height: 64, width: '100%', justifyContent: 'flex-end' }}>
+                      <View style={{ height: sh, backgroundColor: '#10b981', borderTopLeftRadius: 3, borderTopRightRadius: 3 }} />
+                    </View>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.ink[700] }}>{b.scored}</Text>
+                    <View style={{ height: 1, width: '100%', backgroundColor: theme.ink[200], marginVertical: 2 }} />
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.ink[700] }}>{b.conceded}</Text>
+                    <View style={{ height: 64, width: '100%' }}>
+                      <View style={{ height: ch, backgroundColor: '#ef4444', borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} />
+                    </View>
+                    <Text style={{ fontSize: 9, color: theme.ink[500], marginTop: 4 }} dir="ltr">{b.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: rtlRow(), justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+              <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, backgroundColor: '#10b981', borderRadius: 2 }} />
+                <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[700] }}>כבושים</Text>
+              </View>
+              <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, backgroundColor: '#ef4444', borderRadius: 2 }} />
+                <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[700] }}>ספוגים</Text>
+              </View>
+            </View>
+          </Card>
+        </Section>
+      ) : null}
+
       {extras && extras.coachTimeline.length > 0 ? (
-        <Section title="היסטוריית מאמנים">
+        <Section title="היסטוריית מאמנים — פר עונה">
           <Card>
             <View style={{ gap: 12 }}>
               {extras.coachTimeline.map((group) => (

@@ -326,11 +326,35 @@ export interface TeamInjury {
   date: string | null;
 }
 
+export interface CoachChartEntrySummary {
+  coachKey: string;
+  displayName: string;
+  photoUrl: string | null;
+  seasonName: string;
+  year: number;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winPct: number;
+  pointsPerGame: number;
+}
+
+export interface GoalTimingBucketSummary {
+  label: string;
+  rangeStart: number;
+  rangeEnd: number;
+  scored: number;
+  conceded: number;
+}
+
 export interface TeamExtrasPayload {
   teamId: string;
   coaches: CoachAssignment[];
   coachTimeline: SeasonCoachGroupSummary[];
   injuries: TeamInjury[];
+  coachChart: CoachChartEntrySummary[];
+  goalTiming: GoalTimingBucketSummary[];
 }
 
 // ---------- Advanced leaderboards (key passes, duels, dribbles) ----------
