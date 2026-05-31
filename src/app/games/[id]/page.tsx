@@ -10,6 +10,7 @@ import prisma from '@/lib/prisma';
 import { GameRefereeForm } from '@/components/GameRefereeForm';
 import { GamePlayerStatsTrigger } from '@/components/PlayerMatchStatsModal';
 import GameAdminQuickEditorClient from '@/components/GameAdminQuickEditorClient';
+import GameRatingForm from '@/components/GameRatingForm';
 import { H2HPanel } from '@/components/H2HPanel';
 
 const eventLabels: Record<string, string> = {
@@ -124,6 +125,22 @@ export default async function GamePage({
   const bestPlayer = allRatedPlayers.length > 0
     ? allRatedPlayers.reduce((best, cur) => (cur.player.rating! > best.player.rating! ? cur : best))
     : null;
+
+  // Build the slim player payload for the user-rating form. Combines starters
+  // and substitutes from both sides into one ordered list.
+  const ratingPlayers = [
+    ...homeLineup.starters.map((p) => ({ ...p, side: 'home' as const, role: 'STARTER' })),
+    ...homeLineup.substitutes.map((p) => ({ ...p, side: 'home' as const, role: 'SUB' })),
+    ...awayLineup.starters.map((p) => ({ ...p, side: 'away' as const, role: 'STARTER' })),
+    ...awayLineup.substitutes.map((p) => ({ ...p, side: 'away' as const, role: 'SUB' })),
+  ].map((p) => ({
+    playerId: p.id,
+    displayName: p.displayName,
+    photoUrl: p.photoUrl,
+    jerseyNumber: p.jerseyNumber,
+    position: p.positionName,
+    side: p.side,
+  }));
   const comparisonRows = buildComparisonRows(game.gameStats, eventSummary);
   const summaryCards = buildSummaryCards(game.gameStats, eventSummary);
   const adminEditorProps = {
@@ -185,6 +202,8 @@ export default async function GamePage({
         awayLineup={awayLineup}
         bestPlayer={bestPlayer}
         h2hSummary={h2hSummary}
+        ratingPlayers={ratingPlayers}
+        isLoggedIn={!!currentUser}
         hasDetailedStats={hasDetailedStats}
         selectedTab={selectedTab}
         adminEditorProps={adminEditorProps}
@@ -346,6 +365,18 @@ export default async function GamePage({
             </div>
           ) : null}
 
+          {ratingPlayers.length > 0 ? (
+            <div className="mt-6">
+              <GameRatingForm
+                gameId={game.id}
+                homeTeamName={game.homeTeam.nameHe || game.homeTeam.nameEn}
+                awayTeamName={game.awayTeam.nameHe || game.awayTeam.nameEn}
+                players={ratingPlayers}
+                isLoggedIn={!!currentUser}
+              />
+            </div>
+          ) : null}
+
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <TeamLineupCard teamName={game.homeTeam.nameHe || game.homeTeam.nameEn} side="home" lineup={homeLineup} gameId={game.id} />
             <TeamLineupCard teamName={game.awayTeam.nameHe || game.awayTeam.nameEn} side="away" lineup={awayLineup} gameId={game.id} />
@@ -367,6 +398,8 @@ function PremierGameView({
   awayLineup,
   bestPlayer,
   h2hSummary,
+  ratingPlayers,
+  isLoggedIn,
   hasDetailedStats,
   selectedTab,
   adminEditorProps,
@@ -380,6 +413,8 @@ function PremierGameView({
   awayLineup: ReturnType<typeof buildTeamLineup>;
   bestPlayer: { player: LineupPlayer; side: 'home' | 'away' } | null;
   h2hSummary: import('@/lib/h2h').H2HSummary | null;
+  ratingPlayers: Array<{ playerId: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; position: string | null; side: 'home' | 'away' }>;
+  isLoggedIn: boolean;
   hasDetailedStats: boolean;
   selectedTab: GamePremierTab;
   adminEditorProps: any;
@@ -567,19 +602,32 @@ function PremierGameView({
         ) : null}
 
         {selectedTab === 'lineups' ? (
-          <PremierPanel title="הרכבים ועמדות">
-            <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-              {homeLineup.formation || awayLineup.formation ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">
-                  מערכים: {homeLineup.formation || '-'} מול {awayLineup.formation || '-'}
-                </span>
-              ) : null}
-            </div>
-            <div className="grid gap-6 xl:grid-cols-2">
-              <TeamLineupCard teamName={homeTeamName} side="home" lineup={homeLineup} gameId={game.id} />
-              <TeamLineupCard teamName={awayTeamName} side="away" lineup={awayLineup} gameId={game.id} />
-            </div>
-          </PremierPanel>
+          <>
+            {ratingPlayers.length > 0 ? (
+              <div className="mb-6">
+                <GameRatingForm
+                  gameId={game.id}
+                  homeTeamName={homeTeamName}
+                  awayTeamName={awayTeamName}
+                  players={ratingPlayers}
+                  isLoggedIn={isLoggedIn}
+                />
+              </div>
+            ) : null}
+            <PremierPanel title="הרכבים ועמדות">
+              <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                {homeLineup.formation || awayLineup.formation ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">
+                    מערכים: {homeLineup.formation || '-'} מול {awayLineup.formation || '-'}
+                  </span>
+                ) : null}
+              </div>
+              <div className="grid gap-6 xl:grid-cols-2">
+                <TeamLineupCard teamName={homeTeamName} side="home" lineup={homeLineup} gameId={game.id} />
+                <TeamLineupCard teamName={awayTeamName} side="away" lineup={awayLineup} gameId={game.id} />
+              </div>
+            </PremierPanel>
+          </>
         ) : null}
       </div>
     </div>
