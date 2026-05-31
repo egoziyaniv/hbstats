@@ -3,10 +3,9 @@
  * main app destinations. Pressing an item closes the drawer and navigates.
  */
 import { useEffect, useRef } from 'react';
-import { Modal, View, Text, Pressable, Animated, Dimensions } from 'react-native';
+import { Modal, View, Text, Pressable, Animated, Dimensions, I18nManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { rtlRow } from '@/lib/rtl';
 import { theme } from './theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,15 +34,18 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
   const { brand } = useTheme();
   const { user, logout } = useAuth();
   const width = Dimensions.get('window').width * 0.82;
-  const slide = useRef(new Animated.Value(width)).current;
+  // In RTL, positive translateX moves LEFT, so the off-screen position is
+  // -width (drawer hides past the right edge). In LTR it's +width.
+  const closedX = I18nManager.isRTL ? -width : width;
+  const slide = useRef(new Animated.Value(closedX)).current;
 
   useEffect(() => {
     Animated.timing(slide, {
-      toValue: visible ? 0 : width,
+      toValue: visible ? 0 : closedX,
       duration: 220,
       useNativeDriver: true,
     }).start();
-  }, [visible, slide, width]);
+  }, [visible, slide, closedX]);
 
   const go = (path: string) => {
     onClose();
@@ -58,7 +60,9 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
             position: 'absolute',
             top: 0,
             bottom: 0,
-            right: 0,
+            // Use the logical "start" edge (= right in RTL, left in LTR) so
+            // the drawer always docks on the visual right side of the screen.
+            ...(I18nManager.isRTL ? { left: 0 } : { right: 0 }),
             width,
             backgroundColor: 'white',
             transform: [{ translateX: slide }],
@@ -72,7 +76,7 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
           // Stop touches inside the panel from closing the overlay.
           onStartShouldSetResponder={() => true}
         >
-          <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <View style={{ direction: 'rtl', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <Text style={{ fontSize: 20, fontWeight: '900', color: theme.ink[900] }}>HBStats</Text>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={{ fontSize: 22, fontWeight: '800', color: theme.ink[500] }}>×</Text>
@@ -84,8 +88,10 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
               key={item.path}
               onPress={() => go(item.path)}
               style={({ pressed }) => ({
-                flexDirection: rtlRow(),
+                direction: 'rtl',
+                flexDirection: 'row',
                 alignItems: 'center',
+                gap: 12,
                 paddingVertical: 12,
                 paddingHorizontal: 6,
                 borderBottomWidth: 1,
@@ -93,8 +99,8 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
                 backgroundColor: pressed ? theme.ink[50] : 'transparent',
               })}
             >
-              <Text style={{ fontSize: 20, marginEnd: 12 }}>{item.icon}</Text>
-              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: theme.ink[900], textAlign: 'right' }}>
+              <Text style={{ fontSize: 20, width: 24, textAlign: 'center' }}>{item.icon}</Text>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}>
                 {item.label}
               </Text>
             </Pressable>
