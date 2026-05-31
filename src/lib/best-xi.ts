@@ -27,7 +27,22 @@ function categorize(position: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
   return 'MID';
 }
 
-export async function buildBestXi(seasonId: string, minMatches = 8): Promise<BestXiPlayer[]> {
+export async function buildBestXi(seasonId: string, minMatches?: number): Promise<BestXiPlayer[]> {
+  // Auto-derive minimum match threshold from the season's heaviest workload —
+  // a player must have appeared in at least 50% of the typical workload to
+  // qualify, so 5-game cameos can't crash the lineup.
+  if (minMatches == null) {
+    const max = await prisma.$queryRaw<Array<{ max: number }>>`
+      SELECT MAX(matches)::int AS max FROM (
+        SELECT COUNT(*) AS matches FROM "game_player_stats" gps
+        JOIN "games" g ON g.id = gps."gameId"
+        WHERE g."seasonId" = ${seasonId} AND gps.rating IS NOT NULL
+        GROUP BY gps."playerId"
+      ) t
+    `;
+    const peak = max[0]?.max || 0;
+    minMatches = Math.max(8, Math.floor(peak * 0.5));
+  }
   const rows = await prisma.$queryRaw<Array<{
     player_id: string;
     name_he: string;

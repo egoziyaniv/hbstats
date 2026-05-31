@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
+import ComparePlayersPicker from '@/components/ComparePlayersPicker';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,7 @@ interface PlayerStats {
   displayName: string;
   photoUrl: string | null;
   team: string;
+  seasonName: string;
   matches: number;
   goals: number;
   assists: number;
@@ -18,16 +20,20 @@ interface PlayerStats {
   avgRating: number | null;
 }
 
-async function fetchPlayerStats(id: string): Promise<PlayerStats | null> {
+async function fetchPlayerStats(playerId: string): Promise<PlayerStats | null> {
   const player = await prisma.player.findUnique({
-    where: { id },
+    where: { id: playerId },
     select: {
       id: true, nameHe: true, nameEn: true, photoUrl: true,
-      canonicalPlayerId: true, apiFootballId: true,
-      team: { select: { nameHe: true, nameEn: true } },
+      canonicalPlayerId: true, apiFootballId: true, teamId: true,
+      team: { select: { nameHe: true, nameEn: true, seasonId: true, season: { select: { name: true } } } },
     },
   });
-  if (!player) return null;
+  if (!player || !player.team) return null;
+
+  // For the single (player, season) we picked: aggregate GamePlayerStats
+  // joined to games in THIS season only. We deliberately do NOT cross seasons
+  // here — the picker already represents the (player, season) tuple.
   const canonicalKey = player.canonicalPlayerId ?? player.id;
   const linked = await prisma.player.findMany({
     where: { OR: [{ id: canonicalKey }, { canonicalPlayerId: canonicalKey }] },
@@ -38,6 +44,7 @@ async function fetchPlayerStats(id: string): Promise<PlayerStats | null> {
 
   const agg = await prisma.gamePlayerStats.aggregate({
     where: {
+      game: { seasonId: player.team.seasonId },
       OR: [
         ...(ids.length > 0 ? [{ playerId: { in: ids } }] : []),
         ...(apiIds.length > 0 ? [{ apiFootballPlayerId: { in: apiIds } }] : []),
@@ -52,7 +59,8 @@ async function fetchPlayerStats(id: string): Promise<PlayerStats | null> {
     id: player.id,
     displayName: player.nameHe || player.nameEn,
     photoUrl: player.photoUrl,
-    team: player.team?.nameHe || player.team?.nameEn || '—',
+    team: player.team.nameHe || player.team.nameEn,
+    seasonName: player.team.season.name,
     matches: agg._count._all || 0,
     goals: agg._sum.goals || 0,
     assists: agg._sum.assists || 0,
@@ -65,10 +73,40 @@ async function fetchPlayerStats(id: string): Promise<PlayerStats | null> {
 }
 
 export default async function ComparePlayersPage({ searchParams }: { searchParams: { a?: string; b?: string; c?: string } }) {
+  const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
+
+  // Hydrate the picker with seasons/teams already known for the selected players
+  // so the dropdowns boot pre-filled when the user lands on a shared URL.
   const ids = [searchParams.a, searchParams.b, searchParams.c].filter((x): x is string => !!x);
+  const playerRecords = ids.length > 0
+    ? await prisma.player.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, teamId: true, team: { select: { seasonId: true } } },
+      })
+    : [];
+
+  const initialSlots = [searchParams.a, searchParams.b, searchParams.c].map((id) => {
+    const found = id ? playerRecords.find((p) => p.id === id) : null;
+    return {
+      seasonId: found?.team?.seasonId || '',
+      teamId: found?.teamId || '',
+      playerId: id || '',
+    };
+  });
+
+  const usedSeasonIds = Array.from(new Set(initialSlots.map((s) => s.seasonId).filter(Boolean)));
+  const teamsBySeason: Record<string, Array<{ id: string; nameHe: string; nameEn: string; logoUrl: string | null }>> = {};
+  for (const sid of usedSeasonIds) {
+    teamsBySeason[sid] = await prisma.team.findMany({
+      where: { seasonId: sid },
+      select: { id: true, nameHe: true, nameEn: true, logoUrl: true },
+      orderBy: [{ nameHe: 'asc' }],
+    });
+  }
+
   const players = (await Promise.all(ids.map(fetchPlayerStats))).filter((p): p is PlayerStats => !!p);
 
-  const metrics: Array<{ label: string; key: keyof PlayerStats; suffix?: string }> = [
+  const metrics: Array<{ label: string; key: keyof PlayerStats }> = [
     { label: 'משחקים', key: 'matches' },
     { label: 'דקות', key: 'minutes' },
     { label: 'דירוג ממוצע', key: 'avgRating' },
@@ -84,12 +122,18 @@ export default async function ComparePlayersPage({ searchParams }: { searchParam
       <div className="mx-auto max-w-5xl space-y-5">
         <header>
           <h1 className="border-r-[4px] border-[var(--accent)] pr-3 text-3xl font-black text-stone-900">השוואת שחקנים</h1>
-          <p className="mt-1 text-sm text-stone-600">עד 3 שחקנים side-by-side. הוסף שחקנים בפרמטרים `?a=&lt;id&gt;&b=&lt;id&gt;&c=&lt;id&gt;`.</p>
+          <p className="mt-1 text-sm text-stone-600">בחר עונה, קבוצה ושחקן — עד 3 הצבות. ניתן להשוות אותו שחקן בעונות שונות.</p>
         </header>
+
+        <ComparePlayersPicker
+          seasons={seasons.map((s) => ({ id: s.id, name: s.name, year: s.year }))}
+          initialSlots={initialSlots}
+          initialTeamsBySeason={teamsBySeason}
+        />
 
         {players.length === 0 ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-800">
-            ציין שחקנים להשוואה דרך ה-URL. לדוגמה: <code className="rounded bg-white px-1.5 py-0.5">?a=playerId1&b=playerId2</code>
+            בחר לפחות שחקן אחד והקש &quot;השווה&quot;.
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
@@ -109,7 +153,7 @@ export default async function ComparePlayersPage({ searchParams }: { searchParam
                           </div>
                         )}
                         <span className="text-sm font-black text-stone-900">{p.displayName}</span>
-                        <span className="text-[11px] text-stone-500">{p.team}</span>
+                        <span className="text-[11px] text-stone-500">{p.team} · {p.seasonName}</span>
                       </Link>
                     </th>
                   ))}
@@ -124,7 +168,7 @@ export default async function ComparePlayersPage({ searchParams }: { searchParam
                       <td className="px-3 py-2 font-bold text-stone-600">{m.label}</td>
                       {players.map((p, i) => {
                         const v = values[i];
-                        const isMax = v != null && v === max && max > 0;
+                        const isMax = v != null && v === max && max > 0 && players.length > 1;
                         return (
                           <td key={p.id} className={`px-3 py-2 text-center font-black ${isMax ? 'text-emerald-700' : 'text-stone-900'}`}>
                             {v ?? '—'}
