@@ -1,18 +1,20 @@
 /**
  * scrape-sofascore-ratings.js — Sofascore per-player ratings via
- * puppeteer-real-browser (defeats their Cloudflare protection). Saves into
- * PlayerMatchRating with source='sofascore'.
+ * puppeteer-real-browser.
  *
- * Strategy:
- *   1. Open Sofascore via real browser, then use page.evaluate(() => fetch(...))
- *      so the request runs from the page origin (passes Cloudflare).
- *   2. Walk rounds 1..36, list events, fetch /lineups, extract ratings.
- *   3. Match players + games against our DB by name + date.
+ * Strategy: api.sofascore.com is blocked at Cloudflare for our server IP, but
+ * www.sofascore.com renders fine and calls the API internally. We intercept
+ * those XHR responses via `page.on('response')` to harvest the JSON we need.
+ *
+ * Flow:
+ *   1. Open www.sofascore.com/tournament/.../266 — captures round/season ids.
+ *   2. For each matchday URL, browse + collect the events response.
+ *   3. For each event, navigate to the match page + collect the lineups response.
+ *   4. Match players + games against our DB and upsert into PlayerMatchRating.
  *
  * Usage:
  *   node scripts/scrape-sofascore-ratings.js --season 2025/26
- *   node scripts/scrape-sofascore-ratings.js --season 2025/26 --round 5
- *   node scripts/scrape-sofascore-ratings.js --season 2025/26 --limit 50 --headful
+ *   node scripts/scrape-sofascore-ratings.js --season 2025/26 --limit 5
  */
 'use strict';
 const { PrismaClient } = require('@prisma/client');
@@ -21,7 +23,6 @@ const prisma = new PrismaClient();
 
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
 const SEASON_LABEL = arg('season', '2025/26');
-const SPECIFIC_ROUND = arg('round', null);
 const LIMIT = parseInt(arg('limit', '0'), 10);
 const HEADFUL = process.argv.includes('--headful');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -86,27 +87,6 @@ function matchGame(gameLookup, eventDateISO, homeName, awayName) {
   return null;
 }
 
-async function pageFetchJson(page, url) {
-  // Navigate the page directly to the API endpoint — Chrome renders JSON in a
-  // <pre>. CORS doesn't apply for navigations, only for cross-origin fetches.
-  try {
-    const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    if (!res) { console.log('  no response for', url); return null; }
-    const status = res.status();
-    if (status !== 200) {
-      console.log('  http', status, 'for', url);
-      return null;
-    }
-    const text = await page.evaluate(() => document.body?.innerText || '');
-    const trimmed = text.trim();
-    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-      console.log('  non-json body (' + trimmed.length + 'b):', trimmed.slice(0, 80));
-      return null;
-    }
-    return JSON.parse(trimmed);
-  } catch (e) { console.log('  err:', e?.message); return null; }
-}
-
 async function main() {
   const ssSeasonId = SOFASCORE_SEASONS[SEASON_LABEL];
   if (!ssSeasonId) { console.error(`No Sofascore id for season ${SEASON_LABEL}`); process.exit(1); }
@@ -119,45 +99,78 @@ async function main() {
 
   console.log('Opening Sofascore via puppeteer-real-browser…');
   const { browser, page } = await connect({
-    headless: !HEADFUL,
-    turnstile: true,
-    args: ['--lang=en-US,en'],
-    customConfig: {},
-    connectOption: {},
-    disableXvfb: false,
+    headless: !HEADFUL, turnstile: true, args: ['--lang=en-US,en'],
+    customConfig: {}, connectOption: {}, disableXvfb: false,
+  });
+
+  // Capture every JSON response from api.sofascore.com so we don't need to
+  // call it directly. Keyed by URL substring.
+  const captured = new Map();
+  page.on('response', async (resp) => {
+    const url = resp.url();
+    if (!url.includes('api.sofascore.com')) return;
+    if (resp.status() !== 200) return;
+    try {
+      const text = await resp.text();
+      const trimmed = text.trim();
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return;
+      captured.set(url, JSON.parse(trimmed));
+    } catch {/* ignore */}
   });
 
   try {
     await page.setViewport({ width: 1440, height: 900 });
-    await page.goto('https://www.sofascore.com/tournament/football/israel/ligat-haal/266', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto('https://www.sofascore.com/tournament/football/israel/ligat-haal/266', { waitUntil: 'networkidle2', timeout: 60000 });
     // Wait through Cloudflare if needed.
-    const start = Date.now();
-    while (Date.now() - start < 60000) {
+    const cfStart = Date.now();
+    while (Date.now() - cfStart < 60000) {
       const title = await page.title().catch(() => '');
       if (!/just a moment|attention required|cloudflare/i.test(title)) break;
       await sleep(2000);
     }
-    console.log('Page open. Title:', await page.title());
+    console.log('Page open:', await page.title());
 
     let totalEvents = 0, totalRatings = 0, unmatchedGames = 0, unmatchedPlayers = 0;
-    const rounds = SPECIFIC_ROUND ? [parseInt(SPECIFIC_ROUND, 10)] : Array.from({ length: 36 }, (_, i) => i + 1);
 
-    for (const round of rounds) {
-      const eventsUrl = `https://api.sofascore.com/api/v1/unique-tournament/266/season/${ssSeasonId}/events/round/${round}`;
-      const eventsData = await pageFetchJson(page, eventsUrl);
-      if (!eventsData?.events?.length) continue;
-      console.log(`Round ${round}: ${eventsData.events.length} events`);
+    // Walk every round in the season. For each, navigate to the schedule view
+    // — the page calls /events/round/X internally, which we intercept.
+    for (let round = 1; round <= 36; round++) {
+      const before = captured.size;
+      captured.clear();
+      const roundUrl = `https://www.sofascore.com/tournament/football/israel/ligat-haal/266/season/${ssSeasonId}#round=${round}`;
+      try {
+        await page.goto(roundUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      } catch { continue; }
+      await sleep(2000); // let lazy fetches settle
 
-      for (const ev of eventsData.events) {
+      // Find the events response for this round.
+      let events = null;
+      for (const [url, data] of captured) {
+        if (url.includes(`/events/round/${round}`)) { events = data?.events; break; }
+      }
+      if (!events?.length) continue;
+      console.log(`Round ${round}: ${events.length} events`);
+
+      for (const ev of events) {
         if (LIMIT && totalEvents >= LIMIT) break;
         totalEvents++;
         const eventDate = new Date(ev.startTimestamp * 1000).toISOString();
         const gameId = matchGame(gameLookup, eventDate, ev.homeTeam?.name, ev.awayTeam?.name);
         if (!gameId) { unmatchedGames++; continue; }
 
-        const lineupsUrl = `https://api.sofascore.com/api/v1/event/${ev.id}/lineups`;
-        const lineups = await pageFetchJson(page, lineupsUrl);
-        await sleep(300);
+        // Visit the match's lineups tab. URL pattern: /football/match/{slug}/{shortcode}/lineups#id:{eventId}
+        const slug = ev.slug || `${ev.homeTeam?.slug || 'home'}-${ev.awayTeam?.slug || 'away'}`;
+        const matchUrl = `https://www.sofascore.com/event/${ev.id}/lineups`;
+        captured.clear();
+        try {
+          await page.goto(matchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        } catch { continue; }
+        await sleep(2000);
+
+        let lineups = null;
+        for (const [url, data] of captured) {
+          if (url.endsWith(`/event/${ev.id}/lineups`) || url.includes(`/event/${ev.id}/lineups`)) { lineups = data; break; }
+        }
         if (!lineups) continue;
 
         for (const side of ['home', 'away']) {
@@ -181,7 +194,6 @@ async function main() {
         }
       }
       if (LIMIT && totalEvents >= LIMIT) break;
-      await sleep(400);
     }
 
     console.log(`\nDone. events=${totalEvents}, ratings=${totalRatings}, unmatched-games=${unmatchedGames}, unmatched-players=${unmatchedPlayers}`);
