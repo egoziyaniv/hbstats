@@ -49,9 +49,21 @@ export default async function AllTimeStatsPage({ searchParams }: { searchParams:
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.playerKey} className="border-t border-stone-100 hover:bg-stone-50/60">
+                <tr key={r.canonicalId} className="border-t border-stone-100 hover:bg-stone-50/60">
                   <td className="px-3 py-2 font-bold text-stone-400">{r.rank}</td>
-                  <td className="px-3 py-2 font-bold">{r.displayName}</td>
+                  <td className="px-3 py-2">
+                    <Link href={`/players/${r.canonicalId}`} className="flex items-center gap-3 font-bold hover:text-[var(--accent)]">
+                      {r.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.photoUrl} alt={r.displayName} className="h-8 w-8 rounded-full border border-stone-200 object-cover" />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-[10px] font-black text-stone-500">
+                          {r.displayName.split(/\s+/).map((p) => p[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                      )}
+                      <span>{r.displayName}</span>
+                    </Link>
+                  </td>
                   <td className="px-3 py-2 text-xs text-stone-600">{r.teams.join(', ') || '—'}</td>
                   <td className="px-3 py-2 text-center">{r.seasons}</td>
                   <td className="px-3 py-2 text-center text-xs">
