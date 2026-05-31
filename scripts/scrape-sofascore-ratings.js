@@ -87,14 +87,15 @@ function matchGame(gameLookup, eventDateISO, homeName, awayName) {
 }
 
 async function pageFetchJson(page, url) {
-  // Fetch from inside the page so Cloudflare sees a legit browser request.
-  return page.evaluate(async (u) => {
-    try {
-      const r = await fetch(u, { headers: { 'Accept': 'application/json' } });
-      if (!r.ok) return null;
-      return await r.json();
-    } catch { return null; }
-  }, url);
+  // Navigate the page to the API URL — the response is JSON wrapped in a
+  // <pre> tag (Chrome's default JSON viewer). Extract and parse the body text.
+  try {
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!res || !res.ok()) return null;
+    const text = await page.evaluate(() => document.body?.innerText || '');
+    if (!text || text.trim()[0] !== '{') return null;
+    return JSON.parse(text);
+  } catch { return null; }
 }
 
 async function main() {
