@@ -205,12 +205,35 @@ async function generateAiNarrative(team, snapshot, wiki, apiKey) {
   if (snapshot.coachLatest) facts.push(`מאמן: ${snapshot.coachLatest.coachNameHe || snapshot.coachLatest.coachNameEn}`);
   if (wiki?.summary) facts.push(`רקע: ${wiki.summary.slice(0, 300)}`);
 
-  const prompt = `אתה מנתח כדורגל ישראלי. כתוב סקירה קצרה (3-5 משפטים, עברית) על ${team.nameHe} בעונת ${team.season.name}.\n\nעובדות מאומתות (השתמש אך ורק בהן):\n${facts.map((f) => `- ${f}`).join('\n')}\n\nכללים:\n- חובה לציין את שם העונה במשפט הראשון.\n- אם יש תארים (🏆), הם הדבר הכי חשוב — פתח איתם.\n- אל תמציא פרטים שלא נכללו בעובדות.\n- כתוב בטון עובדתי, לא דרמטי.`;
+  // The model occasionally hallucinated the season year (e.g. wrote
+  // "2023-2024" for a 2025/26 team with sparse data). Lock it down: explicit
+  // SEASON variable + a system message that bans any deviation.
+  const seasonName = team.season.name;
+  const systemMessage =
+    `אתה כותב סקירה תמציתית בעברית על קבוצת כדורגל ישראלית בעונה ספציפית. ` +
+    `אסור להזכיר שום עונה אחרת חוץ מ-${seasonName}. ` +
+    `אסור להמציא נתון שלא מופיע בעובדות שיינתנו. ` +
+    `אסור להזכיר את ${seasonName === '2025/26' ? '2024/25, 2023/24 או שנים אחרות' : 'שנים אחרות'}. ` +
+    `כתוב 3-5 משפטים, טון עובדתי. במשפט הראשון חייב להופיע "${seasonName}" כשם העונה.`;
+
+  const prompt =
+    `קבוצה: ${team.nameHe}\n` +
+    `עונה: ${seasonName}\n\n` +
+    `עובדות מאומתות (השתמש אך ורק בהן, אסור להמציא, אסור להוסיף שנים אחרות):\n` +
+    `${facts.map((f) => `- ${f}`).join('\n')}\n\n` +
+    `הנחיות נוספות:\n` +
+    `- אם יש תארים (🏆), פתח איתם.\n` +
+    `- אל תכתוב על קבוצות אחרות מלבד ${team.nameHe}.\n` +
+    `- אם אין נתונים מספיקים — כתוב משפט אחד בלבד שמציין את שם הקבוצה ועונה ${seasonName}.\n`;
 
   const res = await client.chat.completions.create({
     model: 'gpt-4o-mini',
     max_tokens: 400,
-    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3, // less hallucination
+    messages: [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: prompt },
+    ],
   });
   return res.choices?.[0]?.message?.content?.trim() || null;
 }

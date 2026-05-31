@@ -25,9 +25,10 @@
   - [x] **אדמין /admin/coaches** ✅ v0.9.6 — מיזוג + עריכת שם עברי.
   - [x] **Coach Win Percentage כללי לליגה** ✅ v0.9.7 — `/coaches` עם דירוג לפי Pts/Game (מינימום 30 משחקים).
   - [x] **דף פרופיל מאמן** ✅ v0.9.7 — `/coaches/[id]` עם קריירה מלאה לפי קבוצה+עונה.
-- [ ] **Tighten team-overview AI prompt** — כרגע ה-AI לפעמים כותב שם עונה שגוי (גם בקבוצות נמוכות עם פחות נתונים). להזריק `seasonName` במפורש בפרומפט + הוראה "השתמש בדיוק בעונה הזו".
-- [ ] **Player AI narratives** — אותו דבר לדף שחקן (עם הסטטיסטיקה האישית + form אחרון + ציטוט סגנון Wikipedia).
-- [ ] **Cron יומי לחידוש AI summaries** — להריץ `fetch-team-overviews.js` כל בוקר.
+- [x] **Tighten team-overview AI prompt** ✅ v0.9.20 — system message + temperature 0.3 + ban על שנים אחרות.
+- [x] **Player AI narratives משופר** ✅ v0.9.20 — system message + min/game + תרומה ישירה.
+- [x] **Cron יומי לחידוש AI summaries** ✅ v0.9.20 — `scripts/cron-refresh-ai.sh`, צריך crontab בשרת.
+- [x] **Predicted lineup** ✅ v0.9.20 — תחזית הרכב פותח על בסיס 5 משחקים אחרונים, ב-`lineups` tab של משחק עתידי.
 - [ ] **Heatmap מיקומי שחקנים** במשחק — דרך Sofascore scraper. הם משתמשים ב-Opta tracking. ה-API פנימי שלהם מחזיר JSON עם `heatmap: [{x, y}]`. דורש להתמודד עם Cloudflare + headers (יש לנו תשתית puppeteer-real-browser). מומלץ לסרוק רק ~1000-2000 משחקים עדכניים (2024+) — לא להיסטוריה.
 - [ ] **OTA updates למובייל** דרך `expo-updates` — כדי לא להריץ EAS build על כל שינוי JS קטן.
 - [ ] **Player trophies בדף שחקן** — יש לנו 9,126 רשומות `PlayerTrophy` שלא מוצגות בצורה ייעודית.

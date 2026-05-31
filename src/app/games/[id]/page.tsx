@@ -12,6 +12,7 @@ import { GamePlayerStatsTrigger } from '@/components/PlayerMatchStatsModal';
 import GameAdminQuickEditorClient from '@/components/GameAdminQuickEditorClient';
 import GameRatingForm from '@/components/GameRatingForm';
 import { H2HPanel } from '@/components/H2HPanel';
+import { PredictedLineupPanel } from '@/components/PredictedLineupPanel';
 
 const eventLabels: Record<string, string> = {
   GOAL: 'שער',
@@ -112,6 +113,16 @@ export default async function GamePage({
   const { buildH2H } = await import('@/lib/h2h');
   const h2hSummary = await buildH2H(game.homeTeamId, game.awayTeamId);
 
+  // Predicted lineups — only useful before kickoff, when actual lineups aren't
+  // yet known. We use the last 5 completed games of each team in this season.
+  const isPreMatch = game.status === 'SCHEDULED' && homeLineup.starters.length === 0 && awayLineup.starters.length === 0;
+  const predictedLineups = isPreMatch
+    ? await Promise.all([
+        (await import('@/lib/predicted-lineup')).buildPredictedLineup(game.homeTeamId, game.dateTime),
+        (await import('@/lib/predicted-lineup')).buildPredictedLineup(game.awayTeamId, game.dateTime),
+      ])
+    : null;
+
   // Player of the match — highest-rated player from either team (starter or sub).
   const allRatedPlayers = [
     ...homeLineup.starters, ...homeLineup.substitutes,
@@ -203,6 +214,7 @@ export default async function GamePage({
         bestPlayer={bestPlayer}
         h2hSummary={h2hSummary}
         ratingPlayers={ratingPlayers}
+        predictedLineups={predictedLineups}
         isLoggedIn={!!currentUser}
         hasDetailedStats={hasDetailedStats}
         selectedTab={selectedTab}
@@ -399,6 +411,7 @@ function PremierGameView({
   bestPlayer,
   h2hSummary,
   ratingPlayers,
+  predictedLineups,
   isLoggedIn,
   hasDetailedStats,
   selectedTab,
@@ -414,6 +427,7 @@ function PremierGameView({
   bestPlayer: { player: LineupPlayer; side: 'home' | 'away' } | null;
   h2hSummary: import('@/lib/h2h').H2HSummary | null;
   ratingPlayers: Array<{ playerId: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; position: string | null; side: 'home' | 'away' }>;
+  predictedLineups: [import('@/lib/predicted-lineup').PredictedPlayer[], import('@/lib/predicted-lineup').PredictedPlayer[]] | null;
   isLoggedIn: boolean;
   hasDetailedStats: boolean;
   selectedTab: GamePremierTab;
@@ -603,6 +617,16 @@ function PremierGameView({
 
         {selectedTab === 'lineups' ? (
           <>
+            {predictedLineups ? (
+              <PremierPanel title="תחזית הרכב פותח">
+                <PredictedLineupPanel
+                  homeTeamName={homeTeamName}
+                  awayTeamName={awayTeamName}
+                  homeLineup={predictedLineups[0]}
+                  awayLineup={predictedLineups[1]}
+                />
+              </PremierPanel>
+            ) : null}
             {ratingPlayers.length > 0 ? (
               <div className="mb-6">
                 <GameRatingForm

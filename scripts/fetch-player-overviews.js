@@ -96,23 +96,50 @@ async function buildPlayerSnapshot(player, seasonId, seasonName) {
 async function generateAi(player, snap, wiki, apiKey) {
   if (!apiKey) return null;
   const client = new OpenAI({ apiKey });
+  const playerName = player.nameHe || player.nameEn;
+  const seasonName = snap.seasonName;
+
   const facts = [];
   if (snap.team) facts.push(`קבוצה: ${snap.team}`);
   if (snap.position) facts.push(`עמדה: ${snap.position}`);
-  facts.push(`${snap.matches} משחקים בעונת ${snap.seasonName}, ${snap.minutes} דקות סך הכל`);
+  facts.push(`${snap.matches} משחקים בעונת ${seasonName}, ${snap.minutes} דקות סך הכל`);
+  if (snap.minutes > 0 && snap.matches > 0) {
+    const minPerGame = Math.round(snap.minutes / snap.matches);
+    facts.push(`ממוצע דקות למשחק: ${minPerGame}`);
+  }
   if (snap.goals > 0) facts.push(`${snap.goals} שערים`);
   if (snap.assists > 0) facts.push(`${snap.assists} בישולים`);
+  if (snap.goals > 0 && snap.assists > 0) facts.push(`סך תרומה ישירה: ${snap.goals + snap.assists}`);
   if (snap.keyPasses > 0) facts.push(`${snap.keyPasses} מסירות מפתח`);
   if (snap.duelsWon > 0) facts.push(`${snap.duelsWon} דו-קרבות שזכה`);
   if (snap.dribbles > 0) facts.push(`${snap.dribbles} דריבלים מוצלחים`);
-  if (snap.avgRating) facts.push(`דירוג ממוצע ${snap.avgRating}`);
-  if (wiki?.summary) facts.push(`רקע: ${wiki.summary.slice(0, 250)}`);
+  if (snap.avgRating) facts.push(`דירוג ממוצע: ${snap.avgRating}`);
+  if (wiki?.summary) facts.push(`רקע ויקיפדיה: ${wiki.summary.slice(0, 300)}`);
 
-  const prompt = `אתה מנתח כדורגל ישראלי. כתוב סקירה קצרה (2-3 משפטים, עברית) על ${player.nameHe || player.nameEn} בעונת ${snap.seasonName}.\n\nעובדות מאומתות:\n${facts.map((f) => `- ${f}`).join('\n')}\n\nכללים: ציין את שם העונה. השתמש רק בעובדות לעיל. טון עובדתי.`;
+  const systemMessage =
+    `אתה כותב סקירה תמציתית בעברית על שחקן כדורגל ישראלי בעונה ספציפית. ` +
+    `אסור להזכיר שום עונה חוץ מ-${seasonName}. ` +
+    `אסור להמציא נתון שלא מופיע בעובדות. ` +
+    `2-3 משפטים, טון עובדתי. הפסקה ראשונה חייבת לציין את שם הקבוצה והעונה ${seasonName}.`;
+
+  const prompt =
+    `שחקן: ${playerName}\n` +
+    `עונה: ${seasonName}\n\n` +
+    `עובדות מאומתות (השתמש אך ורק בהן, אסור להוסיף שנים אחרות):\n` +
+    `${facts.map((f) => `- ${f}`).join('\n')}\n\n` +
+    `הנחיות:\n` +
+    `- פתח עם המספרים הכי בולטים (שערים/בישולים/דירוג).\n` +
+    `- אם יש רקע ויקיפדיה — שלב אותו בקצרה בסוף.\n` +
+    `- אסור להזכיר שחקנים אחרים, רק את ${playerName}.\n`;
 
   const res = await client.chat.completions.create({
-    model: 'gpt-4o-mini', max_tokens: 250,
-    messages: [{ role: 'user', content: prompt }],
+    model: 'gpt-4o-mini',
+    max_tokens: 300,
+    temperature: 0.3,
+    messages: [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: prompt },
+    ],
   });
   return res.choices?.[0]?.message?.content?.trim() || null;
 }
