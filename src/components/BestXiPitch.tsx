@@ -7,7 +7,7 @@
  * horizontal halfway line, and a center circle.
  */
 import Link from 'next/link';
-import type { BestXiPlayer } from '@/lib/best-xi';
+import type { BestXiPlayer } from '@/lib/player-ratings';
 
 function PlayerCard({ p }: { p: BestXiPlayer }) {
   return (
@@ -21,19 +21,19 @@ function PlayerCard({ p }: { p: BestXiPlayer }) {
             {p.displayName.split(/\s+/).map((s) => s[0]).join('').toUpperCase().slice(0, 2)}
           </div>
         )}
-        {p.avgRating != null ? (
+        {p.unifiedRating != null ? (
           <span className="absolute -bottom-1 -left-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white shadow">
-            {p.avgRating}
+            {p.unifiedRating}
           </span>
         ) : null}
       </div>
-      <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-center text-[11px] font-black leading-tight text-white max-w-[100px] truncate">
+      <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-center text-[11px] font-black leading-tight text-white max-w-[110px] truncate">
         {p.displayName}
       </div>
-      <div className="text-[10px] font-bold text-white/80">{p.team} · {p.matches} מ&apos;</div>
-      {p.goals > 0 || p.assists > 0 ? (
-        <div className="text-[10px] font-bold text-amber-200">
-          {p.goals > 0 ? `${p.goals}⚽` : ''}{p.goals > 0 && p.assists > 0 ? ' · ' : ''}{p.assists > 0 ? `${p.assists}🅰️` : ''}
+      <div className="text-[10px] font-bold text-white/80">{p.team}</div>
+      {p.reason ? (
+        <div className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-100 text-center max-w-[110px] leading-tight">
+          {p.reason}
         </div>
       ) : null}
     </Link>
