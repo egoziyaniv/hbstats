@@ -87,15 +87,23 @@ function matchGame(gameLookup, eventDateISO, homeName, awayName) {
 }
 
 async function pageFetchJson(page, url) {
-  // Navigate the page to the API URL — the response is JSON wrapped in a
-  // <pre> tag (Chrome's default JSON viewer). Extract and parse the body text.
+  // Use in-page fetch — same-origin from the page Cloudflare already cleared.
   try {
-    const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    if (!res || !res.ok()) return null;
-    const text = await page.evaluate(() => document.body?.innerText || '');
-    if (!text || text.trim()[0] !== '{') return null;
-    return JSON.parse(text);
-  } catch { return null; }
+    const result = await page.evaluate(async (u) => {
+      try {
+        const r = await fetch(u, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        return { status: r.status, ok: r.ok, text: await r.text() };
+      } catch (e) {
+        return { error: String(e) };
+      }
+    }, url);
+    if (result?.error) { console.log('  fetch err:', result.error); return null; }
+    if (!result?.ok) { console.log('  fetch status:', result?.status, 'body:', (result?.text || '').slice(0, 120)); return null; }
+    return JSON.parse(result.text);
+  } catch (e) { console.log('  outer err:', e?.message); return null; }
 }
 
 async function main() {
