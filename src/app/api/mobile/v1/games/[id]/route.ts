@@ -219,8 +219,30 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       away: buildLineup('away'),
     },
     matchStats,
-    h2h: null,
+    h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
   };
 
   return NextResponse.json(payload);
+}
+
+async function buildH2HBlock(homeTeamId: string, awayTeamId: string, currentGameId: string): Promise<import('@shared/types/mobile-api').H2H | null> {
+  const { buildH2H } = await import('@/lib/h2h');
+  const summary = await buildH2H(homeTeamId, awayTeamId, 6);
+  if (!summary || summary.totalGames === 0) return null;
+  // Drop the current game from the meetings list before slicing the last 5.
+  const meetings = summary.meetings.filter((m) => m.gameId !== currentGameId).slice(0, 5);
+  return {
+    lastN: meetings.map((m) => ({
+      id: m.gameId,
+      apiId: null,
+      date: m.date,
+      status: 'finished' as const,
+      minute: null,
+      home: { team: { id: '', apiId: null, nameEn: m.homeTeamName, nameHe: m.homeTeamName, logoUrl: null }, score: m.homeScore },
+      away: { team: { id: '', apiId: null, nameEn: m.awayTeamName, nameHe: m.awayTeamName, logoUrl: null }, score: m.awayScore },
+      leagueId: '',
+      leagueName: m.competitionNameHe || '',
+    })),
+    wins: { home: summary.winsA, away: summary.winsB, draw: summary.draws },
+  };
 }

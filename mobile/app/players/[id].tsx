@@ -117,6 +117,33 @@ export default function PlayerScreen() {
         </View>
       </LinearGradient>
 
+      {data.player.aiOverview && (data.player.aiOverview.text || data.player.aiOverview.wikiSummary) ? (
+        <Card>
+          <Section title="סקירה">
+            {data.player.aiOverview.text ? (
+              <View style={{ backgroundColor: '#FAFAF7', borderRadius: 12, padding: 12, marginBottom: data.player.aiOverview.wikiSummary ? 12 : 0 }}>
+                <Text style={{ fontSize: 14, lineHeight: 21, color: '#222', textAlign: 'right' }}>
+                  {data.player.aiOverview.text}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#999', marginTop: 6, textAlign: 'right', fontWeight: '700', letterSpacing: 0.5 }}>
+                  ניתוח AI
+                </Text>
+              </View>
+            ) : null}
+            {data.player.aiOverview.wikiSummary ? (
+              <View style={{ flexDirection: rtlRow(), gap: 12 }}>
+                {data.player.aiOverview.wikiThumbnail ? (
+                  <CachedImage source={{ uri: data.player.aiOverview.wikiThumbnail }} style={{ width: 56, height: 56, borderRadius: 8 }} />
+                ) : null}
+                <Text style={{ fontSize: 13, lineHeight: 19, color: '#555', textAlign: 'right', flex: 1 }}>
+                  {data.player.aiOverview.wikiSummary}
+                </Text>
+              </View>
+            ) : null}
+          </Section>
+        </Card>
+      ) : null}
+
       {data.player.dateOfBirth ? (
         <Card>
           <Section title="פרטים אישיים">

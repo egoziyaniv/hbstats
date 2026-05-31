@@ -765,10 +765,35 @@ export async function getMobileGamePayload(gameId: string) {
       },
       eventSummary,
     },
+    h2h: await buildMobileH2H(game.homeTeamId, game.awayTeamId, game.id),
     xg: {
       available: false,
       reason: 'אין כרגע נתוני בעיטה מפורטים מספיק כדי לחשב Expected Goals אמיתי.',
     },
+  };
+}
+
+async function buildMobileH2H(homeTeamId: string, awayTeamId: string, currentGameId: string) {
+  const { buildH2H } = await import('@/lib/h2h');
+  const summary = await buildH2H(homeTeamId, awayTeamId, 5);
+  if (!summary || summary.totalGames === 0) return null;
+  return {
+    totalGames: summary.totalGames,
+    winsA: summary.winsA,
+    draws: summary.draws,
+    winsB: summary.winsB,
+    goalsA: summary.goalsA,
+    goalsB: summary.goalsB,
+    meetings: summary.meetings.filter((m) => m.gameId !== currentGameId).slice(0, 5).map((m) => ({
+      gameId: m.gameId,
+      date: m.date,
+      competitionNameHe: m.competitionNameHe,
+      homeTeamName: m.homeTeamName,
+      awayTeamName: m.awayTeamName,
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      resultFromA: m.resultFromA,
+    })),
   };
 }
 
@@ -988,6 +1013,18 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
     .sort((left, right) => +new Date(right.dateTime) - +new Date(left.dateTime));
   const filteredPlayerGameRows = playerGameRows.filter((row) => matchesGameFilter(row, activeGameFilter));
 
+  // AI overview lives on the canonical Player's additionalInfo. The fetcher
+  // script writes there so all season-linked rows share one summary.
+  const canonicalAdditional = (canonicalPlayer.additionalInfo as { aiSummary?: { text?: string; wiki?: { summary?: string; thumbnail?: string; sourceUrl?: string } } } | null) || null;
+  const aiOverview = canonicalAdditional?.aiSummary
+    ? {
+        text: canonicalAdditional.aiSummary.text || null,
+        wikiSummary: canonicalAdditional.aiSummary.wiki?.summary || null,
+        wikiThumbnail: canonicalAdditional.aiSummary.wiki?.thumbnail || null,
+        wikiSourceUrl: canonicalAdditional.aiSummary.wiki?.sourceUrl || null,
+      }
+    : null;
+
   return {
     player: {
       id: canonicalPlayerId,
@@ -1008,6 +1045,7 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
             year: selectedSeason.year,
           }
         : null,
+      aiOverview,
     },
     filters: {
       availableSeasons,

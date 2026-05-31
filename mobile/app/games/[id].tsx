@@ -16,6 +16,7 @@ import { BackButton } from '@/design-system/BackButton';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
 import { PlayerMatchStatsSheet } from '@/design-system/PlayerMatchStatsSheet';
+import { GameRatingSheet } from '@/design-system/GameRatingSheet';
 import { useGamePlayerStats } from '@/hooks/useGamePlayerStats';
 import type { MatchEvent } from '@shared/types/mobile-api';
 
@@ -111,6 +112,7 @@ export default function MatchScreen() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MatchTabId>('overview');
   const [selectedPlayer, setSelectedPlayer] = useState<{ apiId: number | null; name: string; photo: string | null } | null>(null);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const sheetOpen = selectedPlayer != null;
   const { data: playerStatsPayload, isLoading: playerStatsLoading } = useGamePlayerStats(id || null, sheetOpen);
   const selectedStats = selectedPlayer && playerStatsPayload
@@ -298,6 +300,15 @@ export default function MatchScreen() {
           )
         ) : null}
 
+        {tab === 'lineups' && (data.lineups.home.players.length > 0 || data.lineups.away.players.length > 0) ? (
+          <Pressable
+            onPress={() => setRatingOpen(true)}
+            style={{ marginBottom: 12, paddingVertical: 10, alignItems: 'center', backgroundColor: theme.color.brand.accent, borderRadius: 12 }}
+          >
+            <Text style={{ color: 'white', fontSize: 14, fontWeight: '900' }}>⭐ נקד את המשחק</Text>
+          </Pressable>
+        ) : null}
+
         {tab === 'lineups' ? (
           (data.lineups.home.players.length > 0 || data.lineups.away.players.length > 0) ? (
             <Card>
@@ -363,6 +374,31 @@ export default function MatchScreen() {
         loading={playerStatsLoading}
         playerLabel={selectedPlayer?.name ?? null}
         playerPhoto={selectedPlayer?.photo ?? null}
+      />
+      <GameRatingSheet
+        visible={ratingOpen}
+        onClose={() => setRatingOpen(false)}
+        gameId={data.match.id}
+        homeTeamName={homeTeam.nameHe}
+        awayTeamName={awayTeam.nameHe}
+        players={[
+          ...data.lineups.home.players.map((p) => ({
+            playerId: p.player.id,
+            displayName: p.player.nameHe,
+            photoUrl: p.player.photoUrl,
+            jerseyNumber: p.player.jerseyNumber,
+            position: p.player.position,
+            side: 'home' as const,
+          })),
+          ...data.lineups.away.players.map((p) => ({
+            playerId: p.player.id,
+            displayName: p.player.nameHe,
+            photoUrl: p.player.photoUrl,
+            jerseyNumber: p.player.jerseyNumber,
+            position: p.player.position,
+            side: 'away' as const,
+          })),
+        ]}
       />
     </View>
   );
