@@ -70,8 +70,20 @@ async function buildBreakdown(seasonId: string, canonicalId: string, metric: key
   };
 }
 
-async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWon' | 'dribblesSuccess', limit = 20): Promise<LeaderboardRow[]> {
+// Map UI position group → which Player.position values qualify.
+const POSITION_FILTERS: Record<string, string[]> = {
+  GK: ['Goalkeeper', 'GK'],
+  DEF: ['Defender', 'D', 'CB', 'LB', 'RB'],
+  MID: ['Midfielder', 'M', 'CM', 'CDM', 'CAM'],
+  FWD: ['Attacker', 'F', 'ST', 'CF', 'LW', 'RW'],
+};
+
+async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWon' | 'dribblesSuccess', position: string | null, limit = 20): Promise<LeaderboardRow[]> {
   // Aggregate GamePlayerStats by canonical player for the season, sorted by metric.
+  const posList = position && POSITION_FILTERS[position] ? POSITION_FILTERS[position] : null;
+  const posClause = posList ? `AND p.position = ANY($3)` : '';
+  const args: unknown[] = [seasonId, limit];
+  if (posList) args.push(posList);
   const rows = await prisma.$queryRawUnsafe<Array<{ canon: string; total: number; matches: number; name: string; team: string }>>(`
     SELECT
       COALESCE(p."canonicalPlayerId", p.id) AS canon,
@@ -83,18 +95,19 @@ async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWo
     JOIN "games" g ON g.id = gs."gameId" AND g."seasonId" = $1
     LEFT JOIN "players" p ON p.id = gs."playerId"
     LEFT JOIN "teams" t ON t.id = p."teamId"
-    WHERE gs."${metric}" IS NOT NULL
+    WHERE gs."${metric}" IS NOT NULL ${posClause}
     GROUP BY canon
     HAVING SUM(COALESCE(gs."${metric}", 0)) > 0
     ORDER BY total DESC
     LIMIT $2
-  `, seasonId, limit);
+  `, ...args);
   return rows.map((r) => ({ canonicalId: r.canon, name: r.name || '—', team: r.team || '—', value: r.total, matches: r.matches }));
 }
 
-export default async function AdvancedStatsPage({ searchParams }: { searchParams?: { season?: string; player?: string; metric?: string } }) {
+export default async function AdvancedStatsPage({ searchParams }: { searchParams?: { season?: string; player?: string; metric?: string; pos?: string } }) {
   const seasons = await prisma.season.findMany({ where: { year: { gte: 2016 } }, orderBy: { year: 'desc' }, select: { id: true, name: true, year: true } });
   const selected = (searchParams?.season && seasons.find((s) => s.id === searchParams.season)) || seasons[0];
+  const position = searchParams?.pos && ['GK', 'DEF', 'MID', 'FWD'].includes(searchParams.pos) ? searchParams.pos : null;
 
   const breakdownMetric = searchParams?.metric && METRIC_LABELS[searchParams.metric] ? (searchParams.metric as keyof typeof METRIC_LABELS) : null;
   const breakdown = searchParams?.player && breakdownMetric
@@ -102,9 +115,9 @@ export default async function AdvancedStatsPage({ searchParams }: { searchParams
     : null;
 
   const [keyPasses, duels, dribbles] = await Promise.all([
-    buildLeaderboard(selected.id, 'passesKey'),
-    buildLeaderboard(selected.id, 'duelsWon'),
-    buildLeaderboard(selected.id, 'dribblesSuccess'),
+    buildLeaderboard(selected.id, 'passesKey', position),
+    buildLeaderboard(selected.id, 'duelsWon', position),
+    buildLeaderboard(selected.id, 'dribblesSuccess', position),
   ]);
 
   return (
@@ -114,14 +127,37 @@ export default async function AdvancedStatsPage({ searchParams }: { searchParams
         <p className="mt-1 text-sm text-stone-500">מבוסס על נתוני API-Football פר-משחק. מסירות מפתח, דו-קרבות, דריבלים מוצלחים.</p>
       </header>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {seasons.map((s) => (
           <Link
             key={s.id}
-            href={`/statistics/advanced?season=${s.id}`}
+            href={`/statistics/advanced?season=${s.id}${position ? `&pos=${position}` : ''}`}
             className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${s.id === selected.id ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}
           >
             {s.name}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Link
+          href={`/statistics/advanced?season=${selected.id}`}
+          className={`rounded-full px-3 py-1 text-xs font-bold ${!position ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 border border-stone-200'}`}
+        >
+          הכל
+        </Link>
+        {[
+          { id: 'GK', label: 'שוערים' },
+          { id: 'DEF', label: 'הגנה' },
+          { id: 'MID', label: 'קישור' },
+          { id: 'FWD', label: 'התקפה' },
+        ].map((p) => (
+          <Link
+            key={p.id}
+            href={`/statistics/advanced?season=${selected.id}&pos=${p.id}`}
+            className={`rounded-full px-3 py-1 text-xs font-bold ${position === p.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 border border-stone-200'}`}
+          >
+            {p.label}
           </Link>
         ))}
       </div>

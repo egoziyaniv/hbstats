@@ -38,25 +38,26 @@
 - [ ] **App Store screenshots + description** — צריך 6.7" + 5.5" screenshots, תיאור באנגלית ועברית, keywords.
 
 ### רעיונות שנאספו מ-FotMob / Sofascore
-- [ ] **Top scorers cross-season** — דירוג היסטורי כובשים בליגת העל (4,122 רשומות זמינות).
-- [ ] **Best XI של עונה** — האחד-עשר הכי טובים לפי דירוג ממוצע ב-`GamePlayerStats`.
-- [ ] **Goal types breakdown** — שערים מבעיטות 11/קרן/ראש/חופשי. הנתון ב-`GameEvent.subType`.
-- [x] **Form badges בטבלה** ✅ כבר קיים — `FormDot` ב-PremierStandingsView.
-- [ ] **Player season comparison** — השוואה side-by-side של 2-3 שחקנים.
-- [ ] **Referee statistics page** — צהובים/אדומים/פנדלים פר שופט.
-- [ ] **Stadium attendance averages** — לכל אצטדיון, ממוצע ו-total.
-- [ ] **Manager/coach profile page** — דף לכל מאמן עם הקריירה.
-- [ ] **Transfers** — לסרוק מ-FotMob/Transfermarkt, סכומים + תאריכים.
-- [ ] **Shot maps פר משחק** — מיקום x,y של כל בעיטה (Sofascore Opta).
-- [ ] **Player season rating 1-10** — Sofascore נותן 2018+.
-- [ ] **Predicted lineup** — תחזית הרכב לפני משחק.
-- [ ] **Player trophy cabinet** — להציג יפה את 9,126 ה-PlayerTrophy שלנו.
-- [ ] **H2H deep dive** — לפני משחק, היסטוריית 10 פגישות אחרונות + סטטיסטיקה.
-- [x] **Goal timing chart** ✅ v0.9.9 — בדף קבוצה (טאב סטטיסטיקה), 6 דליים של 15 דק'.
-- [ ] **Squad age + nationality breakdown** — pie charts בדף קבוצה.
-- [ ] **xG over time chart** — לאורך עונה לקבוצה.
-- [ ] **Live momentum bar** — בר אופקי שזז לפי לחץ (יחושב מהיסטוריית אירועים).
-- [x] **Best player of the match badge** ✅ v0.9.8 — קלף "שחקן המשחק" בכותרת ההרכבים.
+- [x] **Top scorers cross-season** ✅ v0.9.11 — `/statistics/all-time` עם 4 קטגוריות
+- [x] **Best XI של עונה** ✅ v0.9.12 — `/statistics/best-xi` (לפי דירוג ממוצע)
+- [x] **Goal types breakdown** ✅ v0.9.11 — פתוח/פנדל/עצמי בדף קבוצה
+- [x] **Form badges בטבלה** ✅ כבר קיים
+- [x] **Player season comparison** ✅ v0.9.12 — `/compare/players?a=&b=&c=`
+- [x] **Referee statistics page** ✅ v0.9.12 — `/referees` עם צהובים/אדומים/פנדלים
+- [ ] **Stadium attendance averages** — חסרים נתונים. צריך להוסיף `Game.attendance` ולסרוק
+- [x] **Manager/coach profile page** ✅ v0.9.7 — `/coaches/[id]`
+- [ ] **Transfers** — לסרוק מ-FotMob/Transfermarkt
+- [ ] **Shot maps פר משחק** — Sofascore Opta
+- [ ] **Player season rating 1-10** — Sofascore
+- [ ] **Predicted lineup**
+- [x] **Player trophy cabinet** ✅ כבר קיים
+- [x] **H2H deep dive** ✅ v0.9.11 — בטאב סקירה בדף משחק
+- [x] **Goal timing chart** ✅ v0.9.9
+- [x] **Squad age + nationality breakdown** ✅ v0.9.11
+- [x] **xG over time chart** ✅ v0.9.11 (חסרים נתוני xG לרוב המשחקים — מציג כשיש)
+- [x] **Live momentum bar** ✅ v0.9.12 — קומפוננטה מוכנה, ממתינה לאינטגרציה ב-live tab
+- [x] **Best player of the match badge** ✅ v0.9.8
+- [x] **Filter advanced leaderboards by position** ✅ v0.9.12
 
 ## 🐛 בעיות ידועות
 - [ ] **API-Football coverage** — חלק מהמשחקים מחזירים פחות שחקנים מ-22 בקריאה (חוסר כיסוי). אין מה לעשות מצד שלנו.
