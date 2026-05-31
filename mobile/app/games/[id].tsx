@@ -334,7 +334,7 @@ export default function MatchScreen() {
         {tab === 'lineups' && (data.lineups.home.players.length > 0 || data.lineups.away.players.length > 0) ? (
           <Pressable
             onPress={() => setRatingOpen(true)}
-            style={{ marginBottom: 12, paddingVertical: 10, alignItems: 'center', backgroundColor: theme.color.brand.accent, borderRadius: 12 }}
+            style={{ marginBottom: 12, paddingVertical: 10, alignItems: 'center', backgroundColor: theme.accent, borderRadius: 12 }}
           >
             <Text style={{ color: 'white', fontSize: 14, fontWeight: '900' }}>⭐ נקד את המשחק</Text>
           </Pressable>

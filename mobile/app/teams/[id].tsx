@@ -246,7 +246,7 @@ export default function TeamScreen() {
                         <CachedImage source={{ uri: e.photoUrl }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100] }} />
                       ) : (
                         <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 10, fontWeight: '900', color: theme.ink[600] }}>{initials}</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '900', color: theme.ink[500] }}>{initials}</Text>
                         </View>
                       )}
                       <Text style={{ fontSize: 10, fontWeight: '800', textAlign: 'center', marginTop: 2 }} numberOfLines={1}>{e.displayName.split(' ').slice(-1)[0]}</Text>
@@ -279,7 +279,7 @@ export default function TeamScreen() {
                     <View style={{ height: 64, width: '100%' }}>
                       <View style={{ height: ch, backgroundColor: '#ef4444', borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} />
                     </View>
-                    <Text style={{ fontSize: 9, color: theme.ink[500], marginTop: 4 }} dir="ltr">{b.label}</Text>
+                    <Text style={{ fontSize: 9, color: theme.ink[500], marginTop: 4 }}>{b.label}</Text>
                   </View>
                 );
               })}
@@ -318,12 +318,12 @@ export default function TeamScreen() {
                               <CachedImage source={{ uri: c.photoUrl }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100] }} />
                             ) : (
                               <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 12, fontWeight: '900', color: theme.ink[600] }}>{initials || '?'}</Text>
+                                <Text style={{ fontSize: 12, fontWeight: '900', color: theme.ink[500] }}>{initials || '?'}</Text>
                               </View>
                             )}
                             <View style={{ flex: 1, minWidth: 0 }}>
                               <Text style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900] }} numberOfLines={1}>{c.name}</Text>
-                              <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">{c.firstMatch} → {c.lastMatch}</Text>
+                              <Text style={{ fontSize: 10, color: theme.ink[500] }}>{c.firstMatch} → {c.lastMatch}</Text>
                             </View>
                             <Text style={{ fontSize: 11, color: theme.ink[700], fontWeight: '700' }}>{c.matches}</Text>
                           </View>
@@ -359,7 +359,7 @@ export default function TeamScreen() {
                     <Text style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900] }}>{inj.playerName || '—'}</Text>
                     <Text style={{ fontSize: 10, color: theme.ink[500] }}>{inj.reason || 'פציעה'}</Text>
                   </View>
-                  {inj.date ? <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">{inj.date}</Text> : null}
+                  {inj.date ? <Text style={{ fontSize: 10, color: theme.ink[500] }}>{inj.date}</Text> : null}
                 </View>
               ))}
             </View>

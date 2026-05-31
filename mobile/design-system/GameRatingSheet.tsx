@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { CachedImage } from '@/design-system/CachedImage';
 import { absoluteImage } from '@/lib/config';
@@ -58,7 +58,7 @@ export function GameRatingSheet({
     setLoading(true);
     apiClient
       .get<{ ratings: Record<string, number>; averages: AverageMap }>(`/api/games/${gameId}/rate`)
-      .then((data) => {
+      .then((data: { ratings?: Record<string, number>; averages?: AverageMap }) => {
         setRatings(data.ratings || {});
         setAverages(data.averages || {});
       })
@@ -112,7 +112,7 @@ export function GameRatingSheet({
             <Text style={{ fontSize: 8, color: '#999' }}>{avg.count} מדרגים</Text>
           </View>
         ) : null}
-        <View style={{ minWidth: 50, height: 32, paddingHorizontal: 8, borderRadius: 8, backgroundColor: value != null ? theme.color.brand.accent : '#E0DED7', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ minWidth: 50, height: 32, paddingHorizontal: 8, borderRadius: 8, backgroundColor: value != null ? theme.accent : '#E0DED7', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, fontWeight: '900', color: value != null ? 'white' : '#888' }}>
             {value != null ? value.toFixed(1) : '—'}
           </Text>
@@ -135,7 +135,7 @@ export function GameRatingSheet({
           <Pressable
             onPress={save}
             disabled={saving || !user}
-            style={{ paddingHorizontal: 14, paddingVertical: 6, backgroundColor: theme.color.brand.accent, borderRadius: 999, opacity: saving || !user ? 0.5 : 1 }}
+            style={{ paddingHorizontal: 14, paddingVertical: 6, backgroundColor: theme.accent, borderRadius: 999, opacity: saving || !user ? 0.5 : 1 }}
           >
             <Text style={{ fontSize: 13, fontWeight: '900', color: 'white' }}>
               {saving ? 'שומר...' : !user ? 'התחבר' : 'שמור'}
@@ -170,7 +170,7 @@ export function GameRatingSheet({
                     }}
                     style={{
                       paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8,
-                      backgroundColor: ratings[pickerFor] === v ? theme.color.brand.accent : '#f0f0eb',
+                      backgroundColor: ratings[pickerFor] === v ? theme.accent : '#f0f0eb',
                     }}
                   >
                     <Text style={{ fontSize: 14, fontWeight: '800', color: ratings[pickerFor] === v ? 'white' : '#333' }}>

@@ -73,11 +73,11 @@ export function PlayerMatchHistorySection({ entries }: { entries: PlayerMatchHis
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}
           >
             <View style={{ width: 56 }}>
-              <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">{e.date.slice(5)}</Text>
+              <Text style={{ fontSize: 10, color: theme.ink[500] }}>{e.date.slice(5)}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12, color: theme.ink[900], fontWeight: '500' }} numberOfLines={1}>{e.opponent}</Text>
-              {e.scoreLine ? <Text style={{ fontSize: 10, color: theme.ink[500] }} dir="ltr">{e.scoreLine}</Text> : null}
+              {e.scoreLine ? <Text style={{ fontSize: 10, color: theme.ink[500] }}>{e.scoreLine}</Text> : null}
             </View>
             {e.rating != null ? (
               <View style={{ width: 36, height: 22, borderRadius: 4, backgroundColor: ratingFill(e.rating), alignItems: 'center', justifyContent: 'center' }}>

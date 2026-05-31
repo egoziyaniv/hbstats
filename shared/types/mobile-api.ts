@@ -491,6 +491,12 @@ export interface PlayerProfile {
   position: string | null;
   marketValue: string | null;     // e.g. "€1.2m" — sourced from Flashscore
   contractUntil: string | null;   // ISO date — sourced from Flashscore
+  aiOverview: {
+    text: string | null;
+    wikiSummary: string | null;
+    wikiThumbnail: string | null;
+    wikiSourceUrl: string | null;
+  } | null;
 }
 
 export interface PlayerPayload {
