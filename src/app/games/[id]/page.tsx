@@ -10,6 +10,7 @@ import prisma from '@/lib/prisma';
 import { GameRefereeForm } from '@/components/GameRefereeForm';
 import { GamePlayerStatsTrigger } from '@/components/PlayerMatchStatsModal';
 import GameAdminQuickEditorClient from '@/components/GameAdminQuickEditorClient';
+import { H2HPanel } from '@/components/H2HPanel';
 
 const eventLabels: Record<string, string> = {
   GOAL: 'שער',
@@ -107,6 +108,8 @@ export default async function GamePage({
   const eventSummary = buildEventSummary(game);
   const homeLineup = buildTeamLineup(game, game.homeTeamId);
   const awayLineup = buildTeamLineup(game, game.awayTeamId);
+  const { buildH2H } = await import('@/lib/h2h');
+  const h2hSummary = await buildH2H(game.homeTeamId, game.awayTeamId);
 
   // Player of the match — highest-rated player from either team (starter or sub).
   const allRatedPlayers = [
@@ -181,6 +184,7 @@ export default async function GamePage({
         homeLineup={homeLineup}
         awayLineup={awayLineup}
         bestPlayer={bestPlayer}
+        h2hSummary={h2hSummary}
         hasDetailedStats={hasDetailedStats}
         selectedTab={selectedTab}
         adminEditorProps={adminEditorProps}
@@ -362,6 +366,7 @@ function PremierGameView({
   homeLineup,
   awayLineup,
   bestPlayer,
+  h2hSummary,
   hasDetailedStats,
   selectedTab,
   adminEditorProps,
@@ -374,6 +379,7 @@ function PremierGameView({
   homeLineup: ReturnType<typeof buildTeamLineup>;
   awayLineup: ReturnType<typeof buildTeamLineup>;
   bestPlayer: { player: LineupPlayer; side: 'home' | 'away' } | null;
+  h2hSummary: import('@/lib/h2h').H2HSummary | null;
   hasDetailedStats: boolean;
   selectedTab: GamePremierTab;
   adminEditorProps: any;
@@ -489,6 +495,12 @@ function PremierGameView({
                   <StatPairCard label="נבדלים" homeDisplay={formatNumber(game.gameStats?.homeOffsides ?? null)} awayDisplay={formatNumber(game.gameStats?.awayOffsides ?? null)} />
                 </div>
               </PremierPanel>
+
+              {h2hSummary && h2hSummary.totalGames > 0 ? (
+                <PremierPanel title="היסטוריית עימותים">
+                  <H2HPanel summary={h2hSummary} />
+                </PremierPanel>
+              ) : null}
 
               {currentUserRole === 'ADMIN' ? (
                 <PremierPanel title="ניהול שופט">

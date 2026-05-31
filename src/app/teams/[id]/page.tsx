@@ -10,8 +10,10 @@ import TeamInjuryManager from '@/components/TeamInjuryManager';
 import { ContractExpiryChart } from '@/components/Charts';
 import { CoachWinChart } from '@/components/CoachWinChart';
 import { GoalTimingChart } from '@/components/GoalTimingChart';
+import { SquadDemographicsPanel, GoalTypePanel, XgOverTimePanel } from '@/components/TeamExtrasPanels';
 import { buildCoachWinChart } from '@/lib/coach-timeline';
 import { buildGoalTimingForTeam } from '@/lib/goal-timing';
+import { buildSquadDemographics, buildGoalTypes, buildXgOverTime } from '@/lib/team-extras';
 import { TeamOverviewPanel } from '@/components/TeamOverviewPanel';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
@@ -212,6 +214,11 @@ export default async function TeamPage({
   // and photo URLs from API-Football via apiFootballCoachId.
   const coachChart = await buildCoachWinChart(team.id);
   const goalTiming = await buildGoalTimingForTeam(team.id);
+  const [demographics, goalTypes, xgPoints] = await Promise.all([
+    buildSquadDemographics(team.id),
+    buildGoalTypes(team.id, team.seasonId),
+    buildXgOverTime(team.id),
+  ]);
 
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
@@ -824,6 +831,20 @@ export default async function TeamPage({
 
         {displayMode !== 'premier' || selectedTab === 'stats' ? (
           <GoalTimingChart buckets={goalTiming} />
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'stats' ? (
+          <section className="grid gap-6 lg:grid-cols-3">
+            <Panel title="סגל — דמוגרפיה">
+              <SquadDemographicsPanel data={demographics} />
+            </Panel>
+            <Panel title="סוגי שערים">
+              <GoalTypePanel data={goalTypes} />
+            </Panel>
+            <Panel title="xG לאורך העונה">
+              <XgOverTimePanel points={xgPoints} />
+            </Panel>
+          </section>
         ) : null}
 
         {displayMode !== 'premier' || selectedTab === 'stats' ? (
