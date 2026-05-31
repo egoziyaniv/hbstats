@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { buildAllTimeLeaderboard, type AllTimeCategory } from '@/lib/all-time-stats';
+import { buildAllTimeLeaderboard, buildWallaHistorical, type AllTimeCategory } from '@/lib/all-time-stats';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
@@ -13,7 +13,10 @@ const CATEGORIES: Array<{ id: AllTimeCategory; label: string; suffix: string }> 
 
 export default async function AllTimeStatsPage({ searchParams }: { searchParams: { cat?: string } }) {
   const selected = (CATEGORIES.find((c) => c.id === searchParams.cat) || CATEGORIES[0]);
-  const rows = await buildAllTimeLeaderboard(selected.id, 100);
+  const [rows, walla] = await Promise.all([
+    buildAllTimeLeaderboard(selected.id, 100),
+    buildWallaHistorical(selected.id),
+  ]);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
@@ -75,6 +78,39 @@ export default async function AllTimeStatsPage({ searchParams }: { searchParams:
             </tbody>
           </table>
         </div>
+
+        {walla.length > 0 ? (
+          <section className="mt-6">
+            <header className="mb-3">
+              <h2 className="border-r-[4px] border-stone-400 pr-3 text-xl font-black text-stone-900">היסטוריה — וואלה (2000-2015)</h2>
+              <p className="mt-1 text-xs text-stone-500">חמישה המובילים בכל עונה לפי וואלה. אין קישור אוטומטי לדפי שחקנים.</p>
+            </header>
+            <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-stone-50 text-xs font-bold text-stone-600">
+                  <tr>
+                    <th className="px-3 py-2">עונה</th>
+                    <th className="px-3 py-2">#</th>
+                    <th className="px-3 py-2">שחקן</th>
+                    <th className="px-3 py-2">קבוצה</th>
+                    <th className="px-3 py-2 text-center">{selected.suffix}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {walla.map((w, i) => (
+                    <tr key={`${w.season}-${w.rank}-${i}`} className="border-t border-stone-100 hover:bg-stone-50/60">
+                      <td className="px-3 py-2 font-bold text-stone-700" dir="ltr">{w.season}</td>
+                      <td className="px-3 py-2 text-stone-400 font-bold">{w.rank}</td>
+                      <td className="px-3 py-2">{w.playerName}</td>
+                      <td className="px-3 py-2 text-xs text-stone-600">{w.teamName}</td>
+                      <td className="px-3 py-2 text-center text-base font-black text-stone-900">{w.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );
