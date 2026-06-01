@@ -21,30 +21,35 @@ if (!API_KEY) { console.error('Missing FIRECRAWL_API_KEY'); process.exit(1); }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function firecrawl(url, attempt = 1) {
+async function firecrawl(url, opts = {}, attempt = 1) {
+  // opts.statsTab=true → append `#tab:statistics` fragment to the URL so
+  // Sofascore's SPA opens the Statistics tab by default. Plain scrape with
+  // a longer waitFor seems to work better than click actions, which
+  // intermittently fail with "Element not found" on a hydrating SPA.
+  const finalUrl = opts.statsTab && !url.includes('#tab:statistics')
+    ? `${url}#tab:statistics`
+    : url;
   try {
     const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        url, formats: ['markdown'], waitFor: 6000, onlyMainContent: false,
-        actions: [
-          { type: 'click', selector: 'a[href*="tab:statistics"], button:has-text("Statistics")' },
-          { type: 'wait', milliseconds: 3000 },
-        ],
+        url: finalUrl, formats: ['markdown'],
+        waitFor: opts.statsTab ? 8000 : 5000,
+        onlyMainContent: false,
       }),
     });
     const text = await res.text();
     let data; try { data = JSON.parse(text); } catch {
       console.error(`  non-JSON (HTTP ${res.status}): ${text.slice(0, 60)}`);
-      if (attempt < 2) { await sleep(2000); return firecrawl(url, attempt + 1); }
+      if (attempt < 2) { await sleep(2000); return firecrawl(url, opts, attempt + 1); }
       return null;
     }
     if (!data?.success) { console.error('  firecrawl error:', data?.error); return null; }
     return data.data;
   } catch (e) {
     console.error('  firecrawl exception:', e.message);
-    if (attempt < 2) { await sleep(2000); return firecrawl(url, attempt + 1); }
+    if (attempt < 2) { await sleep(2000); return firecrawl(url, opts, attempt + 1); }
     return null;
   }
 }
@@ -165,7 +170,7 @@ async function discoverMatchUrls() {
   for (const team of teams) {
     const url = await findTeamUrl(team.nameEn);
     if (!url) { console.log(`  ✗ ${team.nameEn}`); continue; }
-    const d = await firecrawl(url);
+    const d = await firecrawl(url, { statsTab: false });
     const md = d?.markdown || '';
     const found = md.match(/https:\/\/www\.sofascore\.com\/football\/match\/[a-z0-9-]+\/[A-Za-z0-9]+/g) || [];
     let added = 0;
@@ -178,7 +183,7 @@ async function discoverMatchUrls() {
 
 async function processMatchUrl(matchUrl) {
   console.log(`→ ${matchUrl}`);
-  const data = await firecrawl(matchUrl);
+  const data = await firecrawl(matchUrl, { statsTab: true });
   if (!data?.markdown) { console.log('  no markdown'); return null; }
 
   const title = data.metadata?.title || '';
@@ -190,7 +195,17 @@ async function processMatchUrl(matchUrl) {
   const stats = parseMatchStats(data.markdown);
   console.log(`  parsed ${stats.length} stats`);
   if (stats.length < 5) {
-    console.log('  · sparse data — statistics tab probably did not render');
+    // Dump a slice of the markdown so we can iterate on the parser without
+    // burning another Firecrawl credit. The Statistics-tab content usually
+    // shows up several KB into the page, so log a middle slice too.
+    const md = data.markdown;
+    console.log('  · markdown sample [0..400]:');
+    console.log('    ' + md.slice(0, 400).replace(/\n/g, '\n    '));
+    if (md.length > 1500) {
+      console.log('  · markdown sample [middle 400]:');
+      const mid = Math.floor(md.length / 2);
+      console.log('    ' + md.slice(mid, mid + 400).replace(/\n/g, '\n    '));
+    }
     return null;
   }
 
