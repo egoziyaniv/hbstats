@@ -15,7 +15,15 @@ type Status = {
   error: string | null;
 };
 
-type Field = 'season' | 'limit';
+type Field = 'season' | 'limit' | 'competition';
+
+const COMPETITIONS = [
+  { id: '',                 label: 'כל התחרויות (כל מה שיש ב-Sofascore לקבוצות ליגת העל)' },
+  { id: 'comp_liga_haal',   label: 'ליגת העל בלבד' },
+  { id: 'comp_state_cup',   label: 'גביע המדינה בלבד' },
+  { id: 'comp_super_cup',   label: 'Super Cup בלבד' },
+  { id: 'comp_toto_cup_al', label: 'גביע הטוטו בלבד' },
+];
 type Action = {
   key: string;
   label: string;
@@ -31,7 +39,7 @@ const ACTIONS: Action[] = [
     desc: 'מושך ציוני שחקנים פר-משחק מ-Sofascore (Firecrawl, 1 קרדיט למשחק).',
     button: 'התחל משיכה',
     buttonColor: 'bg-blue-600 hover:bg-blue-700',
-    fields: ['season', 'limit'],
+    fields: ['competition', 'season', 'limit'],
   },
   {
     key: 'team-stats',
@@ -53,6 +61,7 @@ const ACTIONS: Action[] = [
 
 export default function AdminSofascoreClient() {
   const [season, setSeason] = useState('2025/26');
+  const [competition, setCompetition] = useState('');
   const [limit, setLimit] = useState('');
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -88,6 +97,7 @@ export default function AdminSofascoreClient() {
     const body: Record<string, string | number> = { action };
     if (action === 'ratings-season') {
       if (season) body.season = season;
+      if (competition) body.competition = competition;
       if (limit) body.limit = parseInt(limit, 10);
     } else if (action === 'team-stats') {
       if (limit) body.limit = parseInt(limit, 10);
@@ -122,10 +132,25 @@ export default function AdminSofascoreClient() {
           const isBusy = busy === a.key;
           const showSeason = a.fields.includes('season');
           const showLimit = a.fields.includes('limit');
+          const showCompetition = a.fields.includes('competition');
           return (
             <div key={a.key} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-black text-stone-900">{a.label}</h3>
               <p className="mt-1 text-xs text-stone-500">{a.desc}</p>
+              {showCompetition ? (
+                <label className="mt-3 block text-xs font-bold text-stone-700">
+                  תחרות
+                  <select
+                    value={competition}
+                    onChange={(e) => setCompetition(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
+                  >
+                    {COMPETITIONS.map((c) => (
+                      <option key={c.id || 'all'} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               {showSeason ? (
                 <label className="mt-3 block text-xs font-bold text-stone-700">
                   עונה

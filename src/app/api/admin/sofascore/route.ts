@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
   if (action === 'ratings-season') {
     const season = String(body?.season || '').trim();
     if (season) extraArgs.push('--season', season);
+    const competition = String(body?.competition || '').trim();
+    if (competition) extraArgs.push('--competition', competition);
     const limit = parseInt(String(body?.limit || '0'), 10);
     if (Number.isFinite(limit) && limit > 0) extraArgs.push('--limit', String(limit));
   } else if (action === 'team-stats') {

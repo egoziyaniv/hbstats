@@ -25,6 +25,9 @@ const SINGLE_URL = arg('url', null);
 const SEASON_LABEL = arg('season', null);
 const TEAM_NAME = arg('team', null); // e.g. "Hapoel Beer Sheva"
 const LIMIT = parseInt(arg('limit', '0'), 10);
+// Optional competitionId filter (e.g. "comp_liga_haal", "comp_state_cup").
+// When set, ratings are only saved for games whose competitionId matches.
+const COMPETITION_ID = arg('competition', null);
 const SAVE = process.argv.includes('--save');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const API_KEY = process.env.FIRECRAWL_API_KEY;
@@ -349,7 +352,11 @@ async function findGameByTeams(homeName, awayName) {
   const awayKey = trim(awayName);
   const games = await prisma.game.findMany({
     where: { status: 'COMPLETED' },
-    include: { homeTeam: { select: { nameHe: true, nameEn: true } }, awayTeam: { select: { nameHe: true, nameEn: true } } },
+    select: {
+      id: true, dateTime: true, competitionId: true, homeTeamId: true, awayTeamId: true,
+      homeTeam: { select: { nameHe: true, nameEn: true } },
+      awayTeam: { select: { nameHe: true, nameEn: true } },
+    },
     orderBy: { dateTime: 'desc' },
     take: 200,
   });
@@ -388,6 +395,10 @@ async function main() {
       if (!result?.ratings?.length) continue;
       const game = await findGameByTeams(result.homeTeamName, result.awayTeamName);
       if (!game) { console.log(`  no DB game found for ${result.homeTeamName} vs ${result.awayTeamName}`); continue; }
+      if (COMPETITION_ID && game.competitionId !== COMPETITION_ID) {
+        console.log(`  skip: game ${game.id} competition=${game.competitionId} (wanted ${COMPETITION_ID})`);
+        continue;
+      }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
       const { saved, unmatched } = await saveRatings(game, result.ratings);
       totalSaved += saved;
@@ -411,6 +422,10 @@ async function main() {
       if (!result?.ratings?.length) continue;
       const game = await findGameByTeams(result.homeTeamName, result.awayTeamName);
       if (!game) { console.log(`  no DB game found for ${result.homeTeamName} vs ${result.awayTeamName}`); continue; }
+      if (COMPETITION_ID && game.competitionId !== COMPETITION_ID) {
+        console.log(`  skip: game ${game.id} competition=${game.competitionId} (wanted ${COMPETITION_ID})`);
+        continue;
+      }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
       const { saved, unmatched } = await saveRatings(game, result.ratings);
       totalSaved += saved;
