@@ -7,6 +7,8 @@ import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
 import { PlayerOverviewPanel } from '@/components/PlayerOverviewPanel';
+import { PlayerTrophyCabinet } from '@/components/PlayerTrophyCabinet';
+import { buildPlayerTrophies } from '@/lib/player-trophies';
 
 type AggregatedStatRow = {
   key: string;
@@ -168,7 +170,7 @@ export default async function PlayerPage({
       })
     : [];
 
-  const [transfers, trophies, sidelinedEntries] = playerOrCondition.length > 0
+  const [transfers, trophies, sidelinedEntries, trophyGroups] = playerOrCondition.length > 0
     ? await Promise.all([
         prisma.playerTransfer.findMany({
           where: { OR: playerOrCondition },
@@ -182,8 +184,9 @@ export default async function PlayerPage({
           where: { OR: playerOrCondition },
           orderBy: { startDate: 'desc' },
         }),
+        buildPlayerTrophies(matchedPlayer.id),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
 
   const now = new Date();
   const currentSidelined = sidelinedEntries.find(
@@ -525,6 +528,7 @@ export default async function PlayerPage({
         filteredPlayerGameRows={filteredPlayerGameRows}
         transfers={transfers}
         trophies={trophies}
+        trophyGroups={trophyGroups}
         sidelinedEntries={sidelinedEntries}
         currentSidelined={currentSidelined || null}
         cardHistory={cardHistory}
@@ -801,6 +805,7 @@ function PremierPlayerView({
   filteredPlayerGameRows,
   transfers,
   trophies,
+  trophyGroups,
   sidelinedEntries,
   currentSidelined,
   cardHistory,
@@ -838,6 +843,7 @@ function PremierPlayerView({
   filteredPlayerGameRows: Array<ReturnType<typeof buildPlayerGameRow> extends infer T ? Exclude<T, null> : never>;
   transfers: Array<{ id: string; transferDate: Date | null; transferTypeEn: string | null; transferTypeHe: string | null; sourceTeamNameEn: string | null; sourceTeamNameHe: string | null; sourceTeamLogoUrl: string | null; destinationTeamNameEn: string | null; destinationTeamNameHe: string | null; destinationTeamLogoUrl: string | null }>;
   trophies: Array<{ id: string; leagueNameEn: string; leagueNameHe: string | null; seasonLabel: string | null; placeEn: string | null; placeHe: string | null; countryEn: string | null; countryHe: string | null }>;
+  trophyGroups: import('@/lib/player-trophies').TrophyGroup[];
   sidelinedEntries: Array<{ id: string; typeEn: string; typeHe: string | null; startDate: Date | null; endDate: Date | null }>;
   currentSidelined: { typeEn: string; typeHe: string | null; startDate: Date | null } | null;
 }) {
@@ -1171,43 +1177,24 @@ function PremierPlayerView({
 
         {activeTab === 'achievements' ? (
           <section id="achievements" className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
-            <div className="mb-4">
-              <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">גביעים והישגים</h2>
-              <p className="mt-1 text-sm text-stone-500">תארים, גביעים והישגים שנשמרו לשחקן לאורך הקריירה.</p>
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">גביעים והישגים</h2>
+                <p className="mt-1 text-sm text-stone-500">קבוצת תארים פר תחרות לאורך הקריירה.</p>
+              </div>
+              {trophyGroups.length > 0 ? (
+                <div className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
+                  סה&quot;כ: {trophyGroups.reduce((s, g) => s + g.wins, 0)} 🏆 · {trophyGroups.reduce((s, g) => s + g.runnerUps, 0)} 🥈
+                </div>
+              ) : null}
             </div>
-            {(() => {
-              const unique = Array.from(
-                trophies.reduce((map, t) => {
-                  const key = `${t.leagueNameEn}|${t.seasonLabel}|${t.placeEn}`;
-                  if (!map.has(key)) map.set(key, t);
-                  return map;
-                }, new Map<string, typeof trophies[0]>()).values()
-              );
-              return unique.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {unique.map((t, i) => (
-                    <div key={`${t.id}-${i}`} className="rounded-xl border border-stone-100 bg-stone-50 p-4 text-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{t.placeEn === 'Winner' ? '🏆' : t.placeEn === 'Runner-up' || t.placeEn === '2nd Place' ? '🥈' : '🏅'}</span>
-                        <div>
-                          <div className="font-bold text-stone-800">{t.leagueNameHe || t.leagueNameEn}</div>
-                          <div className="mt-0.5 text-xs text-stone-500">
-                            {t.seasonLabel || ''} · {t.placeHe || t.placeEn || ''}
-                          </div>
-                          {t.countryHe || t.countryEn ? (
-                            <div className="mt-0.5 text-[10px] text-stone-400">{t.countryHe || t.countryEn}</div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-6 text-center text-sm text-stone-500">
-                  אין הישגים שמורים לשחקן הזה.
-                </div>
-              );
-            })()}
+            {trophyGroups.length > 0 ? (
+              <PlayerTrophyCabinet trophies={trophyGroups} />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-6 text-center text-sm text-stone-500">
+                אין הישגים שמורים לשחקן הזה.
+              </div>
+            )}
           </section>
         ) : null}
 

@@ -9,14 +9,16 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "development"
     },
     "development-device": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
         "simulator": false
-      }
+      },
+      "channel": "development-device"
     },
     "preview": {
       "distribution": "internal",
@@ -28,13 +30,15 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hbs.co.il"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hbs.co.il"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
