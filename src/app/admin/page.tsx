@@ -514,6 +514,7 @@ export default async function AdminPage({
               <Link href="/admin/unlinked" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">🔗 קישור ידני</Link>
               <Link href="/admin/scrape" className="rounded-lg bg-blue-50 px-3 py-2 text-blue-900 transition hover:bg-blue-100">🌐 סריקת אתרים</Link>
               <Link href="/admin/flashscore" className="rounded-lg bg-blue-50 px-3 py-2 text-blue-900 transition hover:bg-blue-100">📊 Flashscore</Link>
+              <Link href="/admin/sofascore" className="rounded-lg bg-blue-50 px-3 py-2 text-blue-900 transition hover:bg-blue-100">⭐ Sofascore</Link>
               <Link href="/admin/merge" className="rounded-lg bg-purple-50 px-3 py-2 text-purple-900 transition hover:bg-purple-100">🔀 מיזוג נתונים</Link>
             </div>
           </div>
