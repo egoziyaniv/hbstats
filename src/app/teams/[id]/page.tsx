@@ -11,6 +11,7 @@ import { ContractExpiryChart } from '@/components/Charts';
 import { CoachWinChart } from '@/components/CoachWinChart';
 import { GoalTimingChart } from '@/components/GoalTimingChart';
 import { SquadDemographicsPanel, GoalTypePanel, XgOverTimePanel } from '@/components/TeamExtrasPanels';
+import { SofascoreStatsPanel } from '@/components/SofascoreStatsPanel';
 import { buildCoachWinChart } from '@/lib/coach-timeline';
 import { buildGoalTimingForTeam } from '@/lib/goal-timing';
 import { buildSquadDemographics, buildGoalTypes, buildXgOverTime } from '@/lib/team-extras';
@@ -214,11 +215,16 @@ export default async function TeamPage({
   // and photo URLs from API-Football via apiFootballCoachId.
   const coachChart = await buildCoachWinChart(team.id);
   const goalTiming = await buildGoalTimingForTeam(team.id);
-  const [demographics, goalTypes, xgPoints] = await Promise.all([
+  const [demographics, goalTypes, xgPoints, sofascoreStats] = await Promise.all([
     buildSquadDemographics(team.id),
     buildGoalTypes(team.id, team.seasonId),
     buildXgOverTime(team.id),
+    prisma.sofascoreTeamStats.findUnique({
+      where: { teamId_seasonId: { teamId: team.id, seasonId: team.seasonId } },
+      select: { payload: true },
+    }),
   ]);
+  const sofascorePayload = (sofascoreStats?.payload || null) as Record<string, string> | null;
 
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
@@ -839,7 +845,7 @@ export default async function TeamPage({
               <SquadDemographicsPanel data={demographics} />
             </Panel>
             <Panel title="סוגי שערים">
-              <GoalTypePanel data={goalTypes} />
+              {sofascorePayload ? <SofascoreStatsPanel payload={sofascorePayload} /> : <GoalTypePanel data={goalTypes} />}
             </Panel>
             <Panel title="xG לאורך העונה">
               <XgOverTimePanel points={xgPoints} />

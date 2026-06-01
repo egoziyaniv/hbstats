@@ -200,14 +200,26 @@ async function discoverHbsUrls() {
   return Array.from(all);
 }
 
-async function firecrawlSearch(query, limit = 3) {
-  const res = await fetch('https://api.firecrawl.dev/v1/search', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, limit }),
-  });
-  const data = await res.json();
-  return data?.data || [];
+async function firecrawlSearch(query, limit = 3, attempt = 1) {
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, limit }),
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      console.error(`  search non-JSON (HTTP ${res.status}): ${text.slice(0, 60)}`);
+      if (attempt < 2) { await sleep(2000); return firecrawlSearch(query, limit, attempt + 1); }
+      return [];
+    }
+    return data?.data || [];
+  } catch (e) {
+    console.error('  search exception:', e.message);
+    if (attempt < 2) { await sleep(2000); return firecrawlSearch(query, limit, attempt + 1); }
+    return [];
+  }
 }
 
 async function findSofascoreTeamUrl(teamNameEn) {
@@ -253,20 +265,58 @@ async function discoverAllLeagueMatches(teamNamesEn) {
   return Array.from(matchUrls);
 }
 
-async function saveRatings(gameId, ratings, playerLookup) {
+function lastnameOf(name) {
+  const parts = name.replace(/[.,()'"]/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+  return parts.length > 0 ? parts[parts.length - 1].toLowerCase() : '';
+}
+
+async function buildGamePlayerIndex(game) {
+  // Pull all players for both teams in the game (current season + any
+  // linked canonical/season records). Build name-lookup maps:
+  //   byNorm: full-normalized-name → playerId
+  //   byLastname: lastname → [playerIds]
+  const players = await prisma.player.findMany({
+    where: { teamId: { in: [game.homeTeamId, game.awayTeamId] } },
+    select: { id: true, nameHe: true, nameEn: true },
+  });
+  const byNorm = new Map();
+  const byLast = new Map();
+  for (const p of players) {
+    for (const k of [p.nameHe, p.nameEn].filter(Boolean).map(normalizeName)) {
+      if (!byNorm.has(k)) byNorm.set(k, p.id);
+    }
+    for (const n of [p.nameEn, p.nameHe].filter(Boolean)) {
+      const ln = lastnameOf(n);
+      if (!ln) continue;
+      if (!byLast.has(ln)) byLast.set(ln, []);
+      const arr = byLast.get(ln);
+      if (!arr.includes(p.id)) arr.push(p.id);
+    }
+  }
+  return { byNorm, byLast, count: players.length };
+}
+
+async function saveRatings(game, ratings) {
+  const { byNorm, byLast } = await buildGamePlayerIndex(game);
   let saved = 0, unmatched = 0;
   for (const r of ratings) {
-    const playerId = playerLookup.get(normalizeName(r.name));
+    const normalised = normalizeName(r.name);
+    let playerId = byNorm.get(normalised);
+    if (!playerId) {
+      // Fall back to lastname match — accept only when unique in this game.
+      const candidates = byLast.get(lastnameOf(r.name)) || [];
+      if (candidates.length === 1) playerId = candidates[0];
+    }
     if (!playerId) { unmatched++; console.log(`    skip: ${r.name} (no DB match)`); continue; }
     const existing = await prisma.playerMatchRating.findFirst({
-      where: { gameId, playerId, source: 'sofascore' }, select: { id: true },
+      where: { gameId: game.id, playerId, source: 'sofascore' }, select: { id: true },
     });
     const value = Math.max(0, Math.min(10, r.rating));
     if (existing) {
       await prisma.playerMatchRating.update({ where: { id: existing.id }, data: { rating: value } });
     } else {
       await prisma.playerMatchRating.create({
-        data: { gameId, playerId, source: 'sofascore', rating: value },
+        data: { gameId: game.id, playerId, source: 'sofascore', rating: value },
       });
     }
     saved++;
@@ -339,7 +389,7 @@ async function main() {
       const game = await findGameByTeams(result.homeTeamName, result.awayTeamName);
       if (!game) { console.log(`  no DB game found for ${result.homeTeamName} vs ${result.awayTeamName}`); continue; }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
-      const { saved, unmatched } = await saveRatings(game.id, result.ratings, playerLookup);
+      const { saved, unmatched } = await saveRatings(game, result.ratings);
       totalSaved += saved;
       totalUnmatched += unmatched;
       totalMatched++;
@@ -362,7 +412,7 @@ async function main() {
       const game = await findGameByTeams(result.homeTeamName, result.awayTeamName);
       if (!game) { console.log(`  no DB game found for ${result.homeTeamName} vs ${result.awayTeamName}`); continue; }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
-      const { saved, unmatched } = await saveRatings(game.id, result.ratings, playerLookup);
+      const { saved, unmatched } = await saveRatings(game, result.ratings);
       totalSaved += saved;
       totalUnmatched += unmatched;
       totalMatched++;

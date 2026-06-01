@@ -84,6 +84,7 @@ model Season {
   standings           Standing[]
   coachAssignments    TeamCoachAssignment[]
   teamStats           TeamStatistics[]
+  sofascoreTeamStats  SofascoreTeamStats[]
   teams               Team[]
 
   @@map("seasons")
@@ -181,6 +182,7 @@ model Team {
   standings          Standing[]
   coachAssignments   TeamCoachAssignment[]
   teamStats          TeamStatistics[]
+  sofascoreStats     SofascoreTeamStats[]
   season             Season                        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   venue              Venue?                        @relation("TeamVenue", fields: [venueId], references: [id])
 
@@ -229,6 +231,24 @@ model Referee {
   @@index([nameEn])
   @@index([footyStatsId])
   @@map("referees")
+}
+
+// Sofascore per-season team aggregate stats — fine-grained breakdowns
+// (penalty goals, free-kick goals, headed goals, inside-box / outside-box
+// goals, possession %, big chances, etc.) that we don't get from
+// API-Football or Flashscore. Refreshed periodically via scrape.
+model SofascoreTeamStats {
+  id        String   @id @default(cuid())
+  teamId    String
+  seasonId  String
+  payload   Json     // flat key→value bag, see scrape-sofascore-team-stats.js
+  scrapedAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, seasonId])
+  @@index([seasonId])
+  @@map("sofascore_team_stats")
 }
 
 // Multi-source per-match player ratings. Each (game, player, source[, user])

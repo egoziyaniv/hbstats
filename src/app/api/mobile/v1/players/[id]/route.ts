@@ -84,6 +84,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     position: raw.player.position ?? null,
     marketValue: extras.marketValue,
     contractUntil: extras.contractUntil,
+    aiOverview: (raw.player as any).aiOverview ?? null,
   };
 
   // Build currentTeam from the player's current team name + season

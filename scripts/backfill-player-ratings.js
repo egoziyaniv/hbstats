@@ -9,12 +9,13 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function migrateLineupRatings() {
-  // GameLineupEntry.rating is the OTHER source (some imports populate only
-  // here, not GamePlayerStats). Mirror those into PlayerMatchRating too.
+  // GameLineupEntry.rating is populated from Flashscore (per script
+  // 44-flashscore-enrichment.js). Save as source='flashscore' so it lives
+  // independently of API-Football ratings and feeds the unified average.
   const total = await prisma.gameLineupEntry.count({
     where: { rating: { not: null }, playerId: { not: null } },
   });
-  console.log(`Migrating ${total} rated GameLineupEntry rows → PlayerMatchRating`);
+  console.log(`Migrating ${total} rated GameLineupEntry rows → PlayerMatchRating (source=flashscore)`);
 
   let migrated = 0, skipped = 0, cursor = undefined;
   while (true) {
@@ -31,14 +32,14 @@ async function migrateLineupRatings() {
       if (!Number.isFinite(rating) || rating <= 0) { skipped++; continue; }
       const value = Math.max(0, Math.min(10, rating));
       const existing = await prisma.playerMatchRating.findFirst({
-        where: { gameId: r.gameId, playerId: r.playerId, source: 'api-football' },
+        where: { gameId: r.gameId, playerId: r.playerId, source: 'flashscore' },
         select: { id: true },
       });
       if (existing) {
         await prisma.playerMatchRating.update({ where: { id: existing.id }, data: { rating: value } });
       } else {
         await prisma.playerMatchRating.create({
-          data: { gameId: r.gameId, playerId: r.playerId, source: 'api-football', rating: value },
+          data: { gameId: r.gameId, playerId: r.playerId, source: 'flashscore', rating: value },
         });
       }
       migrated++;
@@ -47,6 +48,27 @@ async function migrateLineupRatings() {
     if (migrated % 5000 === 0) console.log(`  lineup ${migrated}/${total}…`);
   }
   console.log(`Lineup ratings migrated: ${migrated}, skipped: ${skipped}`);
+}
+
+async function purgeMislabeledFlashscore() {
+  // Earlier runs migrated GameLineupEntry.rating with source='api-football'.
+  // Identify rows that don't have a matching GamePlayerStats (so they came
+  // exclusively from Flashscore via GameLineupEntry) and re-label them.
+  console.log('Re-labeling previously-mislabeled Flashscore ratings…');
+  const result = await prisma.$queryRaw`
+    UPDATE "player_match_ratings" pmr
+    SET source = 'flashscore'
+    WHERE pmr.source = 'api-football'
+      AND pmr."sourceUserId" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM "game_player_stats" gps
+        WHERE gps."gameId" = pmr."gameId"
+          AND gps."playerId" = pmr."playerId"
+          AND gps.rating IS NOT NULL
+      )
+    RETURNING id
+  `;
+  console.log(`Re-labeled ${result.length} rows.`);
 }
 
 async function main() {
@@ -104,6 +126,7 @@ async function main() {
   console.log(`Done with GamePlayerStats. Migrated: ${migrated}, skipped: ${skipped}`);
 
   await migrateLineupRatings();
+  await purgeMislabeledFlashscore();
 
   await prisma.$disconnect();
 }
