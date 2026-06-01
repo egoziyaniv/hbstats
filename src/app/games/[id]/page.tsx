@@ -14,6 +14,7 @@ import GameRatingForm from '@/components/GameRatingForm';
 import { H2HPanel } from '@/components/H2HPanel';
 import { LiveMomentumBar } from '@/components/LiveMomentumBar';
 import { PredictedLineupPanel } from '@/components/PredictedLineupPanel';
+import { SofascoreMatchStatsPanel } from '@/components/SofascoreMatchStatsPanel';
 
 const eventLabels: Record<string, string> = {
   GOAL: 'שער',
@@ -46,6 +47,7 @@ export default async function GamePage({
       awayTeam: true,
       competition: true,
       gameStats: true,
+      sofascoreMatchStats: true,
       referee: {
         select: {
           id: true,
@@ -494,10 +496,12 @@ function PremierGameView({
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <PremierMetricCard label="כדורגל שליטה" value={`${formatPercent(game.gameStats?.homeTeamPossession ?? null)} / ${formatPercent(game.gameStats?.awayTeamPossession ?? null)}`} />
-                <PremierMetricCard label="בעיטות למסגרת" value={`${formatNumber(game.gameStats?.homeShotsOnTarget ?? null)} / ${formatNumber(game.gameStats?.awayShotsOnTarget ?? null)}`} />
-                <PremierMetricCard label="כרטיסים צהובים" value={`${eventSummary.homeYellowCards} / ${eventSummary.awayYellowCards}`} />
-                <PremierMetricCard label="חילופים" value={`${eventSummary.homeSubstitutions} / ${eventSummary.awaySubstitutions}`} />
+                {/* In RTL pages we render `away / home` so the right side (where the
+                    home badge sits) shows the home value to a Hebrew reader. */}
+                <PremierMetricCard label="כדורגל שליטה" value={`${formatPercent(game.gameStats?.awayTeamPossession ?? null)} / ${formatPercent(game.gameStats?.homeTeamPossession ?? null)}`} />
+                <PremierMetricCard label="בעיטות למסגרת" value={`${formatNumber(game.gameStats?.awayShotsOnTarget ?? null)} / ${formatNumber(game.gameStats?.homeShotsOnTarget ?? null)}`} />
+                <PremierMetricCard label="כרטיסים צהובים" value={`${eventSummary.awayYellowCards} / ${eventSummary.homeYellowCards}`} />
+                <PremierMetricCard label="חילופים" value={`${eventSummary.awaySubstitutions} / ${eventSummary.homeSubstitutions}`} />
               </div>
             </div>
           </div>
@@ -591,39 +595,47 @@ function PremierGameView({
         ) : null}
 
         {selectedTab === 'stats' ? (
-          <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <PremierPanel title="מדדי משחק">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {summaryCards.map((card) => (
-                  <div key={card.label} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs font-semibold tracking-[0.18em] text-slate-500">{card.label}</div>
-                    <div dir="ltr" className="mt-2 text-2xl font-black text-slate-900 text-right">{card.value}</div>
-                    {card.note ? <div className="mt-2 text-sm text-slate-600">{card.note}</div> : null}
-                  </div>
-                ))}
-              </div>
-            </PremierPanel>
-
-            <PremierPanel title="השוואת קבוצות">
-              <div className="space-y-4">
-                {comparisonRows.map((row) => (
-                  <ComparisonBar
-                    key={row.label}
-                    label={row.label}
-                    homeValue={row.homeValue}
-                    awayValue={row.awayValue}
-                    homeDisplay={row.homeDisplay}
-                    awayDisplay={row.awayDisplay}
-                  />
-                ))}
-              </div>
-              {!hasDetailedStats ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-                  חלק מהגרפים מבוססים על אירועים מקומיים כי נתוני ה-API למשחק הזה חלקיים.
+          <>
+            <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+              <PremierPanel title="מדדי משחק">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {summaryCards.map((card) => (
+                    <div key={card.label} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs font-semibold tracking-[0.18em] text-slate-500">{card.label}</div>
+                      <div dir="ltr" className="mt-2 text-2xl font-black text-slate-900 text-right">{card.value}</div>
+                      {card.note ? <div className="mt-2 text-sm text-slate-600">{card.note}</div> : null}
+                    </div>
+                  ))}
                 </div>
-              ) : null}
-            </PremierPanel>
-          </section>
+              </PremierPanel>
+
+              <PremierPanel title="השוואת קבוצות">
+                <div className="space-y-4">
+                  {comparisonRows.map((row) => (
+                    <ComparisonBar
+                      key={row.label}
+                      label={row.label}
+                      homeValue={row.homeValue}
+                      awayValue={row.awayValue}
+                      homeDisplay={row.homeDisplay}
+                      awayDisplay={row.awayDisplay}
+                    />
+                  ))}
+                </div>
+                {!hasDetailedStats ? (
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                    חלק מהגרפים מבוססים על אירועים מקומיים כי נתוני ה-API למשחק הזה חלקיים.
+                  </div>
+                ) : null}
+              </PremierPanel>
+            </section>
+
+            {game.sofascoreMatchStats?.payload && Array.isArray(game.sofascoreMatchStats.payload) ? (
+              <PremierPanel title="סטטיסטיקה מפורטת — Sofascore">
+                <SofascoreMatchStatsPanel stats={game.sofascoreMatchStats.payload as any[]} />
+              </PremierPanel>
+            ) : null}
+          </>
         ) : null}
 
         {selectedTab === 'events' ? (
@@ -1368,69 +1380,68 @@ function buildSummaryCards(
   const goalConversionHome = homeShotsOnTarget && homeShotsOnTarget > 0 ? Math.round((homeGoals / homeShotsOnTarget) * 100) : null;
   const goalConversionAway = awayShotsOnTarget && awayShotsOnTarget > 0 ? Math.round((awayGoals / awayShotsOnTarget) * 100) : null;
 
-  // Order: home then away in source. In an RTL paragraph the browser's bidi
-  // algorithm reverses LTR-number runs, so source "home / away" renders
-  // visually as "away / home" — keeping the home value on the visual right,
-  // which matches the home team badge position on the right in RTL layout
-  // and the "בית / חוץ" delta label (בית reads on the right).
+  // Order: away first, then home — the resulting string renders LTR inside
+  // a dir="ltr" container, so the home value ends up on the visual RIGHT
+  // (same side as the home badge in our RTL layout, and same side as the
+  // word "בית" in the RTL-rendered "בית / חוץ" delta label).
   return [
     {
       label: 'תוצאה',
-      value: `${homeGoals}-${awayGoals}`,
+      value: `${awayGoals}-${homeGoals}`,
       delta: homeGoals === awayGoals ? 'תיקו' : homeGoals > awayGoals ? 'יתרון בית' : 'יתרון חוץ',
       note: 'מופק גם מאירועים אם תוצאת ה־API לא זמינה',
     },
     ...(homeXg != null && awayXg != null ? [{
       label: 'xG (שערים צפויים)',
-      value: `${Number(homeXg).toFixed(2)} / ${Number(awayXg).toFixed(2)}`,
+      value: `${Number(awayXg).toFixed(2)} / ${Number(homeXg).toFixed(2)}`,
       delta: 'בית / חוץ',
       note: 'הסתברות לכל בעיטה — הצפי הסטטיסטי לתוצאה',
     }] : []),
     {
       label: 'דיוק בבעיטות',
-      value: `${formatPercent(shotAccuracyHome)} / ${formatPercent(shotAccuracyAway)}`,
+      value: `${formatPercent(shotAccuracyAway)} / ${formatPercent(shotAccuracyHome)}`,
       delta: 'בית / חוץ',
       note: 'אחוז הבעיטות למסגרת מתוך כלל הבעיטות',
     },
     {
       label: 'ניצול מצבים',
-      value: `${formatPercent(goalConversionHome)} / ${formatPercent(goalConversionAway)}`,
+      value: `${formatPercent(goalConversionAway)} / ${formatPercent(goalConversionHome)}`,
       delta: 'בית / חוץ',
       note: 'שערים חלקי בעיטות למסגרת',
     },
     {
       label: 'אחזקת כדור',
-      value: `${formatPercent(homePossession)} / ${formatPercent(awayPossession)}`,
+      value: `${formatPercent(awayPossession)} / ${formatPercent(homePossession)}`,
       delta: 'בית / חוץ',
       note: 'אחוזי שליטה במשחק',
     },
     {
       label: 'קרנות',
-      value: `${formatNumber(homeCorners)} / ${formatNumber(awayCorners)}`,
+      value: `${formatNumber(awayCorners)} / ${formatNumber(homeCorners)}`,
       delta: homeCorners !== null && awayCorners !== null ? diffLabel(homeCorners, awayCorners) : null,
       note: 'קרנות לטובת כל צד',
     },
     {
       label: 'עבירות',
-      value: `${formatNumber(homeFouls)} / ${formatNumber(awayFouls)}`,
+      value: `${formatNumber(awayFouls)} / ${formatNumber(homeFouls)}`,
       delta: homeFouls !== null && awayFouls !== null ? diffLabel(homeFouls, awayFouls) : null,
       note: 'עבירות שנרשמו במשחק',
     },
     {
       label: 'צהובים',
-      value: `${formatNumber(homeYellowCards)} / ${formatNumber(awayYellowCards)}`,
+      value: `${formatNumber(awayYellowCards)} / ${formatNumber(homeYellowCards)}`,
       delta: homeYellowCards !== null && awayYellowCards !== null ? diffLabel(homeYellowCards, awayYellowCards) : null,
       note: 'כולל נתון שמור או מחושב מהאירועים',
     },
     {
       label: 'אדומים',
-      value: `${formatNumber(homeRedCards)} / ${formatNumber(awayRedCards)}`,
+      value: `${formatNumber(awayRedCards)} / ${formatNumber(homeRedCards)}`,
       delta: homeRedCards !== null && awayRedCards !== null ? diffLabel(homeRedCards, awayRedCards) : null,
       note: 'כולל נתון שמור או מחושב מהאירועים',
     },
     {
       label: 'בעיטות למסגרת',
-      value: `${formatNumber(homeShotsOnTarget)} / ${formatNumber(awayShotsOnTarget)}`,
+      value: `${formatNumber(awayShotsOnTarget)} / ${formatNumber(homeShotsOnTarget)}`,
       delta: homeShotsOnTarget !== null && awayShotsOnTarget !== null ? diffLabel(homeShotsOnTarget, awayShotsOnTarget) : null,
       note: 'ניסיונות שהלכו למסגרת',
     },

@@ -251,6 +251,20 @@ model SofascoreTeamStats {
   @@map("sofascore_team_stats")
 }
 
+// Per-match Sofascore stats from the #tab:statistics view: shots breakdown,
+// duels, passes, defending, goalkeeping (~40 metrics per side). One row per
+// game so re-runs upsert by gameId.
+model SofascoreMatchStats {
+  id        String   @id @default(cuid())
+  gameId    String   @unique
+  payload   Json     // array of {section, label, home, away[, homePct, awayPct]}
+  matchUrl  String?  // Sofascore URL we scraped from, for debugging
+  scrapedAt DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("sofascore_match_stats")
+}
+
 // Multi-source per-match player ratings. Each (game, player, source[, user])
 // combination is unique. The Best XI / Player-of-the-Round pipeline averages
 // across sources to produce a unified rating per (game, player). Source values:
@@ -423,6 +437,7 @@ model Game {
   gameStats           GameStatistics?
   gamePlayerStats     GamePlayerStats[]
   matchRatings        PlayerMatchRating[]
+  sofascoreMatchStats SofascoreMatchStats?
   awayTeam            Team                     @relation("AwayTeam", fields: [awayTeamId], references: [id])
   competition         Competition?             @relation(fields: [competitionId], references: [id])
   homeTeam            Team                     @relation("HomeTeam", fields: [homeTeamId], references: [id])

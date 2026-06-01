@@ -50,6 +50,14 @@ const ACTIONS: Action[] = [
     fields: ['limit'],
   },
   {
+    key: 'match-stats',
+    label: 'סטטיסטיקות מפורטות פר-משחק',
+    desc: '~40 מטריקות פר-משחק (Shots, Duels, Passes, Defending, Goalkeeping). ~3 קרדיטים למשחק. ~120 משחקים בעונה.',
+    button: 'התחל משיכה',
+    buttonColor: 'bg-indigo-600 hover:bg-indigo-700',
+    fields: ['competition', 'limit'],
+  },
+  {
     key: 'backfill',
     label: 'Backfill ציונים מ-Flashscore Lineup Entries',
     desc: 'מעתיק את הציונים שכבר נשמרו ב-GameLineupEntry → PlayerMatchRating (source=flashscore). אין שימוש ב-API חיצוני.',

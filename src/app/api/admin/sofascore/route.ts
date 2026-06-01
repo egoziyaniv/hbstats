@@ -8,7 +8,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const VALID_ACTIONS: SofascoreAction[] = ['ratings-season', 'team-stats', 'backfill'];
+const VALID_ACTIONS: SofascoreAction[] = ['ratings-season', 'team-stats', 'match-stats', 'backfill'];
 
 export async function POST(request: NextRequest) {
   const auth = await getRequestUser(request);
@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
     const limit = parseInt(String(body?.limit || '0'), 10);
     if (Number.isFinite(limit) && limit > 0) extraArgs.push('--limit', String(limit));
   } else if (action === 'team-stats') {
+    const limit = parseInt(String(body?.limit || '0'), 10);
+    if (Number.isFinite(limit) && limit > 0) extraArgs.push('--limit', String(limit));
+  } else if (action === 'match-stats') {
+    const competition = String(body?.competition || '').trim();
+    if (competition) extraArgs.push('--competition', competition);
     const limit = parseInt(String(body?.limit || '0'), 10);
     if (Number.isFinite(limit) && limit > 0) extraArgs.push('--limit', String(limit));
   }

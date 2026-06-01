@@ -8,7 +8,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 
-export type SofascoreAction = 'ratings-season' | 'team-stats' | 'backfill';
+export type SofascoreAction = 'ratings-season' | 'team-stats' | 'match-stats' | 'backfill';
 
 type StepStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -48,8 +48,9 @@ function appendOutput(text: string) {
 }
 
 const ACTION_TO_SCRIPT: Record<SofascoreAction, { script: string; label: string }> = {
-  'ratings-season': { script: 'scripts/scrape-sofascore-firecrawl.js', label: 'משיכת ציוני שחקנים מ-Sofascore' },
+  'ratings-season': { script: 'scripts/scrape-sofascore-firecrawl.js',  label: 'משיכת ציוני שחקנים מ-Sofascore' },
   'team-stats':     { script: 'scripts/scrape-sofascore-team-stats.js', label: 'משיכת סטטיסטיקות קבוצה מ-Sofascore' },
+  'match-stats':    { script: 'scripts/scrape-sofascore-match-stats.js', label: 'משיכת סטטיסטיקות מפורטות פר-משחק מ-Sofascore' },
   'backfill':       { script: 'scripts/backfill-player-ratings.js',     label: 'Backfill ציונים מ-Flashscore Lineup Entries' },
 };
 
