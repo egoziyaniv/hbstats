@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import AdminCollapsible from '@/components/AdminCollapsible';
-import FootyStatsFetchForm from '@/components/FootyStatsFetchForm';
 import AdminLiveCountriesClient from '@/components/AdminLiveCountriesClient';
 import AdminHomepageLiveSettingsClient from '@/components/AdminHomepageLiveSettingsClient';
 import AdminPlayerDisplaySettingsClient from '@/components/AdminPlayerDisplaySettingsClient';
@@ -480,24 +479,52 @@ export default async function AdminPage({
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
       <div className="mx-auto max-w-6xl space-y-5">
-        {/* Compact header with quick links */}
+        {/* Header */}
         <section className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,#7f1d1d,#1f2937)] px-6 py-5 text-white shadow-md">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-black">אזור אדמין</h1>
-            <div className="flex flex-wrap gap-2 text-xs font-bold">
-              <Link href={`/admin/quick-edit?season=${selectedSeason?.id || ''}`} className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">עריכה מהירה</Link>
-              <Link href={`/admin/games?season=${selectedSeason?.id || ''}`} className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">משחקים</Link>
-              <Link href="/admin/venues" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">אצטדיונים</Link>
-              <Link href="/admin/referees" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">שופטים</Link>
-              <Link href="/admin/coaches" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">מאמנים</Link>
-              <Link href="/admin/ratings" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">ציוני שחקנים</Link>
-              <Link href="/admin/unlinked" className="rounded-full bg-white/15 px-3 py-1.5 transition hover:bg-white/25">קישור ידני</Link>
-              <Link href="/admin/scrape" className="rounded-full bg-blue-500/30 px-3 py-1.5 transition hover:bg-blue-500/50">סריקת אתרים</Link>
-              <Link href="/admin/flashscore" className="rounded-full bg-blue-500/30 px-3 py-1.5 transition hover:bg-blue-500/50">Flashscore</Link>
-              <Link href="/admin/merge" className="rounded-full bg-purple-500/30 px-3 py-1.5 transition hover:bg-purple-500/50">מיזוג נתונים</Link>
-              <Link href="/admin/matchday" className="rounded-full bg-emerald-500/30 px-3 py-1.5 transition hover:bg-emerald-500/50">יום משחקים</Link>
-              <Link href="/admin/setup" className="rounded-full bg-emerald-500/30 px-3 py-1.5 transition hover:bg-emerald-500/50">ייבוא מלא</Link>
-              <Link href="/admin/db-transfer" className="rounded-full bg-orange-500/30 px-3 py-1.5 transition hover:bg-orange-500/50">העברת DB</Link>
+            <Link
+              href="/admin/matchday"
+              className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600"
+            >
+              עדכון יום משחקים →
+            </Link>
+          </div>
+        </section>
+
+        {/* Grouped navigation — 3 clusters */}
+        <section className="grid gap-3 md:grid-cols-3">
+          {/* ניהול תוכן */}
+          <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-black text-stone-900">ניהול תוכן</h2>
+            <div className="flex flex-col gap-2 text-sm font-bold">
+              <Link href={`/admin/quick-edit?season=${selectedSeason?.id || ''}`} className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">⚡ עריכה מהירה</Link>
+              <Link href={`/admin/games?season=${selectedSeason?.id || ''}`} className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">⚽ משחקים</Link>
+              <Link href="/admin/venues" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">🏟️ אצטדיונים</Link>
+              <Link href="/admin/referees" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">🟨 שופטים</Link>
+              <Link href="/admin/coaches" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">📋 מאמנים</Link>
+            </div>
+          </div>
+
+          {/* שחקנים וציונים */}
+          <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-black text-stone-900">שחקנים וציונים</h2>
+            <div className="flex flex-col gap-2 text-sm font-bold">
+              <Link href="/admin/ratings" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">⭐ ציוני שחקנים</Link>
+              <Link href="/admin/unlinked" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">🔗 קישור ידני</Link>
+              <Link href="/admin/scrape" className="rounded-lg bg-blue-50 px-3 py-2 text-blue-900 transition hover:bg-blue-100">🌐 סריקת אתרים</Link>
+              <Link href="/admin/flashscore" className="rounded-lg bg-blue-50 px-3 py-2 text-blue-900 transition hover:bg-blue-100">📊 Flashscore</Link>
+              <Link href="/admin/merge" className="rounded-lg bg-purple-50 px-3 py-2 text-purple-900 transition hover:bg-purple-100">🔀 מיזוג נתונים</Link>
+            </div>
+          </div>
+
+          {/* תפעול ונתונים */}
+          <div className="rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-black text-stone-900">תפעול ונתונים</h2>
+            <div className="flex flex-col gap-2 text-sm font-bold">
+              <Link href="/admin/matchday" className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900 transition hover:bg-emerald-100">📅 יום משחקים</Link>
+              <Link href="/admin/setup" className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900 transition hover:bg-emerald-100">📥 ייבוא מלא</Link>
+              <Link href="/admin/db-transfer" className="rounded-lg bg-orange-50 px-3 py-2 text-orange-900 transition hover:bg-orange-100">💾 העברת DB</Link>
             </div>
           </div>
         </section>
@@ -541,7 +568,7 @@ export default async function AdminPage({
                 <div>
                   <h2 className="text-base font-black text-emerald-900">עדכון יום משחקים</h2>
                   <p className="mt-1 text-xs text-emerald-700/80">
-                    סנכרון מהיר של נתוני יום ספציפי: API-Football (אירועים, הרכבים, סטטיסטיקה) + FootyStats (xG) + מיזוג.
+                    סנכרון מהיר של נתוני יום ספציפי: API-Football (אירועים, הרכבים, סטטיסטיקה) + מיזוג.
                   </p>
                 </div>
                 <Link
@@ -553,16 +580,6 @@ export default async function AdminPage({
               </div>
             </section>
 
-            <section className="rounded-[20px] border border-stone-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-3">
-                <h2 className="text-base font-black text-stone-900">FootyStats — סנכרון נתונים</h2>
-                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">מחליף API-Football</span>
-              </div>
-              <p className="mb-4 text-xs text-stone-500">
-                xG, יחסים, שחקנים + אירועי משחק (2025/26). נתוני שחקנים ומשחקים לכל עונות 2013–2025.
-              </p>
-              <FootyStatsFetchForm />
-            </section>
             <AdminManagerClient
               teams={groupedTeams}
               fetchTeams={teams}
