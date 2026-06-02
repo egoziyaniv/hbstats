@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       skipFootyStats: !!body?.skipFootyStats,
       skipIfa: !!body?.skipIfa,
       skipWalla: !!body?.skipWalla,
+      skipSofascore: !!body?.skipSofascore,
       skipMerge: !!body?.skipMerge,
       headful: !!body?.headful,
     };

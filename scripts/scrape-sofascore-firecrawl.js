@@ -28,6 +28,9 @@ const LIMIT = parseInt(arg('limit', '0'), 10);
 // Optional competitionId filter (e.g. "comp_liga_haal", "comp_state_cup").
 // When set, ratings are only saved for games whose competitionId matches.
 const COMPETITION_ID = arg('competition', null);
+// Optional date filter — when set, only games whose dateTime falls on this
+// calendar day are processed. Used by matchday-update.js to scope a daily run.
+const DATE_FILTER = arg('date', null); // YYYY-MM-DD
 const SAVE = process.argv.includes('--save');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const API_KEY = process.env.FIRECRAWL_API_KEY;
@@ -474,6 +477,9 @@ async function main() {
         console.log(`  skip: game ${game.id} competition=${game.competitionId} (wanted ${COMPETITION_ID})`);
         continue;
       }
+      if (DATE_FILTER && game.dateTime.toISOString().slice(0, 10) !== DATE_FILTER) {
+        continue;
+      }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
       const { saved, unmatched } = await saveRatings(game, result.ratings);
       if (result.managers) await saveManagers(game, result.managers);
@@ -500,6 +506,9 @@ async function main() {
       if (!game) { console.log(`  no DB game found for ${result.homeTeamName} vs ${result.awayTeamName}`); continue; }
       if (COMPETITION_ID && game.competitionId !== COMPETITION_ID) {
         console.log(`  skip: game ${game.id} competition=${game.competitionId} (wanted ${COMPETITION_ID})`);
+        continue;
+      }
+      if (DATE_FILTER && game.dateTime.toISOString().slice(0, 10) !== DATE_FILTER) {
         continue;
       }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);

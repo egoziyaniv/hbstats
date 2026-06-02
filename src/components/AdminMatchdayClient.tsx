@@ -54,6 +54,7 @@ export default function AdminMatchdayClient() {
   const [skipFs, setSkipFs] = useState(true); // default skip — Cloudflare blocks headless
   const [skipIfa, setSkipIfa] = useState(false);
   const [skipWalla, setSkipWalla] = useState(false);
+  const [skipSofascore, setSkipSofascore] = useState(false);
   const [skipMerge, setSkipMerge] = useState(false);
   const [headful, setHeadful] = useState(false);
   const [state, setState] = useState<MatchdayState | null>(null);
@@ -84,7 +85,7 @@ export default function AdminMatchdayClient() {
       body: JSON.stringify({
         action: 'start', date, league,
         skipApiFootball: skipApi, skipFootyStats: skipFs,
-        skipIfa, skipWalla, skipMerge, headful,
+        skipIfa, skipWalla, skipSofascore, skipMerge, headful,
       }),
     });
     if (res.status === 429) alert('עדכון כבר רץ');
@@ -145,6 +146,10 @@ export default function AdminMatchdayClient() {
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={skipWalla} onChange={(e) => setSkipWalla(e.target.checked)} disabled={running} />
           <span>דלג על Walla</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={skipSofascore} onChange={(e) => setSkipSofascore(e.target.checked)} disabled={running} />
+          <span>דלג על Sofascore (ציונים + מאמנים)</span>
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={skipMerge} onChange={(e) => setSkipMerge(e.target.checked)} disabled={running} />

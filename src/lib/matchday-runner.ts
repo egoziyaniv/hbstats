@@ -15,6 +15,7 @@ export type MatchdayOptions = {
   skipFootyStats?: boolean;
   skipIfa?: boolean;
   skipWalla?: boolean;
+  skipSofascore?: boolean;
   skipMerge?: boolean;
   headful?: boolean;
 };
@@ -45,6 +46,7 @@ const STEP_DEFINITIONS: ReadonlyArray<{ key: string; label: string }> = [
   { key: 'footystats',  label: 'FootyStats — xG וסטטיסטיקות מתקדמות' },
   { key: 'ifa',         label: 'IFA (football.org.il) — אירועים, הרכבים, שופטים' },
   { key: 'walla',       label: 'Walla — תוצאות ומחציות' },
+  { key: 'sofascore',   label: 'Sofascore — ציוני שחקנים + מאמנים' },
   { key: 'merge',       label: 'מיזוג סופי' },
 ];
 
@@ -54,7 +56,8 @@ const STEP_MARKERS: ReadonlyArray<{ key: string; pattern: RegExp }> = [
   { key: 'footystats',  pattern: /→ Scraping FootyStats for/ },
   { key: 'ifa',         pattern: /→ Refreshing IFA details/ },
   { key: 'walla',       pattern: /→ Refreshing Walla games/ },
-  { key: 'merge',       pattern: /→ Running enrichment merge/ },
+  { key: 'sofascore',   pattern: /→ Refreshing Sofascore ratings/ },
+  { key: 'merge',       pattern: /→ Running Flashscore enrichment/ },
 ];
 
 const SKIP_MARKERS: ReadonlyArray<{ key: string; pattern: RegExp }> = [
@@ -62,6 +65,7 @@ const SKIP_MARKERS: ReadonlyArray<{ key: string; pattern: RegExp }> = [
   { key: 'footystats',  pattern: /\(skipping FootyStats scrape\)/ },
   { key: 'ifa',         pattern: /\(skipping IFA refresh\)/ },
   { key: 'walla',       pattern: /\(skipping Walla refresh\)/ },
+  { key: 'sofascore',   pattern: /\(skipping Sofascore refresh\)|\(no FIRECRAWL_API_KEY/ },
   { key: 'merge',       pattern: /\(skipping enrichment merge\)/ },
 ];
 
@@ -85,6 +89,7 @@ function buildArgs(opts: MatchdayOptions): string[] {
   if (opts.skipFootyStats)  a.push('--no-footystats');
   if (opts.skipIfa)         a.push('--no-ifa');
   if (opts.skipWalla)       a.push('--no-walla');
+  if (opts.skipSofascore)   a.push('--no-sofascore');
   if (opts.skipMerge)       a.push('--no-merge');
   if (opts.headful)         a.push('--headful');
   return a;
@@ -144,6 +149,7 @@ export async function runMatchdayUpdate(opts: MatchdayOptions): Promise<void> {
   if (opts.skipFootyStats)  markStepSkipped('footystats');
   if (opts.skipIfa)         markStepSkipped('ifa');
   if (opts.skipWalla)       markStepSkipped('walla');
+  if (opts.skipSofascore)   markStepSkipped('sofascore');
   if (opts.skipMerge)       markStepSkipped('merge');
 
   const args = buildArgs(opts);

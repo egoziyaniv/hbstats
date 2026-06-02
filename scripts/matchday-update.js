@@ -92,6 +92,7 @@ const SKIP_AF = args.includes('--no-apifootball');
 const SKIP_FS = args.includes('--no-footystats');
 const SKIP_IFA = args.includes('--no-ifa');
 const SKIP_WALLA = args.includes('--no-walla');
+const SKIP_SOFASCORE = args.includes('--no-sofascore');
 const SKIP_MERGE = args.includes('--no-merge');
 const HEADFUL = args.includes('--headful');
 const DATE = getArg('--date') || new Date().toISOString().slice(0, 10);
@@ -450,7 +451,25 @@ async function main() {
     if (result.status !== 0) console.error('  ✗ Walla games scrape failed (continuing)');
   } else if (SKIP_WALLA) console.log('\n(skipping Walla refresh)');
 
-  // 5. Enrichment merge — Flashscore fills only the gaps API-Football leaves.
+  // 5. Sofascore — pull per-player ratings + per-side head-coach names for the
+  //    games on this matchday. Scoped by --date so it processes ONLY today's
+  //    fixtures (~5-7 games × 1 credit), plus the one-time team-page discovery
+  //    (~14 credits). Skipped if FIRECRAWL_API_KEY isn't configured.
+  if (!SKIP_SOFASCORE && !DRY_RUN) {
+    if (!process.env.FIRECRAWL_API_KEY) {
+      console.log('\n(no FIRECRAWL_API_KEY — skipping Sofascore)');
+    } else {
+      console.log(`\n→ Refreshing Sofascore ratings + coaches (date=${DATE})...`);
+      const result = spawnSync('node', [
+        'scripts/scrape-sofascore-firecrawl.js',
+        '--season', wallaSeasonFromDate(DATE),
+        '--date', DATE,
+      ], { stdio: 'inherit' });
+      if (result.status !== 0) console.error('  ✗ Sofascore scrape failed (continuing)');
+    }
+  } else if (SKIP_SOFASCORE) console.log('\n(skipping Sofascore refresh)');
+
+  // 6. Enrichment merge — Flashscore fills only the gaps API-Football leaves.
   if (!SKIP_MERGE && !DRY_RUN) {
     console.log(`\n→ Running Flashscore enrichment...`);
     spawnSync('node', ['scripts/rebuild/44-flashscore-enrichment.js', '--apply'], { stdio: 'inherit' });
