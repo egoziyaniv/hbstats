@@ -125,6 +125,45 @@ function parseLineupRatings(md) {
   return ratings;
 }
 
+// Find the two head-coach links in the match markdown and attribute them to
+// home/away based on which team name appears closer upstream in the document.
+// Falls back to source order (first link = home) when neither team name is
+// found nearby. Returns { home: string|null, away: string|null }.
+function parseManagers(md, homeTeamName, awayTeamName) {
+  const re = /\[([^\]\n]{3,80})\]\(([^)]*\/football\/manager\/[^)]+)\)/gi;
+  const matches = [];
+  let m;
+  while ((m = re.exec(md)) !== null) {
+    let name = m[1].replace(/^(manager|coach|head\s*coach)\s*[:\-]?\s*/i, '').trim();
+    if (name.length < 3) continue;
+    matches.push({ name, index: m.index });
+  }
+  if (matches.length === 0) return { home: null, away: null };
+  // Helper: nearest team name upstream from an index (search last 2000 chars).
+  function nearestTeam(idx) {
+    const window = md.slice(Math.max(0, idx - 2000), idx);
+    const hHome = homeTeamName ? window.lastIndexOf(homeTeamName) : -1;
+    const hAway = awayTeamName ? window.lastIndexOf(awayTeamName) : -1;
+    if (hHome === -1 && hAway === -1) return null;
+    return hHome > hAway ? 'home' : 'away';
+  }
+  const out = { home: null, away: null };
+  for (const cand of matches) {
+    const side = nearestTeam(cand.index);
+    if (side && !out[side]) out[side] = cand.name;
+  }
+  // Fill remaining slot from any unused match (preserves order).
+  if (!out.home || !out.away) {
+    const used = new Set(Object.values(out).filter(Boolean));
+    const leftover = matches.find((c) => !used.has(c.name));
+    if (leftover) {
+      if (!out.home) out.home = leftover.name;
+      else if (!out.away) out.away = leftover.name;
+    }
+  }
+  return out;
+}
+
 async function processMatch(matchUrl, options = {}) {
   console.log(`→ ${matchUrl}`);
   const data = await firecrawl(matchUrl);
@@ -136,12 +175,16 @@ async function processMatch(matchUrl, options = {}) {
   const homeTeamName = teamsMatch?.[1]?.trim() || '';
   const awayTeamName = teamsMatch?.[2]?.trim() || '';
 
+  const managers = parseManagers(data.markdown, homeTeamName, awayTeamName);
+  if (managers.home || managers.away) {
+    console.log(`  managers: ${managers.home || '?'} (home) · ${managers.away || '?'} (away)`);
+  }
   const ratings = parseLineupRatings(data.markdown);
   // Sofascore's markdown sometimes lists away players before the away team
   // header, so we can't trust `side` from the parser. Resolve team membership
   // by looking up each player in the DB.
   console.log(`  ${homeTeamName} vs ${awayTeamName} — ${ratings.length} ratings parsed`);
-  if (!options.save) return { matchUrl, ratings, homeTeamName, awayTeamName };
+  if (!options.save) return { matchUrl, ratings, homeTeamName, awayTeamName, managers };
 
   // Match to local game + players.
   if (!options.gameId) {
@@ -299,6 +342,38 @@ async function buildGamePlayerIndex(game) {
   return { byNorm, byLast, count: players.length };
 }
 
+// Save coach names as GameLineupEntry rows (role=COACH). The existing game
+// page already renders coach photo + Hebrew name by looking up CoachAlias on
+// participantName, so once these rows exist the UI lights up automatically.
+async function saveManagers(game, managers) {
+  let saved = 0;
+  for (const side of ['home', 'away']) {
+    const name = managers[side];
+    if (!name) continue;
+    const teamId = side === 'home' ? game.homeTeamId : game.awayTeamId;
+    const existing = await prisma.gameLineupEntry.findFirst({
+      where: { gameId: game.id, teamId, role: 'COACH' },
+      select: { id: true, participantName: true },
+    });
+    if (existing) {
+      // Only overwrite if blank, so we don't clobber a manually-curated name.
+      if (!existing.participantName) {
+        await prisma.gameLineupEntry.update({
+          where: { id: existing.id },
+          data: { participantName: name, participantType: 'COACH' },
+        });
+        saved++;
+      }
+    } else {
+      await prisma.gameLineupEntry.create({
+        data: { gameId: game.id, teamId, role: 'COACH', participantType: 'COACH', participantName: name },
+      });
+      saved++;
+    }
+  }
+  return saved;
+}
+
 async function saveRatings(game, ratings) {
   const { byNorm, byLast } = await buildGamePlayerIndex(game);
   let saved = 0, unmatched = 0;
@@ -401,6 +476,7 @@ async function main() {
       }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
       const { saved, unmatched } = await saveRatings(game, result.ratings);
+      if (result.managers) await saveManagers(game, result.managers);
       totalSaved += saved;
       totalUnmatched += unmatched;
       totalMatched++;
@@ -428,6 +504,7 @@ async function main() {
       }
       console.log(`  → DB game ${game.id} (${game.dateTime.toISOString().slice(0,10)})`);
       const { saved, unmatched } = await saveRatings(game, result.ratings);
+      if (result.managers) await saveManagers(game, result.managers);
       totalSaved += saved;
       totalUnmatched += unmatched;
       totalMatched++;
