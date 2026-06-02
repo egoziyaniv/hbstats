@@ -15,7 +15,7 @@ type Status = {
   error: string | null;
 };
 
-type Field = 'season' | 'limit' | 'competition';
+type Field = 'season' | 'limit' | 'competition' | 'force';
 
 const COMPETITIONS = [
   { id: '',                 label: 'כל התחרויות (כל מה שיש ב-Sofascore לקבוצות ליגת העל)' },
@@ -58,6 +58,14 @@ const ACTIONS: Action[] = [
     fields: ['competition', 'limit'],
   },
   {
+    key: 'coach-photos',
+    label: 'תמונות מאמנים מ-Sofascore',
+    desc: 'מושך תמונת מאמן ראשי לכל קבוצת ליגת העל (Firecrawl, ~14 קרדיטים). דורס תמונות api-sports.io שבורות ולא נוגע באחרות אלא אם מפעילים "החלף קיים".',
+    button: 'התחל משיכה',
+    buttonColor: 'bg-rose-600 hover:bg-rose-700',
+    fields: ['force', 'limit'],
+  },
+  {
     key: 'backfill',
     label: 'Backfill ציונים מ-Flashscore Lineup Entries',
     desc: 'מעתיק את הציונים שכבר נשמרו ב-GameLineupEntry → PlayerMatchRating (source=flashscore). אין שימוש ב-API חיצוני.',
@@ -71,6 +79,7 @@ export default function AdminSofascoreClient() {
   const [season, setSeason] = useState('2025/26');
   const [competition, setCompetition] = useState('');
   const [limit, setLimit] = useState('');
+  const [force, setForce] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,12 +111,18 @@ export default function AdminSofascoreClient() {
   async function start(action: string) {
     setBusy(action);
     setError(null);
-    const body: Record<string, string | number> = { action };
+    const body: Record<string, string | number | boolean> = { action };
     if (action === 'ratings-season') {
       if (season) body.season = season;
       if (competition) body.competition = competition;
       if (limit) body.limit = parseInt(limit, 10);
     } else if (action === 'team-stats') {
+      if (limit) body.limit = parseInt(limit, 10);
+    } else if (action === 'match-stats') {
+      if (competition) body.competition = competition;
+      if (limit) body.limit = parseInt(limit, 10);
+    } else if (action === 'coach-photos') {
+      if (force) body.force = true;
       if (limit) body.limit = parseInt(limit, 10);
     }
     try {
@@ -141,6 +156,7 @@ export default function AdminSofascoreClient() {
           const showSeason = a.fields.includes('season');
           const showLimit = a.fields.includes('limit');
           const showCompetition = a.fields.includes('competition');
+          const showForce = a.fields.includes('force');
           return (
             <div key={a.key} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-black text-stone-900">{a.label}</h3>
@@ -182,6 +198,17 @@ export default function AdminSofascoreClient() {
                     placeholder="ללא הגבלה"
                     className="mt-1 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-sm"
                   />
+                </label>
+              ) : null}
+              {showForce ? (
+                <label className="mt-2 flex items-center gap-2 text-xs font-bold text-stone-700">
+                  <input
+                    type="checkbox"
+                    checked={force}
+                    onChange={(e) => setForce(e.target.checked)}
+                    className="h-4 w-4 rounded border-stone-300"
+                  />
+                  החלף תמונות קיימות (גם אם כבר יש)
                 </label>
               ) : null}
               <button
