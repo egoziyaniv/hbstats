@@ -52,6 +52,22 @@ function placeKind(placeEn: string | null, placeHe: string | null): 'win' | 'run
   return 'other';
 }
 
+// Two sources of season labels emit different formats for the same trophy:
+//   API-Football → "2025" (single-year cups) or "2024/2025" (full leagues)
+//   Standing-derivation → "2024/25" (our local Season.name)
+// Dedup by start year so a Super Cup logged twice (once per source) collapses
+// to one row, then pick the prettiest label to display.
+function seasonStartYear(label: string): number | null {
+  const m = label.match(/^(\d{4})/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function seasonScore(label: string): number {
+  if (/^\d{4}\/\d{2}$/.test(label)) return 3;       // "2024/25"
+  if (/^\d{4}[\/\-]\d{4}$/.test(label)) return 2;   // "2024/2025" or "2024-2025"
+  if (/^\d{4}$/.test(label)) return 1;              // "2024"
+  return 0;
+}
+
 export interface TrophyDetail {
   seasonLabel: string;
   kind: 'win' | 'runner-up';
@@ -109,24 +125,37 @@ export async function buildPlayerTrophies(playerId: string): Promise<TrophyGroup
   //    the state cup final, and emit a synthetic trophy row.
   const derivedTrophies = await deriveIsraeliTrophies(linked);
 
-  // Dedupe: same (league, country, seasonLabel, placeKind) → single row.
-  const seen = new Set<string>();
-  const allRows: Array<{
+  // Dedupe: bucket by (league, country, startYear, placeKind). Multiple
+  // variants of the same trophy collapse to one row whose seasonLabel is the
+  // prettiest of the bunch and whose teamNameHe is preserved from whichever
+  // variant happened to carry it.
+  type Row = {
     leagueEn: string; leagueHe: string | null;
     countryEn: string | null; countryHe: string | null;
     seasonLabel: string; kind: 'win' | 'runner-up' | 'other';
     teamNameHe: string | null;
-  }> = [];
+  };
+  const buckets = new Map<string, Row>();
   function push(r: { leagueEn: string; leagueHe?: string | null; countryEn: string | null; countryHe?: string | null; seasonLabel: string; kind: 'win' | 'runner-up' | 'other'; teamNameHe?: string | null }) {
-    const key = `${r.leagueEn}|${r.countryEn || ''}|${r.seasonLabel}|${r.kind}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    allRows.push({
-      leagueEn: r.leagueEn, leagueHe: r.leagueHe || null,
-      countryEn: r.countryEn, countryHe: r.countryHe || null,
-      seasonLabel: r.seasonLabel, kind: r.kind, teamNameHe: r.teamNameHe || null,
-    });
+    const startYear = seasonStartYear(r.seasonLabel);
+    const key = `${r.leagueEn}|${r.countryEn || ''}|${startYear ?? r.seasonLabel}|${r.kind}`;
+    const existing = buckets.get(key);
+    if (!existing) {
+      buckets.set(key, {
+        leagueEn: r.leagueEn, leagueHe: r.leagueHe || null,
+        countryEn: r.countryEn, countryHe: r.countryHe || null,
+        seasonLabel: r.seasonLabel, kind: r.kind, teamNameHe: r.teamNameHe || null,
+      });
+      return;
+    }
+    if (seasonScore(r.seasonLabel) > seasonScore(existing.seasonLabel)) {
+      existing.seasonLabel = r.seasonLabel;
+      existing.leagueHe = r.leagueHe || existing.leagueHe;
+      existing.countryHe = r.countryHe || existing.countryHe;
+    }
+    existing.teamNameHe = existing.teamNameHe || r.teamNameHe || null;
   }
+  const allRows: Row[] = [];
 
   for (const t of rawRows) {
     if (!t.seasonLabel) continue;
@@ -138,6 +167,7 @@ export async function buildPlayerTrophies(playerId: string): Promise<TrophyGroup
     });
   }
   for (const d of derivedTrophies) push(d);
+  allRows.push(...buckets.values());
 
   // Group by league + country.
   const groups = new Map<string, TrophyGroup>();
