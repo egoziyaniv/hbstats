@@ -11,6 +11,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
+import { PlayerTrophyCabinet } from '@/design-system/PlayerTrophyCabinet';
 import { MetricCell } from '@/design-system/MetricCell';
 import { BackButton } from '@/design-system/BackButton';
 import { BottomNav } from '@/design-system/BottomNav';
@@ -182,6 +183,12 @@ export default function PlayerScreen() {
             </View>
           </Section>
         </Card>
+      ) : null}
+
+      {data.trophies && data.trophies.length > 0 ? (
+        <Section title="גביעים והישגים">
+          <PlayerTrophyCabinet trophies={data.trophies} />
+        </Section>
       ) : null}
 
       {matchHistory && matchHistory.entries.length > 0 ? (

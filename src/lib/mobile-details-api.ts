@@ -2,6 +2,7 @@ import { getCompetitionDisplayName, getGameScoreDisplay, getRoundDisplayName } f
 import { derivePlayerDeepStats, deriveTeamDeepStats } from '@/lib/deep-stats';
 import { getEventDisplayLabel } from '@/lib/event-display';
 import { formatPlayerName } from '@/lib/player-display';
+import { buildPlayerTrophies } from '@/lib/player-trophies';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
@@ -682,6 +683,7 @@ export async function getMobileGamePayload(gameId: string) {
       awayTeam: true,
       competition: true,
       gameStats: true,
+      sofascoreMatchStats: true,
       events: {
         include: {
           player: true,
@@ -705,6 +707,27 @@ export async function getMobileGamePayload(gameId: string) {
   const homeLineup = buildTeamLineup(game, game.homeTeamId);
   const awayLineup = buildTeamLineup(game, game.awayTeamId);
   const comparisonRows = buildComparisonRows(game.gameStats, eventSummary);
+
+  // Hydrate coach photo + Hebrew via CoachAlias — same logic as the web's
+  // enrichCoaches(). Single query for both teams' coaches.
+  const coachAliases = [homeLineup.coachName, awayLineup.coachName].filter((n): n is string => !!n);
+  let homeCoach: { id: string | null; nameHe: string | null; photoUrl: string | null } = { id: null, nameHe: null, photoUrl: null };
+  let awayCoach = homeCoach;
+  if (coachAliases.length > 0) {
+    const rows = await prisma.coachAlias.findMany({
+      where: { alias: { in: coachAliases } },
+      select: { alias: true, coach: { select: { id: true, nameHe: true, photoUrl: true } } },
+    });
+    const byAlias = new Map(rows.map((r) => [r.alias, r.coach]));
+    if (homeLineup.coachName) {
+      const c = byAlias.get(homeLineup.coachName);
+      if (c) homeCoach = { id: c.id, nameHe: c.nameHe, photoUrl: c.photoUrl };
+    }
+    if (awayLineup.coachName) {
+      const c = byAlias.get(awayLineup.coachName);
+      if (c) awayCoach = { id: c.id, nameHe: c.nameHe, photoUrl: c.photoUrl };
+    }
+  }
 
   return {
     game: {
@@ -751,6 +774,9 @@ export async function getMobileGamePayload(gameId: string) {
         home: {
           formation: homeLineup.formation,
           coachName: homeLineup.coachName,
+          coachNameHe: homeCoach.nameHe,
+          coachPhotoUrl: homeCoach.photoUrl,
+          coachId: homeCoach.id,
           starters: homeLineup.starters,
           formationRows: buildFormationRows(homeLineup.starters, 'home'),
           substitutes: homeLineup.substitutes,
@@ -758,12 +784,21 @@ export async function getMobileGamePayload(gameId: string) {
         away: {
           formation: awayLineup.formation,
           coachName: awayLineup.coachName,
+          coachNameHe: awayCoach.nameHe,
+          coachPhotoUrl: awayCoach.photoUrl,
+          coachId: awayCoach.id,
           starters: awayLineup.starters,
           formationRows: buildFormationRows(awayLineup.starters, 'away'),
           substitutes: awayLineup.substitutes,
         },
       },
       eventSummary,
+      sofascoreStats: Array.isArray(game.sofascoreMatchStats?.payload)
+        ? (game.sofascoreMatchStats!.payload as Array<{
+            section: string; label: string; home: string; away: string;
+            homeExtra?: string | null; awayExtra?: string | null;
+          }>)
+        : [],
     },
     h2h: await buildMobileH2H(game.homeTeamId, game.awayTeamId, game.id),
     xg: {
@@ -1013,6 +1048,10 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
     .sort((left, right) => +new Date(right.dateTime) - +new Date(left.dateTime));
   const filteredPlayerGameRows = playerGameRows.filter((row) => matchesGameFilter(row, activeGameFilter));
 
+  // Trophy cabinet — same source as the web player page. Done after the
+  // big aggregations so we share canonicalPlayerId without duplicating it.
+  const trophyGroups = await buildPlayerTrophies(canonicalPlayerId);
+
   // AI overview lives on the canonical Player's additionalInfo. The fetcher
   // script writes there so all season-linked rows share one summary.
   const canonicalAdditional = (canonicalPlayer.additionalInfo as { aiSummary?: { text?: string; wiki?: { summary?: string; thumbnail?: string; sourceUrl?: string } } } | null) || null;
@@ -1082,6 +1121,7 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
         title: upload.title || null,
         isPrimary: upload.isPrimary,
       })),
+      trophies: trophyGroups,
     },
   };
 }

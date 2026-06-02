@@ -239,6 +239,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     currentSeasonStats,
     recentMatches,
     career: extras.career,
+    trophies: (raw.sections.trophies as PlayerPayload['trophies']) ?? [],
   };
 
   return NextResponse.json(payload);

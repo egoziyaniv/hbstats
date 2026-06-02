@@ -239,6 +239,12 @@ export interface LineupPlayer {
 export interface Lineup {
   formation: string | null;
   players: LineupPlayer[];
+  coach?: {
+    id: string | null;
+    name: string;
+    nameHe: string | null;
+    photoUrl: string | null;
+  } | null;
 }
 
 export interface MatchPlayerStats {
@@ -404,6 +410,15 @@ export interface PredictedLineupPlayerSummary {
   totalGamesConsidered: number;
 }
 
+export interface SofascoreMatchStat {
+  section: string;        // English section key — translated client-side
+  label: string;          // English label — translated client-side
+  home: string;
+  away: string;
+  homeExtra: string | null;
+  awayExtra: string | null;
+}
+
 export interface MatchPayload {
   match: {
     id: string;
@@ -421,6 +436,7 @@ export interface MatchPayload {
   events: MatchEvent[];
   lineups: { home: Lineup; away: Lineup };
   matchStats: MatchStats | null;
+  sofascoreStats: SofascoreMatchStat[];
   h2h: H2H | null;
   predicted: { home: PredictedLineupPlayerSummary[]; away: PredictedLineupPlayerSummary[] } | null;
 }
@@ -499,12 +515,29 @@ export interface PlayerProfile {
   } | null;
 }
 
+export interface PlayerTrophyDetail {
+  seasonLabel: string;
+  kind: 'win' | 'runner-up';
+  teamName: string | null;
+}
+
+export interface PlayerTrophyGroup {
+  leagueNameHe: string;
+  countryHe: string | null;
+  countryEn: string | null;
+  wins: number;
+  runnerUps: number;
+  seasonsWon: string[];
+  details: PlayerTrophyDetail[];
+}
+
 export interface PlayerPayload {
   player: PlayerProfile;
   currentTeam: TeamSummary | null;
   currentSeasonStats: PlayerSeasonStats | null;
   recentMatches: PlayerRecentMatch[];
   career: PlayerCareerEntry[];
+  trophies: PlayerTrophyGroup[];
 }
 
 // ---------- Preferences ----------

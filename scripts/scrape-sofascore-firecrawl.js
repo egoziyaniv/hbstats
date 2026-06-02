@@ -345,9 +345,39 @@ async function buildGamePlayerIndex(game) {
   return { byNorm, byLast, count: players.length };
 }
 
-// Save coach names as GameLineupEntry rows (role=COACH). The existing game
-// page already renders coach photo + Hebrew name by looking up CoachAlias on
-// participantName, so once these rows exist the UI lights up automatically.
+// Look up an existing Coach record by name: direct match on nameEn/nameHe →
+// CoachAlias exact match → fuzzy last-token contains. Returns null when no
+// candidate looks plausible. Mirrors the logic from
+// scrape-sofascore-coaches.js so per-match enrichment and per-team photo
+// scraping converge on the same Coach row.
+async function lookupCoachByName(name) {
+  if (!name) return null;
+  const direct = await prisma.coach.findFirst({
+    where: { OR: [{ nameEn: { equals: name, mode: 'insensitive' } }, { nameHe: { equals: name, mode: 'insensitive' } }] },
+    select: { id: true, nameEn: true },
+  });
+  if (direct) return direct;
+  const alias = await prisma.coachAlias.findFirst({
+    where: { alias: { equals: name, mode: 'insensitive' } },
+    select: { coach: { select: { id: true, nameEn: true } } },
+  });
+  if (alias?.coach) return alias.coach;
+  const tokens = name.replace(/[.,()'"]/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+  const last = tokens[tokens.length - 1];
+  if (last && last.length >= 4) {
+    const fuzzy = await prisma.coach.findFirst({
+      where: { nameEn: { contains: last, mode: 'insensitive' } },
+      select: { id: true, nameEn: true },
+    });
+    if (fuzzy) return fuzzy;
+  }
+  return null;
+}
+
+// Save coach names as GameLineupEntry rows (role=COACH) and ensure a
+// CoachAlias exists so the game page can light up the coach's photo +
+// Hebrew name. Skips inserting an alias when one already exists for this
+// (alias, coachId) so re-runs are no-ops.
 async function saveManagers(game, managers) {
   let saved = 0;
   for (const side of ['home', 'away']) {
@@ -359,7 +389,6 @@ async function saveManagers(game, managers) {
       select: { id: true, participantName: true },
     });
     if (existing) {
-      // Only overwrite if blank, so we don't clobber a manually-curated name.
       if (!existing.participantName) {
         await prisma.gameLineupEntry.update({
           where: { id: existing.id },
@@ -372,6 +401,25 @@ async function saveManagers(game, managers) {
         data: { gameId: game.id, teamId, role: 'COACH', participantType: 'COACH', participantName: name },
       });
       saved++;
+    }
+
+    // Ensure a CoachAlias exists so enrichCoaches() can hydrate photo + Hebrew.
+    const coach = await lookupCoachByName(name);
+    if (coach) {
+      const aliasExists = await prisma.coachAlias.findFirst({
+        where: { alias: name, coachId: coach.id },
+        select: { id: true },
+      });
+      if (!aliasExists) {
+        try {
+          await prisma.coachAlias.create({ data: { alias: name, coachId: coach.id } });
+          console.log(`    + alias "${name}" → ${coach.nameEn}`);
+        } catch {
+          // Unique violation race — fine, another caller created it.
+        }
+      }
+    } else {
+      console.log(`    · no Coach found for "${name}" — coach will display name-only until added manually`);
     }
   }
   return saved;

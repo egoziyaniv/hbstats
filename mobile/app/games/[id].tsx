@@ -10,6 +10,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
+import { SofascoreMatchStatsPanel } from '@/design-system/SofascoreMatchStatsPanel';
 import { LiveDot } from '@/design-system/LiveDot';
 import { TabBar } from '@/design-system/TabBar';
 import { BackButton } from '@/design-system/BackButton';
@@ -279,25 +280,32 @@ export default function MatchScreen() {
         ) : null}
 
         {tab === 'stats' ? (
-          data.matchStats ? (
-            <Card>
-              {data.matchStats.xg ? <StatRow label="שערים צפויים (xG)" home={data.matchStats.xg.home.toFixed(2)} away={data.matchStats.xg.away.toFixed(2)} /> : null}
-              {data.matchStats.possession ? <StatRow label="החזקה" home={`${data.matchStats.possession.home}%`} away={`${data.matchStats.possession.away}%`} /> : null}
-              {data.matchStats.shots ? <StatRow label="בעיטות" home={data.matchStats.shots.home} away={data.matchStats.shots.away} /> : null}
-              {data.matchStats.shotsOnTarget ? <StatRow label="בעיטות למסגרת" home={data.matchStats.shotsOnTarget.home} away={data.matchStats.shotsOnTarget.away} /> : null}
-              {data.matchStats.corners ? <StatRow label="קרנות" home={data.matchStats.corners.home} away={data.matchStats.corners.away} /> : null}
-              {data.matchStats.fouls ? <StatRow label="עבירות" home={data.matchStats.fouls.home} away={data.matchStats.fouls.away} /> : null}
-              {data.matchStats.offsides ? <StatRow label="נבדלים" home={data.matchStats.offsides.home} away={data.matchStats.offsides.away} /> : null}
-              {data.matchStats.yellowCards ? <StatRow label="צהובים" home={data.matchStats.yellowCards.home} away={data.matchStats.yellowCards.away} /> : null}
-              {data.matchStats.redCards ? <StatRow label="אדומים" home={data.matchStats.redCards.home} away={data.matchStats.redCards.away} /> : null}
-            </Card>
-          ) : (
-            <Card>
-              <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>
-                הסטטיסטיקה לא נטענה.
-              </Text>
-            </Card>
-          )
+          <>
+            {data.matchStats ? (
+              <Card>
+                {data.matchStats.xg ? <StatRow label="שערים צפויים (xG)" home={data.matchStats.xg.home.toFixed(2)} away={data.matchStats.xg.away.toFixed(2)} /> : null}
+                {data.matchStats.possession ? <StatRow label="החזקה" home={`${data.matchStats.possession.home}%`} away={`${data.matchStats.possession.away}%`} /> : null}
+                {data.matchStats.shots ? <StatRow label="בעיטות" home={data.matchStats.shots.home} away={data.matchStats.shots.away} /> : null}
+                {data.matchStats.shotsOnTarget ? <StatRow label="בעיטות למסגרת" home={data.matchStats.shotsOnTarget.home} away={data.matchStats.shotsOnTarget.away} /> : null}
+                {data.matchStats.corners ? <StatRow label="קרנות" home={data.matchStats.corners.home} away={data.matchStats.corners.away} /> : null}
+                {data.matchStats.fouls ? <StatRow label="עבירות" home={data.matchStats.fouls.home} away={data.matchStats.fouls.away} /> : null}
+                {data.matchStats.offsides ? <StatRow label="נבדלים" home={data.matchStats.offsides.home} away={data.matchStats.offsides.away} /> : null}
+                {data.matchStats.yellowCards ? <StatRow label="צהובים" home={data.matchStats.yellowCards.home} away={data.matchStats.yellowCards.away} /> : null}
+                {data.matchStats.redCards ? <StatRow label="אדומים" home={data.matchStats.redCards.home} away={data.matchStats.redCards.away} /> : null}
+              </Card>
+            ) : (
+              <Card>
+                <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>
+                  הסטטיסטיקה לא נטענה.
+                </Text>
+              </Card>
+            )}
+            {data.sofascoreStats && data.sofascoreStats.length > 0 ? (
+              <Section title="סטטיסטיקה מפורטת — Sofascore">
+                <SofascoreMatchStatsPanel stats={data.sofascoreStats} />
+              </Section>
+            ) : null}
+          </>
         ) : null}
 
         {tab === 'lineups' && data.predicted && (data.predicted.home.length > 0 || data.predicted.away.length > 0) ? (
@@ -351,6 +359,7 @@ export default function MatchScreen() {
                       מערך {data.lineups.home.formation}
                     </Text>
                   ) : null}
+                  {data.lineups.home.coach ? <CoachRow coach={data.lineups.home.coach} side="home" /> : null}
                   {data.lineups.home.players.filter((p) => p.isStarting).map((p) => (
                     <Pressable
                       key={p.player.id}
@@ -372,6 +381,7 @@ export default function MatchScreen() {
                       מערך {data.lineups.away.formation}
                     </Text>
                   ) : null}
+                  {data.lineups.away.coach ? <CoachRow coach={data.lineups.away.coach} side="away" /> : null}
                   {data.lineups.away.players.filter((p) => p.isStarting).map((p) => (
                     <Pressable
                       key={p.player.id}
@@ -446,6 +456,36 @@ function RatingBadge({ rating }: { rating: number }) {
   return (
     <View style={{ backgroundColor: bg, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, minWidth: 32, alignItems: 'center' }}>
       <Text style={{ fontSize: 11, fontWeight: '800', color: 'white' }}>{rating.toFixed(1)}</Text>
+    </View>
+  );
+}
+
+function CoachRow({ coach, side }: { coach: { id: string | null; name: string; nameHe: string | null; photoUrl: string | null }; side: 'home' | 'away' }) {
+  const display = coach.nameHe || coach.name;
+  return (
+    <View
+      style={{
+        flexDirection: side === 'home' ? rtlRow() : 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 6,
+        marginBottom: 6,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.ink[100],
+      }}
+    >
+      {coach.photoUrl ? (
+        <CachedImage source={{ uri: absoluteImage(coach.photoUrl) }} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: theme.ink[100] }} />
+      ) : (
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: theme.ink[100], alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 11, fontWeight: '900', color: theme.ink[700] }}>
+            {display.split(/\s+/).map((s) => s[0]).join('').toUpperCase().slice(0, 2)}
+          </Text>
+        </View>
+      )}
+      <Text style={{ flex: 1, textAlign: side === 'home' ? 'right' : 'left', fontSize: 12, color: theme.ink[700] }} numberOfLines={1}>
+        מאמן: {display}
+      </Text>
     </View>
   );
 }

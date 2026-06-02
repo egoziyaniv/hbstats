@@ -138,9 +138,18 @@ export async function GET(_request: Request, { params }: { params: { id: string 
         rating: p.rating ?? null,
       })),
     ];
+    const coach = rawLineup.coachName
+      ? {
+          id: rawLineup.coachId ?? null,
+          name: rawLineup.coachName,
+          nameHe: rawLineup.coachNameHe ?? null,
+          photoUrl: rawLineup.coachPhotoUrl ?? null,
+        }
+      : null;
     return {
       formation: rawLineup.formation ?? null,
       players,
+      coach,
     };
   }
 
@@ -219,6 +228,14 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       away: buildLineup('away'),
     },
     matchStats,
+    sofascoreStats: (raw.sections.sofascoreStats ?? []).map((s) => ({
+      section: s.section,
+      label: s.label,
+      home: s.home,
+      away: s.away,
+      homeExtra: s.homeExtra ?? null,
+      awayExtra: s.awayExtra ?? null,
+    })),
     h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
     predicted: await buildPredictedBlock(raw),
   };
