@@ -116,7 +116,15 @@ function parseManager(md) {
     const idMatch = profileUrl.match(/\/(?:manager|coach)\/[^\/]+\/(\d+)/);
     if (idMatch) photoUrl = `https://img.sofascore.com/api/v1/manager/${idMatch[1]}/image`;
   }
-  if (name) name = name.replace(/^(manager|coach|head\s*coach)\s*[:\-]?\s*/i, '').trim();
+  if (name) {
+    // Strip leading markdown linebreak escapes (\\) + whitespace.
+    name = name.replace(/^[\\\s]+/, '').replace(/[\\\s]+$/, '');
+    // Strip the role label that Sofascore renders directly after the name
+    // ("Eliran HudedaCoach" / "Ronny LevyManager" → drop "Coach"/"Manager").
+    name = name.replace(/(Manager|Coach|Head\s*Coach)$/, '').trim();
+    // Strip the same role label when it appears at the start (rare).
+    name = name.replace(/^(Manager|Coach|Head\s*Coach)\s*[:\-]?\s*/i, '').trim();
+  }
   if (name && name.length < 3) name = null;
 
   // Debug: when we miss, expose the slice of markdown around the literal
