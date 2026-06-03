@@ -72,24 +72,46 @@ function normalize(s) {
 }
 
 function parseManager(md) {
-  // Sofascore team pages render a "Manager" block with a clickable name.
-  // The hyperlink target is /football/manager/<slug>/<id> and a sibling
-  // image tag references img.sofascore.com/api/v1/manager/<id>/image.
-  const linkMatch = md.match(/\[([^\]\n]+)\]\(([^)]*\/football\/manager\/[^)]+)\)/i);
-  const imgMatch  = md.match(/!\[[^\]]*\]\((https?:\/\/[^)]*\/manager\/\d+\/image[^)]*)\)/i);
+  // Sofascore renders the head coach as a clickable link on the team page.
+  // The exact slug Sofascore uses has shifted over time, so try several
+  // variants. Photo URL pattern is more stable: img.sofascore.com/.../manager
+  // or /.../coach with /image at the end.
+  const linkPatterns = [
+    /\[([^\]\n]+)\]\(([^)]*\/football\/manager\/[^)]+)\)/i,
+    /\[([^\]\n]+)\]\(([^)]*\/football\/coach\/[^)]+)\)/i,
+    /\[([^\]\n]+)\]\(([^)]*\/manager\/[^)]+)\)/i,
+    /\[([^\]\n]+)\]\(([^)]*\/coach\/[^)]+)\)/i,
+  ];
+  let linkMatch = null;
+  for (const p of linkPatterns) {
+    const m = md.match(p);
+    if (m) { linkMatch = m; break; }
+  }
+  const imgMatch  = md.match(/!\[[^\]]*\]\((https?:\/\/[^)]*(?:manager|coach)\/\d+\/image[^)]*)\)/i);
 
   let name = linkMatch?.[1]?.trim() || null;
   const profileUrl = linkMatch?.[2] || null;
   let photoUrl = imgMatch?.[1] || null;
 
-  // If we got a profile URL but no image, synthesize the CDN URL.
   if (!photoUrl && profileUrl) {
-    const idMatch = profileUrl.match(/\/manager\/[^\/]+\/(\d+)/);
+    const idMatch = profileUrl.match(/\/(?:manager|coach)\/[^\/]+\/(\d+)/);
     if (idMatch) photoUrl = `https://img.sofascore.com/api/v1/manager/${idMatch[1]}/image`;
   }
-  // Strip noise that sometimes prefixes the name (e.g. "Manager", "Coach").
   if (name) name = name.replace(/^(manager|coach|head\s*coach)\s*[:\-]?\s*/i, '').trim();
   if (name && name.length < 3) name = null;
+
+  // Debug: when we miss, expose the slice of markdown around the literal
+  // word "manager"/"coach" so we can see what Firecrawl actually returned.
+  if (!name) {
+    const idx = md.search(/manager|head\s*coach|\bcoach\b/i);
+    if (idx >= 0) {
+      const slice = md.slice(Math.max(0, idx - 80), Math.min(md.length, idx + 280));
+      console.log('  · markdown slice around coach keyword:');
+      console.log('    ' + slice.replace(/\n/g, '\n    '));
+    } else {
+      console.log('  · no "manager"/"coach" keyword found in markdown');
+    }
+  }
   return { name, profileUrl, photoUrl };
 }
 
