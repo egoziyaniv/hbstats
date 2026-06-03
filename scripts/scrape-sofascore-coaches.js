@@ -72,26 +72,45 @@ function normalize(s) {
 }
 
 function parseManager(md) {
-  // Sofascore renders the head coach as a clickable link on the team page.
-  // The exact slug Sofascore uses has shifted over time, so try several
-  // variants. Photo URL pattern is more stable: img.sofascore.com/.../manager
-  // or /.../coach with /image at the end.
-  const linkPatterns = [
-    /\[([^\]\n]+)\]\(([^)]*\/football\/manager\/[^)]+)\)/i,
-    /\[([^\]\n]+)\]\(([^)]*\/football\/coach\/[^)]+)\)/i,
-    /\[([^\]\n]+)\]\(([^)]*\/manager\/[^)]+)\)/i,
-    /\[([^\]\n]+)\]\(([^)]*\/coach\/[^)]+)\)/i,
+  // Sofascore renders the head coach as a markdown link whose label often
+  // wraps an inline image. Pattern: `[![alt](photo-url)<NAME>](profile-url)`
+  // — capture all three pieces in one shot, then fall back to plain-text
+  // links when the image isn't present. We try /football/manager/ and
+  // /football/coach/ + the un-namespaced versions because the slug has
+  // shifted between Sofascore deploys.
+  const compoundPatterns = [
+    /\[!\[[^\]]*\]\(([^)]+)\)([^\]]+)\]\(([^)]*\/football\/(?:manager|coach)\/[^)]+)\)/i,
+    /\[!\[[^\]]*\]\(([^)]+)\)([^\]]+)\]\(([^)]*\/(?:manager|coach)\/[^)]+)\)/i,
   ];
-  let linkMatch = null;
-  for (const p of linkPatterns) {
+  let compound = null;
+  for (const p of compoundPatterns) {
     const m = md.match(p);
-    if (m) { linkMatch = m; break; }
+    if (m) { compound = m; break; }
   }
-  const imgMatch  = md.match(/!\[[^\]]*\]\((https?:\/\/[^)]*(?:manager|coach)\/\d+\/image[^)]*)\)/i);
-
-  let name = linkMatch?.[1]?.trim() || null;
-  const profileUrl = linkMatch?.[2] || null;
-  let photoUrl = imgMatch?.[1] || null;
+  let photoUrl = null;
+  let name = null;
+  let profileUrl = null;
+  if (compound) {
+    photoUrl = compound[1];
+    name = compound[2].trim();
+    profileUrl = compound[3];
+  } else {
+    // Plain text link without an image wrapper.
+    const linkPatterns = [
+      /\[([^\]\n!]+)\]\(([^)]*\/football\/(?:manager|coach)\/[^)]+)\)/i,
+      /\[([^\]\n!]+)\]\(([^)]*\/(?:manager|coach)\/[^)]+)\)/i,
+    ];
+    for (const p of linkPatterns) {
+      const m = md.match(p);
+      if (m) {
+        name = m[1].trim();
+        profileUrl = m[2];
+        break;
+      }
+    }
+    const imgMatch = md.match(/!\[[^\]]*\]\((https?:\/\/[^)]*(?:manager|coach)\/\d+\/image[^)]*)\)/i);
+    if (imgMatch) photoUrl = imgMatch[1];
+  }
 
   if (!photoUrl && profileUrl) {
     const idMatch = profileUrl.match(/\/(?:manager|coach)\/[^\/]+\/(\d+)/);
