@@ -14,7 +14,8 @@ export async function DELETE(request: NextRequest) {
 
   const result = await deleteUserAccount(user.id);
   if (!result.ok) {
-    if (result.reason === 'last_admin') {
+    const failResult = result as { ok: false; reason: 'not_found' | 'last_admin' };
+    if (failResult.reason === 'last_admin') {
       return NextResponse.json(
         { error: 'לא ניתן למחוק את חשבון המנהל האחרון.' },
         { status: 409 },
