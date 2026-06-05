@@ -201,10 +201,10 @@ export default function Navbar() {
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">
-                Data Ball Israel
+                StatsAI
               </div>
               <div className="truncate text-xl font-black text-white md:text-2xl">
-                הדופק של טרנר, במספרים.
+                סטטיסטיקה שמנצחת את המשחק
               </div>
             </Link>
             <button
@@ -254,18 +254,12 @@ export default function Navbar() {
           <div className="flex h-14 items-center justify-between gap-3">
 
             {/* Brand — right side (RTL) */}
-            <Link href="/" className="flex shrink-0 items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-[11px] font-black text-white shadow-sm">
-                HBS
-              </div>
-              <div className="hidden sm:block">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">
-                  HBSStats
-                </div>
-                <div className="text-[10px] font-medium text-stone-400 leading-none">
-                  ליגת העל
-                </div>
-              </div>
+            <Link href="/" className="flex shrink-0 items-center" aria-label="StatsAI">
+              <img
+                src="/statsai-logo.png"
+                alt="StatsAI — סטטיסטיקה שמנצחת את המשחק"
+                className="h-9 w-auto object-contain md:h-10"
+              />
             </Link>
 
             {/* Nav links — center (desktop) */}

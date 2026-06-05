@@ -77,7 +77,7 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
           onStartShouldSetResponder={() => true}
         >
           <View style={{ flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: theme.ink[900] }}>HBStats</Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: theme.ink[900] }}>StatsAI</Text>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={{ fontSize: 22, fontWeight: '800', color: theme.ink[500] }}>×</Text>
             </Pressable>

@@ -13,8 +13,11 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: 'ליגת הסטטיסטיקות',
-  description: 'מערכת עברית לסטטיסטיקות כדורגל, ניתוח נתונים, משחקים, שחקנים וקבוצות.',
+  title: {
+    default: 'StatsAI — סטטיסטיקה שמנצחת את המשחק',
+    template: '%s — StatsAI',
+  },
+  description: 'StatsAI — סטטיסטיקה שמנצחת את המשחק. מערכת עברית לסטטיסטיקות כדורגל, ניתוח נתונים, משחקים, שחקנים וקבוצות.',
 };
 
 // Runs synchronously before first paint — sets data-theme/data-color from localStorage.
@@ -33,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="mx-auto max-w-7xl px-4 py-4">
               <img
                 src="/banner-stats.png"
-                alt="הדופק של טרנר במספרים"
+                alt="StatsAI — סטטיסטיקה שמנצחת את המשחק"
                 className="h-24 w-full rounded-[24px] border border-white/10 object-cover shadow-[0_18px_40px_rgba(0,0,0,0.28)] md:h-28"
               />
             </div>

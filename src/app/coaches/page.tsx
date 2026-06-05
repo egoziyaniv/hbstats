@@ -4,7 +4,7 @@ import { buildCoachLeagueRanking } from '@/lib/coach-stats';
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
-export const metadata = { title: 'דירוג מאמנים — HBStats' };
+export const metadata = { title: 'דירוג מאמנים' };
 
 export default async function CoachesRankingPage() {
   const coaches = await buildCoachLeagueRanking(30);

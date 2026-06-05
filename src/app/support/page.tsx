@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'תמיכה — HBStats',
-  description: 'מרכז התמיכה של HBStats — שאלות נפוצות ויצירת קשר.',
+  title: 'תמיכה',
+  description: 'מרכז התמיכה של StatsAI — שאלות נפוצות ויצירת קשר.',
 };
 
 export default function SupportPage() {
@@ -8,7 +8,7 @@ export default function SupportPage() {
     <div className="min-h-screen bg-stone-50 px-4 py-16" dir="rtl">
       <div className="mx-auto max-w-3xl rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
         <h1 className="text-3xl font-black text-stone-900">תמיכה</h1>
-        <p className="mt-2 text-stone-600">צוות הפיתוח של HBStats — כאן לעזור.</p>
+        <p className="mt-2 text-stone-600">צוות הפיתוח של StatsAI — כאן לעזור.</p>
 
         <section className="mt-8">
           <h2 className="text-xl font-black text-stone-900">יצירת קשר ישירה</h2>

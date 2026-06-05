@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'מדיניות פרטיות — HBStats',
-  description: 'מדיניות הפרטיות של HBStats — אפליקציית סטטיסטיקות כדורגל ישראלי.',
+  title: 'מדיניות פרטיות',
+  description: 'מדיניות הפרטיות של StatsAI — אפליקציית סטטיסטיקות כדורגל ישראלי.',
 };
 
 export default function PrivacyPolicyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-lg font-black text-stone-900">מי אנחנו</h2>
             <p>
-              HBStats (להלן: &quot;השירות&quot;, &quot;אנחנו&quot;) מספק נתוני סטטיסטיקה של כדורגל
+              StatsAI (להלן: &quot;השירות&quot;, &quot;אנחנו&quot;) מספק נתוני סטטיסטיקה של כדורגל
               ישראלי דרך אתר אינטרנט ואפליקציית מובייל ל-iOS. השירות מתופעל על-ידי יבגני אגוזי.
             </p>
           </section>

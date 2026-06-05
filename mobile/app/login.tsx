@@ -58,11 +58,11 @@ export default function LoginScreen() {
                 shadowRadius: 14,
               }}
             >
-              <Text style={{ color: brand.accent, fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>HBS</Text>
+              <Text style={{ color: brand.accent, fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>SA</Text>
             </View>
-            <Text style={{ color: 'white', fontSize: 22, fontWeight: '800' }}>HBStats</Text>
+            <Text style={{ color: 'white', fontSize: 22, fontWeight: '800' }}>StatsAI</Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4 }}>
-              סטטיסטיקות הכדורגל הישראלי
+              סטטיסטיקה שמנצחת את המשחק
             </Text>
           </View>
 

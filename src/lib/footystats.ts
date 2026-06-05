@@ -10,7 +10,7 @@ let lastRequestAt = 0;
 let requestQueue = Promise.resolve();
 
 // ── Season ID maps ────────────────────────────────────────────────────────────
-// FootyStats season_id → HBStats season.year (startingYear)
+// FootyStats season_id → StatsAI season.year (startingYear)
 // 16353 is the IPL regular-season-only comp; 16363 is the full season with playoffs.
 
 export const FOOTYSTATS_SEASON_IDS: Record<string, Record<number, number>> = {

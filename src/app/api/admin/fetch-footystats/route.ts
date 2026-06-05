@@ -58,7 +58,7 @@ const RESOURCE_LABELS: Record<string, string> = {
 // FootyStats only has real Israeli event data from the 2025 season onward
 const EVENTS_AVAILABLE_FROM_YEAR = 2025;
 
-// Name translations — English FootyStats names → Hebrew HBStats names
+// Name translations — English FootyStats names → Hebrew StatsAI names
 const FS_TEAM_NAME_HE: Record<string, string> = {
   "Hapoel Be'er Sheva FC": 'הפועל באר שבע',
   "Hapoel Beer Sheva FC": 'הפועל באר שבע',

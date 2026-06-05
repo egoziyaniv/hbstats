@@ -1,5 +1,5 @@
 // In-memory rate limiter, keyed by an arbitrary string.
-// Single-instance only — if HBStats ever scales horizontally, swap for Redis.
+// Single-instance only — if StatsAI ever scales horizontally, swap for Redis.
 
 interface Bucket {
   count: number;

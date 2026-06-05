@@ -18,7 +18,7 @@ const RANGES: Array<{ id: string; label: string; sinceYear?: number }> = [
   { id: 'current', label: 'עונה נוכחית', sinceYear: new Date().getFullYear() - 1 },
 ];
 
-export const metadata = { title: 'דירוג כל הזמנים — HBStats' };
+export const metadata = { title: 'דירוג כל הזמנים' };
 
 export default async function AllTimeStatsPage({ searchParams }: { searchParams: { cat?: string; range?: string } }) {
   const selected = CATEGORIES.find((c) => c.id === searchParams.cat) || CATEGORIES[0];
