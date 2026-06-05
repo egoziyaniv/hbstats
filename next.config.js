@@ -18,10 +18,30 @@ const nextConfig = {
     responseLimit: '500mb',
   },
   async headers() {
+    // CSP kept compatible with Next.js App Router (which injects inline
+    // hydration scripts) and the single inline theme script in layout.tsx —
+    // both require 'unsafe-inline' on script-src; it still blocks loading
+    // external script *files*. img-src allows https/data/blob for remote
+    // photos, Telegram media, and html2canvas/jsPDF exports.
+    const csp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "img-src 'self' https: data: blob:",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
         headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

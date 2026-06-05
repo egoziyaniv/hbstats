@@ -55,7 +55,8 @@ export async function createSession(userId: string) {
   cookies().set(SESSION_COOKIE, rawToken, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
+    // Secure in production (HTTPS); allow plain HTTP only for local dev.
+    secure: process.env.NODE_ENV === 'production',
     expires: expiresAt,
     path: '/',
   });
