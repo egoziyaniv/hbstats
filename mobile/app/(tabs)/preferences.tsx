@@ -1,4 +1,5 @@
 import { ScrollView, View, Text, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
@@ -13,10 +14,12 @@ import type { PreferencesPayload, PreferenceTeamOption, PreferenceCompetitionOpt
 
 export default function PreferencesScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const { data, isLoading } = usePreferences();
   const { color, brand, schemes, setColor } = useTheme();
   const update = useUpdatePreferences();
+
+  const [deleting, setDeleting] = useState(false);
 
   const onLogout = () => {
     Alert.alert('יציאה', 'האם להתנתק?', [
@@ -31,6 +34,30 @@ export default function PreferencesScreen() {
       },
     ]);
   };
+
+  function confirmDelete() {
+    Alert.alert(
+      'מחיקת חשבון',
+      'הפעולה תמחק לצמיתות את החשבון וההעדפות שלך. אי אפשר לבטל.',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              router.replace('/login');
+            } catch {
+              Alert.alert('שגיאה', 'מחיקת החשבון נכשלה. נסה שוב.');
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   if (isLoading || !data) {
     return (
@@ -154,6 +181,16 @@ export default function PreferencesScreen() {
           <View style={{ backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
             <Text style={{ color: '#B91C1C', fontWeight: '700', fontSize: 14 }}>התנתק</Text>
           </View>
+        </Pressable>
+        <Pressable
+          onPress={confirmDelete}
+          disabled={deleting}
+          testID="delete-account"
+          style={{ marginTop: 12, paddingVertical: 12, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5', opacity: deleting ? 0.6 : 1 }}
+        >
+          <Text style={{ color: '#B91C1C', fontWeight: '800', fontSize: 15 }}>
+            {deleting ? 'מוחק…' : 'מחיקת חשבון'}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>
