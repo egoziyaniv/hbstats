@@ -30,10 +30,12 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "form-action 'self'",
       "img-src 'self' https: data: blob:",
-      "script-src 'self' 'unsafe-inline'",
-      "style-src 'self' 'unsafe-inline'",
+      // accounts.google.com + gstatic: Google Identity Services (Sign in with Google)
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com",
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      "connect-src 'self' https://accounts.google.com",
+      "frame-src https://accounts.google.com",
     ].join('; ');
 
     return [

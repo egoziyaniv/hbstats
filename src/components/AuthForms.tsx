@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, ReactNode, useState } from 'react';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export function LoginForm() {
   const router = useRouter();
@@ -59,6 +60,7 @@ export function LoginForm() {
           {loading ? 'מתחבר...' : 'התחברות'}
         </button>
       </form>
+      <GoogleSignInButton />
     </AuthShell>
   );
 }
@@ -126,6 +128,7 @@ export function RegisterForm() {
           {loading ? 'יוצר חשבון...' : 'הרשמה'}
         </button>
       </form>
+      <GoogleSignInButton />
     </AuthShell>
   );
 }
