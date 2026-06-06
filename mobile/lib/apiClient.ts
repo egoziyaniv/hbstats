@@ -92,6 +92,8 @@ export const apiClient = {
     request<T>(path, { method: 'POST', body, headers }),
   put: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
     request<T>(path, { method: 'PUT', body, headers }),
+  del: <T>(path: string, headers?: Record<string, string>) =>
+    request<T>(path, { method: 'DELETE', headers }),
 };
 
 export { ApiError };
