@@ -12,4 +12,7 @@ module.exports = {
     '^@shared/(.*)$': '<rootDir>/shared/$1',
   },
   testPathIgnorePatterns: ['<rootDir>/mobile/'],
+  transformIgnorePatterns: [
+    '/node_modules/(?!(jose)/)',
+  ],
 };

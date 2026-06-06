@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import type { NextRequest } from 'next/server';
 import { UserRole } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { signAccessToken } from '@/lib/jwt';
 
 const SESSION_COOKIE = 'hbs_session';
 const SESSION_TTL_DAYS = 14;
@@ -185,4 +186,25 @@ export function toSafeUser(user: {
     role: user.role,
     avatarUrl: user.avatarUrl,
   } satisfies SafeUser;
+}
+
+const REFRESH_TTL_DAYS = 60;
+
+/** Issues a mobile session (persisted refresh token + access JWT) for an already-authenticated user. */
+export async function issueMobileSession(user: {
+  id: string; email: string; name: string; role: UserRole; avatarUrl: string | null;
+}) {
+  const rawRefresh = createRawSessionToken();
+  const expiresAt = new Date(Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  const session = await prisma.session.create({
+    data: { userId: user.id, tokenHash: sha256(rawRefresh), expiresAt, familyId: '__placeholder__' },
+  });
+  await prisma.session.update({ where: { id: session.id }, data: { familyId: session.id } });
+
+  return {
+    accessToken: signAccessToken(user.id),
+    refreshToken: rawRefresh,
+    user: toSafeUser(user),
+  };
 }
