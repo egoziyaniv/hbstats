@@ -11,7 +11,9 @@ model User {
   id                        String           @id @default(cuid())
   email                     String           @unique
   name                      String
-  password                  String
+  password                  String?
+  googleSub                 String?          @unique
+  appleSub                  String?          @unique
   role                      UserRole         @default(USER)
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
