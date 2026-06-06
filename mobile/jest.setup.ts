@@ -15,6 +15,16 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(async () => {}),
 }));
 
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(async () => true),
+    signIn: jest.fn(async () => ({ type: 'cancelled' })),
+  },
+  isSuccessResponse: (r: { type?: string } | null) => r?.type === 'success',
+  GoogleSigninButton: () => null,
+}));
+
 jest.mock('expo-secure-store', () => {
   const store = new Map<string, string>();
   return {

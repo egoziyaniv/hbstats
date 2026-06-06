@@ -6,7 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { theme } from '@/design-system/theme';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const { brand } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +24,19 @@ export default function LoginScreen() {
       await login(email.trim(), password);
     } catch {
       setError('שם משתמש או סיסמה שגויים');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitGoogle = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await loginWithGoogle();
+      // On success the user is set and AuthGate redirects automatically.
+    } catch {
+      setError('ההתחברות עם Google נכשלה');
     } finally {
       setBusy(false);
     }
@@ -166,6 +179,24 @@ export default function LoginScreen() {
               ) : (
                 <Text style={{ color: 'white', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 }}>התחבר</Text>
               )}
+            </Pressable>
+
+            <Pressable
+              onPress={submitGoogle}
+              disabled={busy}
+              testID="google-signin"
+              style={{
+                marginTop: 12,
+                backgroundColor: 'white',
+                paddingVertical: 14,
+                borderRadius: 10,
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: 'rgba(0,0,0,0.12)',
+                opacity: busy ? 0.7 : 1,
+              }}
+            >
+              <Text style={{ color: '#1f2937', fontSize: 15, fontWeight: '700' }}>המשך עם Google</Text>
             </Pressable>
           </View>
         </View>

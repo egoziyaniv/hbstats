@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { apiClient } from '@/lib/apiClient';
+import { getGoogleIdToken } from '@/lib/googleAuth';
 import {
   setAccessToken,
   storeRefreshToken,
@@ -15,6 +16,7 @@ interface AuthState {
   user: SafeUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<boolean>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
@@ -47,6 +49,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   };
 
+  const loginWithGoogle = async (): Promise<boolean> => {
+    const idToken = await getGoogleIdToken();
+    if (!idToken) return false; // user cancelled
+    const res = await apiClient.post<LoginResponse>('/auth/google', { idToken });
+    setAccessToken(res.accessToken);
+    await storeRefreshToken(res.refreshToken);
+    await storeUser(res.user);
+    setUser(res.user);
+    return true;
+  };
+
   const logout = async () => {
     const refresh = await loadRefreshToken();
     try {
@@ -65,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, logout, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );
