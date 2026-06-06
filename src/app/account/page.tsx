@@ -1,5 +1,6 @@
 import { ChangePasswordForm } from '@/components/AuthForms';
 import AccountPreferencesForm from '@/components/AccountPreferencesForm';
+import DeleteAccountButton from '@/components/DeleteAccountButton';
 import { requireUser } from '@/lib/auth';
 import { getCurrentSeasonStartYear } from '@/lib/home-live';
 import prisma from '@/lib/prisma';
@@ -64,6 +65,8 @@ export default async function AccountPage() {
         />
 
         <ChangePasswordForm />
+
+        <DeleteAccountButton />
       </div>
     </div>
   );
