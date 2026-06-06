@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyPassword, issueMobileSession } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
-import type { LoginRequest, LoginResponse } from '@shared/types/mobile-api';
+import type { LoginRequest } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
 
