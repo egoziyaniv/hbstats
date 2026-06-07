@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Image } from 'react-native';
 import { Svg, Path, Circle } from 'react-native-svg';
 import { useTheme } from '@/contexts/ThemeContext';
 import { rtlRow } from '@/lib/rtl';
@@ -53,23 +53,27 @@ export function Header({ title, subtitle, onBack, showBack, rightSlot }: HeaderP
           </Pressable>
         )}
 
-        <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 8 }}>
-          <Text style={{ color: 'white', fontSize: 11, fontWeight: '700', letterSpacing: 0.4, opacity: 0.9 }}>
-            ליגת העל
+        <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 8, flexShrink: 1 }}>
+          <Text
+            style={{ color: 'white', fontSize: 11, fontWeight: '600', letterSpacing: 0.2, opacity: 0.95 }}
+            numberOfLines={1}
+          >
+            סטטיסטיקה שמנצחת את המשחק
           </Text>
           <View
             style={{
               backgroundColor: 'white',
-              width: 36,
-              height: 22,
               borderRadius: 6,
+              paddingHorizontal: 6,
+              height: 26,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text style={{ color: brand.accent, fontSize: 12, fontWeight: '900', letterSpacing: -0.3 }}>
-              SA
-            </Text>
+            <Image
+              source={require('../assets/statsai-logo.png')}
+              style={{ width: 44, height: 25, resizeMode: 'contain' }}
+            />
           </View>
         </View>
 
