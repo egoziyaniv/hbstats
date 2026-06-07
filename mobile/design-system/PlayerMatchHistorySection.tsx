@@ -3,6 +3,7 @@
  * compact table of per-match stats. Mobile mirror of web PlayerMatchHistory.
  */
 
+import { Fragment } from 'react';
 import { View, Text } from 'react-native';
 import { Svg, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useRouter } from 'expo-router';
@@ -30,10 +31,10 @@ function RatingChart({ entries }: { entries: PlayerMatchHistoryEntry[] }) {
       {[2, 4, 6, 8, 10].map((y) => {
         const yPx = padT + innerH - (y / 10) * innerH;
         return (
-          <>
-            <Line key={`grid-${y}`} x1={padL} x2={W - padR} y1={yPx} y2={yPx} stroke="#e7e5e4" strokeDasharray="3 3" />
-            <SvgText key={`lbl-${y}`} x={padL - 4} y={yPx + 3} fontSize="8" fill="#a8a29e" textAnchor="end">{y}</SvgText>
-          </>
+          <Fragment key={`grid-${y}`}>
+            <Line x1={padL} x2={W - padR} y1={yPx} y2={yPx} stroke="#e7e5e4" strokeDasharray="3 3" />
+            <SvgText x={padL - 4} y={yPx + 3} fontSize="8" fill="#a8a29e" textAnchor="end">{y}</SvgText>
+          </Fragment>
         );
       })}
       {data.map((e, i) => {
