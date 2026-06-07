@@ -30,10 +30,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [refresh, savedUser] = await Promise.all([loadRefreshToken(), loadUser()]);
-      if (!cancelled) {
-        if (refresh && savedUser) setUser(savedUser);
-        setIsLoading(false);
+      try {
+        const [refresh, savedUser] = await Promise.all([loadRefreshToken(), loadUser()]);
+        if (!cancelled && refresh && savedUser) setUser(savedUser);
+      } catch {
+        // Secure storage unavailable — treat as logged out rather than hang.
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     })();
     return () => {
