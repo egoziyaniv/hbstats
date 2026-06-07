@@ -62,14 +62,23 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   });
   let extras = playerRow ? extractFlashscoreExtras(playerRow.additionalInfo) : { marketValue: null, contractUntil: null, career: [] };
   let birthDate = playerRow?.birthDate ?? null;
-  if (playerRow?.canonicalPlayerId && (!extras.marketValue && !extras.career.length)) {
-    const canonical = await prisma.player.findUnique({
-      where: { id: playerRow.canonicalPlayerId },
+  if (!extras.marketValue && !extras.career.length) {
+    // Flashscore extras (market value / contract / career) may live on the
+    // canonical master OR on any linked season record — not necessarily the
+    // matched row. Mirror the web player page: search the whole canonical
+    // group and use the first record that has the data.
+    const canonicalId = playerRow?.canonicalPlayerId ?? raw.player.id;
+    const linked = await prisma.player.findMany({
+      where: { OR: [{ id: canonicalId }, { canonicalPlayerId: canonicalId }] },
       select: { birthDate: true, additionalInfo: true },
     });
-    if (canonical) {
-      extras = extractFlashscoreExtras(canonical.additionalInfo);
-      if (!birthDate) birthDate = canonical.birthDate;
+    for (const lp of linked) {
+      const e = extractFlashscoreExtras(lp.additionalInfo);
+      if (e.marketValue || e.career.length) {
+        extras = e;
+        if (!birthDate) birthDate = lp.birthDate;
+        break;
+      }
     }
   }
 
