@@ -68,7 +68,7 @@ export function Header({ title, subtitle, onBack, showBack, rightSlot }: HeaderP
             }}
           >
             <Text style={{ color: brand.accent, fontSize: 12, fontWeight: '900', letterSpacing: -0.3 }}>
-              HBS
+              SA
             </Text>
           </View>
         </View>
