@@ -8,9 +8,10 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SeasonContext, useSeasonStoreValue } from '@/lib/seasonStore';
 
-// Force native RTL on so flex-row auto-flips to row-reverse on real devices.
-// Components use `rtlRow()` helper which returns 'row' on native-RTL builds
-// (let native flip) and 'row-reverse' on Expo Go (manual flip).
+// Native RTL on. flex-row auto-flips, rtlRow() returns 'row', tab bar + standings
+// read correctly. Note: under native RTL, alignItems 'flex-start' = visual-RIGHT
+// and 'flex-end' = visual-LEFT, and start/end margins flip — components must use
+// start/end semantics (not hardcoded left/right) for content to anchor right.
 if (!I18nManager.isRTL) {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);

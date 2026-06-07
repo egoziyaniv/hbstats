@@ -145,7 +145,7 @@ function LeaderRow({
       {/* Name + team take their natural width and sit right next to the
           photo. The value badge below uses `marginStart: 'auto'` to push it
           to the opposite (visual left) edge of the row. */}
-      <View style={{ flexShrink: 1 }}>
+      <View style={{ flex: 1 }}>
         <Text
           style={{ fontSize: 14, fontWeight: '700', color: theme.ink[900], textAlign: 'right' }}
           numberOfLines={1}

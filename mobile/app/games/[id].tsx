@@ -391,7 +391,7 @@ export default function MatchScreen() {
                       <View className="w-7 h-7 rounded-full bg-ink-100 items-center justify-center">
                         <Text className="text-[11px] font-black text-ink-700">{p.player.jerseyNumber ?? '—'}</Text>
                       </View>
-                      <Text style={{ flex: 1, textAlign: 'left' }} className="text-sm text-ink-900" numberOfLines={1}>{p.player.nameHe}</Text>
+                      <Text style={{ flex: 1, textAlign: 'right' }} className="text-sm text-ink-900" numberOfLines={1}>{p.player.nameHe}</Text>
                       {p.rating != null ? <RatingBadge rating={p.rating} /> : null}
                     </Pressable>
                   ))}

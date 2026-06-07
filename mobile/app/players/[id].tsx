@@ -91,7 +91,7 @@ export default function PlayerScreen() {
                 <Text className="text-3xl font-black text-white">{firstLetter}</Text>
               </View>
             )}
-            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <View style={{ flex: 1, alignItems: 'flex-start' }}>
               {data.player.position ? (
                 <Text className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
                   {data.player.position}

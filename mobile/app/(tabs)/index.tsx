@@ -124,7 +124,8 @@ export default function HomeScreen() {
                 }}
               >
                 <Text style={{ width: 24, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>#</Text>
-                <Text style={{ flex: 1, marginHorizontal: 10, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>קבוצה</Text>
+                <View style={{ width: 22, marginStart: 10, marginEnd: 8 }} />
+                <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>קבוצה</Text>
                 <Text style={{ width: 24, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>מ'</Text>
                 <Text style={{ width: 36, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>הפרש</Text>
                 <Text style={{ width: 32, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>נק'</Text>
@@ -220,16 +221,6 @@ export default function HomeScreen() {
                         borderBottomColor: theme.ink[100],
                       }}
                     >
-                      {absoluteImage(n.imageUrl) ? (
-                        <CachedImage
-                          source={{ uri: absoluteImage(n.imageUrl) }}
-                          style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: theme.ink[100] }}
-                        />
-                      ) : (
-                        <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: brand.accentGlow, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 22 }}>📰</Text>
-                        </View>
-                      )}
                       <View style={{ flex: 1 }}>
                         <Text
                           style={{ color: theme.ink[900], fontSize: 13.5, lineHeight: 19, textAlign: 'right', writingDirection: 'rtl' }}
@@ -246,6 +237,16 @@ export default function HomeScreen() {
                           ) : null}
                         </View>
                       </View>
+                      {absoluteImage(n.imageUrl) ? (
+                        <CachedImage
+                          source={{ uri: absoluteImage(n.imageUrl) }}
+                          style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: theme.ink[100] }}
+                        />
+                      ) : (
+                        <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: brand.accentGlow, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 22 }}>📰</Text>
+                        </View>
+                      )}
                     </View>
                   </Pressable>
                 );
