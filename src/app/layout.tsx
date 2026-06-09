@@ -32,15 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <Navbar />
           <AiChat />
-          <div className="site-banner border-b border-stone-200 bg-black">
-            <div className="mx-auto max-w-7xl px-4 py-4">
-              <img
-                src="/banner-stats.png"
-                alt="StatsAI — סטטיסטיקה שמנצחת את המשחק"
-                className="h-24 w-full rounded-[24px] border border-white/10 object-cover shadow-[0_18px_40px_rgba(0,0,0,0.28)] md:h-28"
-              />
-            </div>
-          </div>
           <main className="min-h-screen">{children}</main>
         </ThemeProvider>
       </body>
