@@ -16,6 +16,9 @@ import { buildCoachWinChart } from '@/lib/coach-timeline';
 import { buildGoalTimingForTeam } from '@/lib/goal-timing';
 import { buildSquadDemographics, buildGoalTypes, buildXgOverTime } from '@/lib/team-extras';
 import { TeamOverviewPanel } from '@/components/TeamOverviewPanel';
+import TeamPositionHistory, { type PositionRow } from '@/components/TeamPositionHistory';
+
+const LEAGUE_COMPETITION_ID = 'comp_liga_haal';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
 
@@ -236,6 +239,32 @@ export default async function TeamPage({
     where: team.nameHe ? { nameHe: team.nameHe } : { nameEn: team.nameEn },
     select: { id: true },
   }).then((rows) => rows.map((r) => r.id));
+
+  // Historical league table positions across all seasons for this club.
+  const clubStandings = allTimeTeamIds.length
+    ? await prisma.standing.findMany({
+        where: { teamId: { in: allTimeTeamIds }, competitionId: LEAGUE_COMPETITION_ID },
+        select: {
+          position: true, wins: true, draws: true, losses: true, points: true,
+          seasonId: true, season: { select: { year: true } },
+        },
+      })
+    : [];
+  const standingByYear = new Map<number, (typeof clubStandings)[number]>();
+  for (const s of clubStandings) {
+    if (!standingByYear.has(s.season.year)) standingByYear.set(s.season.year, s);
+  }
+  const positionRows: PositionRow[] = [...standingByYear.values()]
+    .sort((a, b) => a.season.year - b.season.year)
+    .map((s) => ({
+      label: `${String(s.season.year % 100).padStart(2, '0')}/${String((s.season.year + 1) % 100).padStart(2, '0')}`,
+      position: s.position,
+      wins: s.wins,
+      draws: s.draws,
+      losses: s.losses,
+      points: s.points,
+      isCurrent: s.seasonId === team.seasonId,
+    }));
 
   const allTimeHomeGames = allTimeTeamIds.length
     ? await prisma.game.findMany({
@@ -506,6 +535,10 @@ export default async function TeamPage({
             </div>
           ) : null}
         </section>
+
+        {(displayMode !== 'premier' || selectedTab === 'overview') && positionRows.length >= 2 ? (
+          <TeamPositionHistory rows={positionRows} />
+        ) : null}
 
         {displayMode !== 'premier' || selectedTab === 'overview' ? (
         <TeamOverviewPanel
