@@ -318,9 +318,9 @@ export default function Navbar() {
             {/* Brand — right side (RTL) */}
             <Link href="/" className="flex shrink-0 items-center" aria-label="StatsAI">
               <img
-                src="/statsai-logo.png"
+                src="/statsai-wordmark.png"
                 alt="StatsAI — סטטיסטיקה שמנצחת את המשחק"
-                className="h-10 w-auto object-contain md:h-12"
+                className="h-8 w-auto object-contain md:h-10"
               />
             </Link>
 
