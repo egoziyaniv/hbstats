@@ -50,6 +50,62 @@ const navLinks: NavItem[] = [
   { href: '/admin',       label: 'אדמין',          iconSrc: '/Icons/admin-nav-96.png' },
 ];
 
+// Grouped navigation: a short row of primary links + two dropdowns, so the bar
+// never overflows. Admin is appended separately (admins only).
+const PRIMARY_HREFS = ['/', '/games', '/standings', '/players', '/predictions', '/live'];
+const STATS_HREFS = ['/statistics', '/statistics/all-time', '/statistics/best-xi', '/statistics/insights', '/statistics/advanced'];
+const MORE_HREFS = ['/coaches', '/referees', '/venues', '/compare'];
+
+function linksFor(hrefs: string[]): NavItem[] {
+  return hrefs.map((h) => navLinks.find((l) => l.href === h)).filter(Boolean) as NavItem[];
+}
+
+function isActiveHref(pathname: string, href: string): boolean {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavDropdown({
+  label, items, pathname, isOpen, onToggle,
+}: {
+  label: string; items: NavItem[]; pathname: string; isOpen: boolean; onToggle: () => void;
+}) {
+  const active = items.some((it) => isActiveHref(pathname, it.href));
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all ${
+          active || isOpen
+            ? 'navbar-link-active bg-[var(--accent)] text-white'
+            : 'navbar-link-inactive text-stone-600 hover:bg-stone-100'
+        }`}
+      >
+        {label}
+        <span className="text-[9px] leading-none">▾</span>
+      </button>
+      {isOpen ? (
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[170px] rounded-2xl border border-stone-200 bg-white p-1.5 text-right shadow-xl">
+          {items.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              className={`block rounded-xl px-3 py-2 text-sm font-semibold ${
+                isActiveHref(pathname, it.href)
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              {it.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // ── Live Ticker ──────────────────────────────────────────────────────────────
 function LiveTicker() {
   const [items, setItems] = useState<TickerItem[]>([]);
@@ -135,6 +191,8 @@ export default function Navbar() {
   const [viewer, setViewer] = useState<Viewer>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [openNav, setOpenNav] = useState<'stats' | 'more' | null>(null);
+  const navMenuRef = useRef<HTMLDivElement>(null);
 
   const isModern = theme === 'modern';
 
@@ -145,7 +203,7 @@ export default function Navbar() {
       .catch(() => setViewer(null));
   }, []);
 
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  useEffect(() => { setMenuOpen(false); setOpenNav(null); }, [pathname]);
 
   useEffect(() => {
     const handle = window.setTimeout(async () => {
@@ -169,6 +227,9 @@ export default function Navbar() {
     function onClickOutside(e: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false);
+      }
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) {
+        setOpenNav(null);
       }
     }
     document.addEventListener('mousedown', onClickOutside);
@@ -258,30 +319,51 @@ export default function Navbar() {
               <img
                 src="/statsai-logo.png"
                 alt="StatsAI — סטטיסטיקה שמנצחת את המשחק"
-                className="h-9 w-auto object-contain md:h-10"
+                className="h-10 w-auto object-contain md:h-12"
               />
             </Link>
 
-            {/* Nav links — center (desktop) */}
-            <nav className="hidden flex-1 items-center justify-center gap-1 md:flex overflow-x-auto scrollbar-none">
-              {visibleLinks.map((link) => {
-                const active = link.href === '/'
-                  ? pathname === '/'
-                  : pathname === link.href || pathname.startsWith(`${link.href}/`);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all ${
-                      active
-                        ? 'navbar-link-active bg-[var(--accent)] text-white'
-                        : 'navbar-link-inactive text-stone-600 hover:bg-stone-100'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
+            {/* Nav links — center (desktop): primary links + grouped dropdowns */}
+            <nav ref={navMenuRef} className="hidden flex-1 items-center justify-center gap-1 md:flex">
+              {linksFor(PRIMARY_HREFS).map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all ${
+                    isActiveHref(pathname, link.href)
+                      ? 'navbar-link-active bg-[var(--accent)] text-white'
+                      : 'navbar-link-inactive text-stone-600 hover:bg-stone-100'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <NavDropdown
+                label="סטטיסטיקה"
+                items={linksFor(STATS_HREFS)}
+                pathname={pathname}
+                isOpen={openNav === 'stats'}
+                onToggle={() => setOpenNav((o) => (o === 'stats' ? null : 'stats'))}
+              />
+              <NavDropdown
+                label="עוד"
+                items={linksFor(MORE_HREFS)}
+                pathname={pathname}
+                isOpen={openNav === 'more'}
+                onToggle={() => setOpenNav((o) => (o === 'more' ? null : 'more'))}
+              />
+              {viewer?.role === 'ADMIN' ? (
+                <Link
+                  href="/admin"
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all ${
+                    isActiveHref(pathname, '/admin')
+                      ? 'navbar-link-active bg-[var(--accent)] text-white'
+                      : 'navbar-link-inactive text-stone-600 hover:bg-stone-100'
+                  }`}
+                >
+                  אדמין
+                </Link>
+              ) : null}
             </nav>
 
             {/* Right area: Search + user (desktop) */}
