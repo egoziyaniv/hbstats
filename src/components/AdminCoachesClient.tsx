@@ -26,6 +26,26 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
   const [draftHe, setDraftHe] = useState<Record<string, string>>({});
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
 
+  type CoachTeam = { teamName: string; logoUrl: string | null; matches: number; seasons: number[] };
+  const [detail, setDetail] = useState<Coach | null>(null);
+  const [detailData, setDetailData] = useState<{ aliases: string[]; teams: CoachTeam[]; totalMatches: number } | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openDetail = useCallback(async (coach: Coach) => {
+    setDetail(coach);
+    setDetailData(null);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/coaches/${coach.id}/teams`);
+      if (!res.ok) throw new Error('failed');
+      setDetailData(await res.json());
+    } catch {
+      setDetailData({ aliases: coach.aliases.map((a) => a.alias), teams: [], totalMatches: 0 });
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
@@ -186,7 +206,15 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
                     </div>
                   )}
                 </td>
-                <td className="px-3 py-2 font-bold" dir="ltr">{c.nameEn}</td>
+                <td className="px-3 py-2 font-bold" dir="ltr">
+                  <button
+                    type="button"
+                    onClick={() => openDetail(c)}
+                    className="text-stone-900 underline decoration-dotted underline-offset-2 hover:text-red-700"
+                  >
+                    {c.nameEn}
+                  </button>
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1.5">
                     <input
@@ -214,12 +242,30 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
                 </td>
                 <td className="px-3 py-2 text-xs text-stone-600">
                   {c.aliases.length > 1 ? (
-                    <span title={c.aliases.map((a) => a.alias).join('\n')}>{c.aliases.length} כינויים</span>
+                    <button
+                      type="button"
+                      onClick={() => openDetail(c)}
+                      className="rounded bg-stone-100 px-2 py-1 font-bold text-stone-700 hover:bg-stone-200"
+                    >
+                      {c.aliases.length} כינויים
+                    </button>
                   ) : (
                     <span className="text-stone-400">—</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-center font-bold">{c.matchCount}</td>
+                <td className="px-3 py-2 text-center font-bold">
+                  {c.matchCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => openDetail(c)}
+                      className="underline decoration-dotted underline-offset-2 hover:text-red-700"
+                    >
+                      {c.matchCount}
+                    </button>
+                  ) : (
+                    c.matchCount
+                  )}
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex gap-1">
                     <button
@@ -248,6 +294,79 @@ export default function AdminCoachesClient({ initialCoaches }: { initialCoaches:
           </tbody>
         </table>
       </div>
+
+      {detail ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setDetail(null)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-stone-900">{detail.nameHe || detail.nameEn}</h2>
+                <p className="text-xs text-stone-500" dir="ltr">{detail.nameEn}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetail(null)}
+                className="rounded-full px-2 text-2xl leading-none text-stone-400 hover:text-stone-700"
+                aria-label="סגור"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <h3 className="mb-2 text-sm font-bold text-stone-700">
+                כינויים ({(detailData?.aliases ?? detail.aliases.map((a) => a.alias)).length})
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {(detailData?.aliases ?? detail.aliases.map((a) => a.alias)).map((al) => (
+                  <span key={al} className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700" dir="auto">
+                    {al}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-sm font-bold text-stone-700">
+                קבוצות {detailData ? `(${detailData.teams.length}) · ${detailData.totalMatches} משחקים` : ''}
+              </h3>
+              {detailLoading ? (
+                <p className="py-4 text-center text-sm text-stone-400">טוען...</p>
+              ) : detailData && detailData.teams.length > 0 ? (
+                <ul className="divide-y divide-stone-100">
+                  {detailData.teams.map((t) => (
+                    <li key={t.teamName} className="flex items-center gap-3 py-2">
+                      {t.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={t.logoUrl} alt={t.teamName} className="h-8 w-8 rounded object-contain" />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-stone-100" />
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-stone-900">{t.teamName}</p>
+                        {t.seasons.length ? (
+                          <p className="text-xs text-stone-500">עונות: {t.seasons.join(', ')}</p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-700">
+                        {t.matches} משחקים
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="py-4 text-center text-sm text-stone-400">אין נתוני משחקים לקבוצות.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
