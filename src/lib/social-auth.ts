@@ -51,7 +51,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<SocialIdenti
 export async function verifyAppleIdToken(
   idToken: string,
   expectedNonce?: string,
-  name?: string,
+  name?: unknown,
 ): Promise<SocialIdentity> {
   const audience = appleAudiences();
   if (audience.length === 0) throw new SocialAuthError('Apple login not configured');
@@ -68,7 +68,7 @@ export async function verifyAppleIdToken(
     sub: payload.sub,
     email: typeof payload.email === 'string' ? payload.email : undefined,
     emailVerified: true, // Apple only issues tokens for verified Apple IDs
-    name,
+    name: typeof name === 'string' ? name : undefined,
   };
 }
 

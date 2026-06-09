@@ -71,6 +71,9 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     const linked = await prisma.player.findMany({
       where: { OR: [{ id: canonicalId }, { canonicalPlayerId: canonicalId }] },
       select: { birthDate: true, additionalInfo: true },
+      // Deterministic + freshest-first: the most recently updated record carries
+      // the latest market value / contract, avoiding an arbitrary stale pick.
+      orderBy: { updatedAt: 'desc' },
     });
     for (const lp of linked) {
       const e = extractFlashscoreExtras(lp.additionalInfo);

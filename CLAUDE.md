@@ -21,8 +21,11 @@
 ```bash
 git pull
 npm install
+# אם schema.prisma השתנה — חובה לפני build (אחרת 500 על עמודות חסרות):
+npx prisma db push --accept-data-loss && npx prisma generate
 npm run build && pm2 restart hbstats
 ```
+> אם לא היה שינוי סכמה אפשר לדלג על שורת ה-prisma. שלב ה-`db push` הוא ידני — אל תשכח אותו כשמוסיפים/משנים שדות.
 אם ה-build נכשל מחוסר זיכרון:
 ```bash
 NODE_OPTIONS="--max-old-space-size=3072" npm run build

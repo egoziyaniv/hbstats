@@ -16,16 +16,24 @@ export function wouldOrphanLastAdmin(role: UserRole, activeAdminCount: number): 
  * delete the last active admin so the owner cannot lock themselves out.
  */
 export async function deleteUserAccount(userId: string): Promise<DeleteAccountResult> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
-  if (!user) return { ok: false, reason: 'not_found' };
+  // Run the admin-count check and delete in one serializable transaction so two
+  // concurrent deletions can't both pass the guard and orphan the last admin
+  // (the count→delete window is a TOCTOU race under read-committed).
+  return prisma.$transaction(
+    async (tx): Promise<DeleteAccountResult> => {
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+      if (!user) return { ok: false, reason: 'not_found' };
 
-  if (user.role === 'ADMIN') {
-    const activeAdminCount = await prisma.user.count({ where: { role: 'ADMIN', isActive: true } });
-    if (wouldOrphanLastAdmin(user.role, activeAdminCount)) {
-      return { ok: false, reason: 'last_admin' };
-    }
-  }
+      if (user.role === 'ADMIN') {
+        const activeAdminCount = await tx.user.count({ where: { role: 'ADMIN', isActive: true } });
+        if (wouldOrphanLastAdmin(user.role, activeAdminCount)) {
+          return { ok: false, reason: 'last_admin' };
+        }
+      }
 
-  await prisma.user.delete({ where: { id: userId } });
-  return { ok: true };
+      await tx.user.delete({ where: { id: userId } });
+      return { ok: true };
+    },
+    { isolationLevel: 'Serializable' },
+  );
 }

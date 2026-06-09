@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const password = String(body.password || '');
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.password || !(await verifyPassword(password, user.password))) {
+    if (!user || !user.isActive || !user.password || !(await verifyPassword(password, user.password))) {
       return NextResponse.json({ error: 'אימייל או סיסמה שגויים.' }, { status: 401 });
     }
 
