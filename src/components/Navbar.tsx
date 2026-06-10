@@ -315,16 +315,13 @@ export default function Navbar() {
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex h-16 items-center justify-between gap-3">
 
-            {/* Brand — right side (RTL) */}
-            <Link href="/" className="flex shrink-0 flex-col items-start justify-center" aria-label="StatsAI">
+            {/* Brand — right side (RTL). Full lockup (icon + name + slogan baked in). */}
+            <Link href="/" className="flex shrink-0 items-center" aria-label="StatsAI — סטטיסטיקה שמנצחת את המשחק">
               <img
-                src="/statsai-wordmark.png"
-                alt="StatsAI"
-                className="h-8 w-auto object-contain"
+                src="/statsai-logo-full.png"
+                alt="StatsAI — סטטיסטיקה שמנצחת את המשחק"
+                className="h-11 w-auto object-contain md:h-12"
               />
-              <span className="navbar-logo-sub mt-px text-[11px] font-semibold leading-none">
-                סטטיסטיקה שמנצחת את המשחק
-              </span>
             </Link>
 
             {/* Nav links — center (desktop): primary links + grouped dropdowns */}
