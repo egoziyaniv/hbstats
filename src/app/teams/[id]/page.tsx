@@ -19,6 +19,7 @@ import { TeamOverviewPanel } from '@/components/TeamOverviewPanel';
 import TeamPositionHistory, { type PositionRow } from '@/components/TeamPositionHistory';
 
 const LEAGUE_COMPETITION_ID = 'comp_liga_haal';
+const SECOND_TIER_COMPETITION_ID = 'comp_liga_leumit';
 
 type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
 
@@ -241,28 +242,37 @@ export default async function TeamPage({
   }).then((rows) => rows.map((r) => r.id));
 
   // Historical league table positions across all seasons for this club.
+  // Include both top tier (ליגת העל) and second tier (ליגה לאומית) so the
+  // timeline stays continuous through relegation years; the tier is tagged so
+  // the chart can distinguish them.
   const clubStandings = allTimeTeamIds.length
     ? await prisma.standing.findMany({
-        where: { teamId: { in: allTimeTeamIds }, competitionId: LEAGUE_COMPETITION_ID },
+        where: { teamId: { in: allTimeTeamIds }, competitionId: { in: [LEAGUE_COMPETITION_ID, SECOND_TIER_COMPETITION_ID] } },
         select: {
           position: true, wins: true, draws: true, losses: true, points: true,
-          seasonId: true, season: { select: { year: true } },
+          seasonId: true, competitionId: true, season: { select: { year: true } },
         },
       })
     : [];
+  // One row per year; prefer the top tier if a club somehow has both in a season.
   const standingByYear = new Map<number, (typeof clubStandings)[number]>();
   for (const s of clubStandings) {
-    if (!standingByYear.has(s.season.year)) standingByYear.set(s.season.year, s);
+    const existing = standingByYear.get(s.season.year);
+    if (!existing || (existing.competitionId !== LEAGUE_COMPETITION_ID && s.competitionId === LEAGUE_COMPETITION_ID)) {
+      standingByYear.set(s.season.year, s);
+    }
   }
   const positionRows: PositionRow[] = [...standingByYear.values()]
     .sort((a, b) => a.season.year - b.season.year)
     .map((s) => ({
+      year: s.season.year,
       label: `${String(s.season.year % 100).padStart(2, '0')}/${String((s.season.year + 1) % 100).padStart(2, '0')}`,
       position: s.position,
       wins: s.wins,
       draws: s.draws,
       losses: s.losses,
       points: s.points,
+      tier: s.competitionId === SECOND_TIER_COMPETITION_ID ? 'leumit' : 'haal',
       isCurrent: s.seasonId === team.seasonId,
     }));
 

@@ -3,22 +3,31 @@
 import { useMemo, useState } from 'react';
 
 export type PositionRow = {
+  year: number; // season start year, e.g. 2025 for "25/26"
   label: string; // e.g. "25/26"
   position: number;
   wins: number;
   draws: number;
   losses: number;
   points: number;
+  tier: 'haal' | 'leumit'; // top tier vs second tier
   isCurrent: boolean;
 };
 
 const WINDOW = 15; // max seasons shown at once
 
+const COLORS = {
+  haal: { fill: '#dc2626', stroke: '#dc2626' }, // ליגת העל (top tier)
+  leumit: { fill: '#f59e0b', stroke: '#f59e0b' }, // ליגה לאומית (second tier)
+};
+
 /**
  * Historical league table positions — a line of numbered position-dots across
- * seasons. The current season is highlighted red; hovering any season shows its
- * W/D/L/PTS in the floating pill (defaults to the current season).
+ * seasons (top tier in red, second tier in amber). The current season's dot is
+ * filled; hovering any season shows its W/D/L/PTS + tier in the floating pill.
  *
+ * The x-axis is laid out by actual season year, so any season with no league
+ * standing at all (neither tier) shows as a real gap rather than collapsing.
  * When a club has more than WINDOW seasons, only the most recent WINDOW are
  * shown; back/forward controls pan through the rest of the timeline.
  */
@@ -47,14 +56,31 @@ export default function TeamPositionHistory({ rows }: { rows: PositionRow[] }) {
   const padBottom = 80;
   const maxPos = Math.max(5, ...view.map((r) => r.position));
   const n = view.length;
-  const x = (i: number) => (n === 1 ? W / 2 : padX + (i * (W - 2 * padX)) / (n - 1));
+
+  // Continuous year axis: position each dot by its actual year so missing
+  // seasons leave a visible gap. Falls back to index spacing for a single dot.
+  const minYear = view[0].year;
+  const maxYear = view[n - 1].year;
+  const yearSpan = Math.max(1, maxYear - minYear);
+  const x = (i: number) =>
+    n === 1 ? W / 2 : padX + ((view[i].year - minYear) / yearSpan) * (W - 2 * padX);
   const y = (pos: number) => padTop + ((pos - 1) / Math.max(1, maxPos - 1)) * (H - padTop - padBottom);
+
+  // Break the connecting line wherever consecutive dots skip a year, so a gap
+  // reads as a gap rather than a straight line bridging missing seasons.
+  const segments: string[][] = [];
+  view.forEach((r, i) => {
+    const pt = `${x(i)},${y(r.position)}`;
+    if (i > 0 && r.year - view[i - 1].year > 1) segments.push([pt]);
+    else if (i === 0) segments.push([pt]);
+    else segments[segments.length - 1].push(pt);
+  });
 
   const currentIdx = view.findIndex((r) => r.isCurrent);
   const selIdx = hover ?? (currentIdx >= 0 ? currentIdx : n - 1);
   const sel = view[selIdx];
 
-  const boxW = 300;
+  const boxW = 360;
   const boxH = 46;
   const boxCx = Math.min(W - padX - boxW / 2, Math.max(padX + boxW / 2, x(selIdx)));
   const boxY = H - padBottom - boxH - 8;
@@ -83,16 +109,15 @@ export default function TeamPositionHistory({ rows }: { rows: PositionRow[] }) {
           ◀
         </button>
       </div>
-      <div className="mb-2 text-center text-[11px] font-semibold text-stone-500">
-        {view[0]?.label}–{view[n - 1]?.label} · {total} עונות סה״כ
+      <div className="mb-2 flex items-center justify-center gap-4 text-[11px] font-semibold text-stone-500">
+        <span>{view[0]?.label}–{view[n - 1]?.label} · {total} עונות סה״כ</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full" style={{ background: COLORS.haal.fill }} /> ליגת העל</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full" style={{ background: COLORS.leumit.fill }} /> לאומית</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-        <polyline
-          points={view.map((r, i) => `${x(i)},${y(r.position)}`).join(' ')}
-          fill="none"
-          stroke="#6b7280"
-          strokeWidth={2.5}
-        />
+        {segments.map((pts, si) => (
+          <polyline key={`seg-${si}`} points={pts.join(' ')} fill="none" stroke="#6b7280" strokeWidth={2.5} />
+        ))}
         <line
           x1={x(selIdx)}
           x2={x(selIdx)}
@@ -101,29 +126,32 @@ export default function TeamPositionHistory({ rows }: { rows: PositionRow[] }) {
           stroke="#3f3f46"
           strokeWidth={1.5}
         />
-        {view.map((r, i) => (
-          <g
-            key={`dot-${clampedStart + i}`}
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover(null)}
-            style={{ cursor: 'pointer' }}
-          >
-            <circle
-              cx={x(i)}
-              cy={y(r.position)}
-              r={17}
-              fill={r.isCurrent ? '#dc2626' : '#171717'}
-              stroke={r.isCurrent ? '#dc2626' : '#9ca3af'}
-              strokeWidth={2.5}
-            />
-            <text x={x(i)} y={y(r.position)} dy="0.35em" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="800">
-              {r.position}
-            </text>
-          </g>
-        ))}
+        {view.map((r, i) => {
+          const c = COLORS[r.tier];
+          return (
+            <g
+              key={`dot-${r.year}`}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              <circle
+                cx={x(i)}
+                cy={y(r.position)}
+                r={17}
+                fill={r.isCurrent ? c.fill : '#171717'}
+                stroke={c.stroke}
+                strokeWidth={2.5}
+              />
+              <text x={x(i)} y={y(r.position)} dy="0.35em" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="800">
+                {r.position}
+              </text>
+            </g>
+          );
+        })}
         {view.map((r, i) => (
           <text
-            key={`lbl-${clampedStart + i}`}
+            key={`lbl-${r.year}`}
             x={x(i)}
             y={H - padBottom + 36}
             textAnchor="middle"
@@ -146,14 +174,15 @@ export default function TeamPositionHistory({ rows }: { rows: PositionRow[] }) {
               stroke="#52525b"
               strokeWidth={1.5}
             />
-            <text x={boxCx} y={boxY + boxH / 2} dy="0.35em" textAnchor="middle" fontSize="16" fontWeight="700" fill="#fff">
+            <text x={boxCx} y={boxY + boxH / 2} dy="0.35em" textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff">
+              <tspan fill={COLORS[sel.tier].fill}>{sel.tier === 'leumit' ? 'לאומית ' : 'על '}</tspan>
               <tspan fill="#9ca3af">W </tspan>
               <tspan>{sel.wins}</tspan>
-              <tspan fill="#9ca3af">{'   '}D </tspan>
+              <tspan fill="#9ca3af">{'  '}D </tspan>
               <tspan>{sel.draws}</tspan>
-              <tspan fill="#9ca3af">{'   '}L </tspan>
+              <tspan fill="#9ca3af">{'  '}L </tspan>
               <tspan>{sel.losses}</tspan>
-              <tspan fill="#9ca3af">{'   '}PTS </tspan>
+              <tspan fill="#9ca3af">{'  '}PTS </tspan>
               <tspan>{sel.points}</tspan>
             </text>
           </g>
