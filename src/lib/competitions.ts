@@ -17,6 +17,14 @@ export const SUPPORTED_COMPETITIONS: SupportedCompetition[] = [
     notes: 'כולל עונה סדירה ופלייאוף במסגרת אותה ליגה.',
   },
   {
+    id: '382',
+    nameEn: 'Liga Leumit',
+    nameHe: 'ליגה לאומית',
+    kind: 'LEAGUE',
+    region: 'ISRAEL',
+    notes: 'הליגה השנייה בבכירותה.',
+  },
+  {
     id: '384',
     nameEn: 'State Cup',
     nameHe: 'גביע המדינה',
