@@ -313,7 +313,7 @@ export default function Navbar() {
       <LiveTicker />
       <header className="navbar-root sticky top-0 z-50">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="flex h-14 items-center justify-between gap-3">
+          <div className="flex h-16 items-center justify-between gap-3">
 
             {/* Brand — right side (RTL) */}
             <Link href="/" className="flex shrink-0 flex-col items-start justify-center" aria-label="StatsAI">
