@@ -162,20 +162,33 @@ async function main() {
         unmatchedList.push(`${seasonStr} #${row.position} "${row.teamNameHe}"`);
         continue;
       }
+      // Standing is unique per (seasonId, teamId) — a team can hold only one
+      // standing per season regardless of competition. So look up by that pair;
+      // if a row exists under a different competition (e.g. a stray cup/European
+      // group table), the domestic-league standing is canonical and wins.
       const existing = await prisma.standing.findFirst({
-        where: { seasonId: season.id, teamId: team.id, competitionId: competition.id },
+        where: { seasonId: season.id, teamId: team.id },
       });
-      if (existing) { skipped++; continue; }
+      if (existing && existing.competitionId === competition.id && existing.played > 0) {
+        skipped++;
+        continue;
+      }
 
-      console.log(`    ${execute ? '+ create' : '~ would create'}  #${row.position} ${row.teamNameHe} → ${team.nameHe} (${row.points} pts)`);
+      const stats = {
+        competitionId: competition.id,
+        position: row.position, played: row.played, wins: row.wins, draws: row.draws,
+        losses: row.losses, goalsFor: row.goalsFor, goalsAgainst: row.goalsAgainst, points: row.points,
+      };
+      const verb = existing
+        ? (existing.competitionId === competition.id ? 'fill' : `retag(${existing.competitionId})→`)
+        : 'create';
+      console.log(`    ${execute ? '+' : '~'} ${verb}  #${row.position} ${row.teamNameHe} → ${team.nameHe} (${row.points} pts)`);
       if (execute) {
-        await prisma.standing.create({
-          data: {
-            seasonId: season.id, teamId: team.id, competitionId: competition.id,
-            position: row.position, played: row.played, wins: row.wins, draws: row.draws,
-            losses: row.losses, goalsFor: row.goalsFor, goalsAgainst: row.goalsAgainst, points: row.points,
-          },
-        });
+        if (existing) {
+          await prisma.standing.update({ where: { id: existing.id }, data: stats });
+        } else {
+          await prisma.standing.create({ data: { seasonId: season.id, teamId: team.id, ...stats } });
+        }
       }
       created++;
     }
