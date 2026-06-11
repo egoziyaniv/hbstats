@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { execFile } from 'child_process';
 import {
-  createReadStream,
   createWriteStream,
   existsSync,
   mkdirSync,
+  readFileSync,
   statSync,
   unlinkSync,
 } from 'fs';
@@ -106,14 +106,10 @@ export async function GET(request: NextRequest) {
     }
 
     const sizeMB = (statSync(filepath).size / 1024 / 1024).toFixed(1);
-    // Stream the file to the client. Unlink immediately — on Linux the inode
-    // survives until the open read stream closes, so this never buffers the
-    // whole dump in memory.
-    const readStream = createReadStream(filepath);
+    const fileBuffer = readFileSync(filepath);
     try { unlinkSync(filepath); } catch { /* noop */ }
-    const webStream = Readable.toWeb(readStream) as unknown as ReadableStream;
 
-    return new NextResponse(webStream, {
+    return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
         'Content-Type': isSql ? 'application/sql' : 'application/octet-stream',
