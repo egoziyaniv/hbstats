@@ -1445,7 +1445,6 @@ export async function POST(request: NextRequest) {
 
         const seasonPlayerRows = await fetchSeasonPlayers(apiTeam.id, seasonYear);
         const importedApiPlayerIds = new Set<number>();
-        const importedPlayerNames = new Set<string>();
 
         for (const playerEntry of seasonPlayerRows) {
           const playerRow = playerEntry?.player;
@@ -1454,7 +1453,6 @@ export async function POST(request: NextRequest) {
             : null;
           if (!playerRow?.name) continue;
 
-          importedPlayerNames.add(playerRow.name);
           if (typeof playerRow.id === 'number') {
             importedApiPlayerIds.add(playerRow.id);
           }
@@ -1634,28 +1632,16 @@ export async function POST(request: NextRequest) {
         }
 
         if (seasonPlayerRows.length > 0) {
+          // Prune only API-owned players that left the roster. Players without
+          // an apiFootballId (created by IFA/Walla merges or manually) are out
+          // of the API's universe — absence from its roster says nothing about
+          // them, and deleting them cascades to their PlayerStatistics.
           await prisma.player.deleteMany({
             where: {
               teamId: dbTeam.id,
-              OR: [
-                importedApiPlayerIds.size
-                  ? {
-                      apiFootballId: {
-                        notIn: Array.from(importedApiPlayerIds),
-                      },
-                    }
-                  : {
-                      apiFootballId: {
-                        not: null,
-                      },
-                    },
-                {
-                  apiFootballId: null,
-                  nameEn: {
-                    notIn: Array.from(importedPlayerNames),
-                  },
-                },
-              ],
+              apiFootballId: importedApiPlayerIds.size
+                ? { notIn: Array.from(importedApiPlayerIds) }
+                : { not: null },
             },
           });
         }
