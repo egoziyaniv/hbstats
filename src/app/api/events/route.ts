@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EventType } from '@prisma/client';
 
 import { getRequestUser } from '@/lib/auth';
+import { applyStatDelta } from '@/lib/event-stat-delta';
 import prisma from '@/lib/prisma';
 
 function parseOptionalInteger(value: unknown) {
@@ -16,32 +17,6 @@ function parseOptionalString(value: unknown) {
   if (value === null) return null;
   const normalized = String(value).trim();
   return normalized || null;
-}
-
-function buildStatDelta(type: string, direction: 1 | -1) {
-  const increment = direction === 1 ? 1 : -1;
-
-  if (type === 'GOAL') return { goals: increment };
-  if (type === 'ASSIST') return { assists: increment };
-  if (type === 'YELLOW_CARD') return { yellowCards: increment };
-  if (type === 'RED_CARD') return { redCards: increment };
-  return null;
-}
-
-async function applyStatDelta(
-  tx: any,
-  playerId: string | null | undefined,
-  type: string,
-  direction: 1 | -1
-) {
-  if (!playerId) return;
-  const delta = buildStatDelta(type, direction);
-  if (!delta) return;
-
-  await tx.playerStatistics.updateMany({
-    where: { playerId },
-    data: delta,
-  });
 }
 
 export async function GET(request: NextRequest) {
@@ -134,7 +109,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      await applyStatDelta(tx, playerId, type, 1);
+      await applyStatDelta(tx, { playerId, gameId, type, direction: 1 });
 
       return created;
     });
@@ -176,14 +151,14 @@ export async function PUT(request: NextRequest) {
     const updatedEvent = await prisma.$transaction(async (tx) => {
       const existing = await tx.gameEvent.findUnique({
         where: { id },
-        select: { playerId: true, type: true },
+        select: { playerId: true, type: true, gameId: true },
       });
 
       if (!existing) {
         throw new Error('Event not found');
       }
 
-      await applyStatDelta(tx, existing.playerId, existing.type, -1);
+      await applyStatDelta(tx, { playerId: existing.playerId, gameId: existing.gameId, type: existing.type, direction: -1 });
 
       const event = await tx.gameEvent.update({
         where: { id },
@@ -209,7 +184,7 @@ export async function PUT(request: NextRequest) {
         },
       });
 
-      await applyStatDelta(tx, event.playerId, event.type, 1);
+      await applyStatDelta(tx, { playerId: event.playerId, gameId: event.gameId, type: event.type, direction: 1 });
 
       return event;
     });
@@ -237,11 +212,11 @@ export async function DELETE(request: NextRequest) {
     await prisma.$transaction(async (tx) => {
       const existing = await tx.gameEvent.findUnique({
         where: { id },
-        select: { playerId: true, type: true },
+        select: { playerId: true, type: true, gameId: true },
       });
 
       if (existing) {
-        await applyStatDelta(tx, existing.playerId, existing.type, -1);
+        await applyStatDelta(tx, { playerId: existing.playerId, gameId: existing.gameId, type: existing.type, direction: -1 });
       }
 
       await tx.gameEvent.delete({ where: { id } });
