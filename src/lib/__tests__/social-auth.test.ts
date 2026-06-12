@@ -1,4 +1,4 @@
-import { resolveSocialUser, SocialAuthError } from '@/lib/social-auth';
+import { resolveSocialUser, SocialAuthError, RegistrationDisabledError } from '@/lib/social-auth';
 import prisma from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 
@@ -48,5 +48,33 @@ describe('resolveSocialUser', () => {
     expect(resolved.googleSub).toBe(sub);
     await prisma.user.delete({ where: { id: resolved.id } });
     await prisma.user.delete({ where: { id: existing.id } });
+  });
+
+  describe('with REGISTRATION_DISABLED=true', () => {
+    const prev = process.env.REGISTRATION_DISABLED;
+    beforeAll(() => { process.env.REGISTRATION_DISABLED = 'true'; });
+    afterAll(() => { process.env.REGISTRATION_DISABLED = prev; });
+
+    it('blocks creating a brand-new account', async () => {
+      const email = `blocked-${uniq()}@test.local`;
+      await expect(
+        resolveSocialUser({ provider: 'google', sub: `g-${uniq()}`, email, emailVerified: true, name: 'Nope' })
+      ).rejects.toBeInstanceOf(RegistrationDisabledError);
+      // RegistrationDisabledError is a SocialAuthError, so routes reject it cleanly.
+      expect(new RegistrationDisabledError()).toBeInstanceOf(SocialAuthError);
+      expect(await prisma.user.findUnique({ where: { email: email.toLowerCase() } })).toBeNull();
+    });
+
+    it('still lets an existing account log in (linking is not registration)', async () => {
+      const email = `existing-${uniq()}@test.local`;
+      const existing = await prisma.user.create({
+        data: { email: email.toLowerCase(), name: 'Existing', password: await hashPassword('Password123'), isActive: true },
+      });
+      const sub = `g-${uniq()}`;
+      const resolved = await resolveSocialUser({ provider: 'google', sub, email, emailVerified: true });
+      expect(resolved.id).toBe(existing.id);
+      expect(resolved.googleSub).toBe(sub);
+      await prisma.user.delete({ where: { id: existing.id } });
+    });
   });
 });

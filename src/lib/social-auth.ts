@@ -16,6 +16,10 @@ export interface SocialIdentity {
 /** Thrown on any token-verification or configuration failure. Endpoints map it to 401. */
 export class SocialAuthError extends Error {}
 
+// Thrown when REGISTRATION_DISABLED blocks creating a NEW account via social
+// login. Extends SocialAuthError so existing route handlers reject it cleanly.
+export class RegistrationDisabledError extends SocialAuthError {}
+
 function googleAudiences(): string[] {
   return [process.env.GOOGLE_CLIENT_ID_WEB, process.env.GOOGLE_CLIENT_ID_IOS].filter(Boolean) as string[];
 }
@@ -91,6 +95,13 @@ export async function resolveSocialUser(identity: SocialIdentity): Promise<User>
     if (byEmail) {
       return prisma.user.update({ where: { id: byEmail.id }, data: { [subField]: identity.sub } });
     }
+  }
+
+  // No existing account matched → this would be a NEW registration. Honour the
+  // same lock as the password-register path (linking an existing account above
+  // is still allowed — that's a login, not a new signup).
+  if (process.env.REGISTRATION_DISABLED === 'true') {
+    throw new RegistrationDisabledError('Registration is disabled');
   }
 
   // Use the real email only when it is verified (we already know no account owns it at this

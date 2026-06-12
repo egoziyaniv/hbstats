@@ -29,7 +29,14 @@ function checkRateLimit(key: string): boolean {
 }
 
 function getClientIp(request: NextRequest): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+  // X-Real-IP (nginx $remote_addr) is authoritative and unspoofable; the first
+  // X-Forwarded-For element is client-supplied. Prefer the former for the
+  // login rate-limit key, falling back to XFF only for non-proxied dev use.
+  return (
+    request.headers.get('x-real-ip')?.trim() ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+  );
 }
 
 export async function GET(request: NextRequest) {

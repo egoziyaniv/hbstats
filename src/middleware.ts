@@ -25,7 +25,9 @@ export function middleware(request: NextRequest) {
 
   // Rate limit public API endpoints (GET)
   if (method === 'GET' && pathname.startsWith('/api/') && !pathname.startsWith('/api/admin/')) {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+    // X-Real-IP is nginx's $remote_addr (unspoofable); the first X-Forwarded-For
+    // element is client-supplied, so it must not be the rate-limit key.
+    const ip = request.headers.get('x-real-ip')?.trim() || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     if (!checkPublicRateLimit(ip)) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -47,6 +49,10 @@ export function middleware(request: NextRequest) {
   }
 
   const host = request.headers.get('host') || 'localhost';
+  // Exact-origin allowlist. `source` is always a bare origin (scheme://host[:port])
+  // — the Origin header has no path, and extractOrigin() returns URL.origin — so
+  // we compare for equality. A prefix match (startsWith) would let a look-alike
+  // domain like https://hbs.co.il.evil.com slip past.
   const allowedOrigins = [
     `http://${host}`,
     `https://${host}`,
@@ -54,9 +60,11 @@ export function middleware(request: NextRequest) {
     'http://127.0.0.1:8011',
     'http://localhost:3000',
     process.env.NEXT_PUBLIC_APP_URL,
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .map((o) => o!.replace(/\/+$/, '')); // tolerate a trailing slash in env config
 
-  if (allowedOrigins.some((allowed) => source.startsWith(allowed!))) {
+  if (allowedOrigins.includes(source)) {
     return NextResponse.next();
   }
 
