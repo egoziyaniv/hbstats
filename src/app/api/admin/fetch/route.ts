@@ -9,6 +9,7 @@ import { derivePlayerDeepStats, deriveTeamDeepStats } from '@/lib/deep-stats';
 import { cleanupFutureSeasons } from '@/lib/home-live';
 import { storePlayerPhotoLocally, storeTeamLogoLocally } from '@/lib/media-storage';
 import { transliterateSeasonPlayers } from '@/lib/player-transliteration';
+import { sweepStaleJobs } from '@/lib/job-sweeper';
 
 type FetchBody = {
   season?: string;
@@ -786,6 +787,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'אין הרשאה למשיכה.' }, { status: 403 });
   }
 
+  await sweepStaleJobs();
   await warmTeamNameCache();
 
   const body = (await request.json()) as FetchBody;

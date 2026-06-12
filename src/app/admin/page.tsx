@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { sweepStaleJobs } from '@/lib/job-sweeper';
 import AdminCollapsible from '@/components/AdminCollapsible';
 import AdminLiveCountriesClient from '@/components/AdminLiveCountriesClient';
 import AdminHomepageLiveSettingsClient from '@/components/AdminHomepageLiveSettingsClient';
@@ -43,6 +44,9 @@ export default async function AdminPage({
       </div>
     );
   }
+
+  // Mark jobs left RUNNING by a crash/restart as FAILED before listing them.
+  await sweepStaleJobs();
 
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
