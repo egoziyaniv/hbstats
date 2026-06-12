@@ -243,7 +243,7 @@ model SofascoreTeamStats {
   id        String   @id @default(cuid())
   teamId    String
   seasonId  String
-  payload   Json     // flat key→value bag, see scrape-sofascore-team-stats.js
+  payload   Json // flat key→value bag, see scrape-sofascore-team-stats.js
   scrapedAt DateTime @default(now())
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
@@ -259,8 +259,8 @@ model SofascoreTeamStats {
 model SofascoreMatchStats {
   id        String   @id @default(cuid())
   gameId    String   @unique
-  payload   Json     // array of {section, label, home, away[, homePct, awayPct]}
-  matchUrl  String?  // Sofascore URL we scraped from, for debugging
+  payload   Json // array of {section, label, home, away[, homePct, awayPct]}
+  matchUrl  String? // Sofascore URL we scraped from, for debugging
   scrapedAt DateTime @default(now())
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
@@ -451,6 +451,10 @@ model Game {
   winnerOdds          WinnerOdds[]
 
   @@index([seasonId, competitionId])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([seasonId, dateTime])
+  @@index([status, dateTime])
   @@map("games")
 }
 
@@ -480,6 +484,8 @@ model GameEvent {
   eventTeam              Team?     @relation("EventTeam", fields: [teamId], references: [id])
 
   @@index([gameId, sortOrder])
+  @@index([playerId])
+  @@index([relatedPlayerId])
   @@map("game_events")
 }
 
@@ -505,6 +511,7 @@ model GameLineupEntry {
 
   @@unique([gameId, teamId, playerId, role, positionGrid])
   @@index([gameId, teamId, role])
+  @@index([playerId])
   @@map("game_lineup_entries")
 }
 
