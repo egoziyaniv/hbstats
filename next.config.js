@@ -11,12 +11,6 @@ const nextConfig = {
     // so exclude them from Next.js bundling.
     serverComponentsExternalPackages: ['puppeteer-real-browser', 'puppeteer-core'],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '500mb',
-    },
-    responseLimit: '500mb',
-  },
   async headers() {
     // CSP kept compatible with Next.js App Router (which injects inline
     // hydration scripts) and the single inline theme script in layout.tsx —

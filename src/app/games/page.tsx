@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { getCurrentUser } from '@/lib/auth';
 import SmartFilterForm from '@/components/SmartFilterForm';
@@ -241,21 +242,23 @@ export default async function GamesPage({
     ];
   })();
 
+  // Each filter is its own OR-group; they must be ANDed together. Spreading two
+  // `OR` keys into one object would silently drop the first (team+round combined
+  // previously ignored the team filter).
+  const gameFilters: Prisma.GameWhereInput[] = [];
+  if (selectedTeamId !== 'all') {
+    gameFilters.push({ OR: [{ homeTeamId: selectedTeamId }, { awayTeamId: selectedTeamId }] });
+  }
+  if (selectedRound !== 'all') {
+    gameFilters.push({ OR: [{ roundNameHe: selectedRound }, { roundNameEn: selectedRound }] });
+  }
+
   const games = selectedSeason
     ? await prisma.game.findMany({
         where: {
           seasonId: selectedSeason.id,
           ...(selectedCompetitionId !== 'all' ? { competitionId: selectedCompetitionId } : {}),
-          ...(selectedTeamId !== 'all'
-            ? {
-                OR: [{ homeTeamId: selectedTeamId }, { awayTeamId: selectedTeamId }],
-              }
-            : {}),
-          ...(selectedRound !== 'all'
-            ? {
-                OR: [{ roundNameHe: selectedRound }, { roundNameEn: selectedRound }],
-              }
-            : {}),
+          ...(gameFilters.length ? { AND: gameFilters } : {}),
         },
         include: {
           homeTeam: true,
