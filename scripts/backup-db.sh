@@ -24,9 +24,15 @@ BACKUP_DIR="${BACKUP_DIR:-/home/hbs/backups}"
 KEEP_DAILY="${KEEP_DAILY:-14}"
 KEEP_WEEKLY="${KEEP_WEEKLY:-90}"
 
-# Load DATABASE_URL from the app's .env
-if [ -f "$APP_DIR/.env" ]; then
-  set -a; . "$APP_DIR/.env"; set +a
+# Load DATABASE_URL from the app's .env. We extract just this one key rather
+# than sourcing the whole file — .env contains unquoted values with spaces
+# (e.g. API_FOOTBALL_TEAM_NAME) that would break `. .env` under `set -e`.
+if [ -z "${DATABASE_URL:-}" ] && [ -f "$APP_DIR/.env" ]; then
+  line="$(grep -E '^DATABASE_URL=' "$APP_DIR/.env" | head -1)"
+  DATABASE_URL="${line#DATABASE_URL=}"
+  DATABASE_URL="${DATABASE_URL%\"}"; DATABASE_URL="${DATABASE_URL#\"}"
+  DATABASE_URL="${DATABASE_URL%\'}"; DATABASE_URL="${DATABASE_URL#\'}"
+  export DATABASE_URL
 fi
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "$(date '+%F %T') ERROR: DATABASE_URL not set" >&2
