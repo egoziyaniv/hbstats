@@ -11,7 +11,23 @@
  * Within one (player, season) we pick MAX per metric to avoid double-counting
  * league + cup entries.
  */
+import { unstable_cache } from 'next/cache';
 import prisma from '@/lib/prisma';
+
+// Heavy 26-season aggregates change only after matches finish. Cache for 10 min
+// (live scores/ticker are fetched separately and are unaffected). The page that
+// renders this is force-dynamic (reads a cookie), so its `export const
+// revalidate` is ignored — this function-level cache is what actually applies.
+const AGG_TTL_SECONDS = 600;
+
+// Cached entry point. unstable_cache keys by keyParts + the serialized args, so
+// each (category, limit, sinceYear) combination is cached independently.
+export const buildUnifiedLeaderboard = unstable_cache(
+  (category: AllTimeCategory, limit = 100, sinceYear?: number) =>
+    buildUnifiedLeaderboardUncached(category, limit, sinceYear),
+  ['unified-leaderboard-v1'],
+  { revalidate: AGG_TTL_SECONDS }
+);
 
 export interface AllTimeEntry {
   rank: number;
@@ -152,7 +168,7 @@ function normalizeName(name: string): string {
  * players when the (Hebrew or English) name resolves; otherwise they appear
  * as text-only rows. The display table shows one unified ranking.
  */
-export async function buildUnifiedLeaderboard(category: AllTimeCategory, limit = 100, sinceYear?: number): Promise<UnifiedEntry[]> {
+async function buildUnifiedLeaderboardUncached(category: AllTimeCategory, limit = 100, sinceYear?: number): Promise<UnifiedEntry[]> {
   const psRows = await buildAllTimeLeaderboard(category, 500, sinceYear);
 
   const wallaCat = WALLA_CATEGORY[category];
