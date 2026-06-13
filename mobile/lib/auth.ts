@@ -3,6 +3,7 @@ import type { SafeUser } from '@shared/types/common';
 
 const REFRESH_KEY = 'hbs_refresh';
 const USER_KEY = 'hbs_user';
+const GUEST_KEY = 'hbs_guest';
 
 let accessToken: string | null = null;
 
@@ -32,6 +33,17 @@ export async function clearRefreshToken(): Promise<void> {
 
 export async function storeUser(user: SafeUser): Promise<void> {
   await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+}
+
+// Guest mode: the user chose to browse without an account. Persisted so the
+// choice survives app restarts (until they log in or log out).
+export async function storeGuest(isGuest: boolean): Promise<void> {
+  if (isGuest) await SecureStore.setItemAsync(GUEST_KEY, '1');
+  else await SecureStore.deleteItemAsync(GUEST_KEY);
+}
+
+export async function loadGuest(): Promise<boolean> {
+  return (await SecureStore.getItemAsync(GUEST_KEY)) === '1';
 }
 
 export async function loadUser(): Promise<SafeUser | null> {

@@ -51,6 +51,11 @@ export function LoginForm() {
       <form className="space-y-4" onSubmit={handleSubmit}>
         <AuthField label="אימייל" value={email} onChange={setEmail} type="email" />
         <AuthField label="סיסמה" value={password} onChange={setPassword} type="password" />
+        <div className="text-left">
+          <Link href="/forgot-password" className="text-sm font-bold text-red-700 transition hover:text-red-800">
+            שכחת סיסמה?
+          </Link>
+        </div>
         {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
         <button
           type="submit"
@@ -202,6 +207,126 @@ export function ChangePasswordForm() {
         {loading ? 'מעדכן...' : 'עדכון סיסמה'}
       </button>
     </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch('/api/auth/reset-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const payload = await response.json();
+      if (!response.ok) setError(payload.error || 'הבקשה נכשלה.');
+      else setMessage(payload.message || 'אם קיים חשבון עם כתובת זו, נשלח אליה קישור לאיפוס סיסמה.');
+    } catch {
+      setError('הבקשה נכשלה. נסו שוב.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <AuthShell
+      title="איפוס סיסמה"
+      subtitle="הזינו את כתובת האימייל של החשבון ונשלח אליכם קישור להגדרת סיסמה חדשה."
+      footer={
+        <span>
+          נזכרתם?{' '}
+          <Link href="/login" className="font-bold text-red-700 transition hover:text-red-800">
+            לחזרה להתחברות
+          </Link>
+        </span>
+      }
+    >
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <AuthField label="אימייל" value={email} onChange={setEmail} type="email" />
+        {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
+        {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
+        <button
+          type="submit"
+          disabled={loading || !!message}
+          className="w-full rounded-2xl bg-stone-900 px-4 py-3 font-bold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
+        >
+          {loading ? 'שולח...' : 'שליחת קישור איפוס'}
+        </button>
+      </form>
+    </AuthShell>
+  );
+}
+
+export function ResetPasswordForm({ token }: { token: string }) {
+  const router = useRouter();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError('');
+    if (!token) { setError('קישור איפוס לא תקין.'); return; }
+    if (password.length < 8) { setError('הסיסמה חייבת להיות באורך 8 תווים לפחות.'); return; }
+    if (password !== confirm) { setError('הסיסמאות אינן תואמות.'); return; }
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/reset-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error || 'איפוס הסיסמה נכשל.');
+      } else {
+        setMessage(payload.message || 'הסיסמה עודכנה. אפשר להתחבר עכשיו.');
+        setTimeout(() => router.push('/login'), 1800);
+      }
+    } catch {
+      setError('איפוס הסיסמה נכשל. נסו שוב.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <AuthShell
+      title="הגדרת סיסמה חדשה"
+      subtitle="בחרו סיסמה חדשה (לפחות 8 תווים)."
+      footer={
+        <span>
+          <Link href="/login" className="font-bold text-red-700 transition hover:text-red-800">
+            לחזרה להתחברות
+          </Link>
+        </span>
+      }
+    >
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <AuthField label="סיסמה חדשה" value={password} onChange={setPassword} type="password" />
+        <AuthField label="אישור סיסמה" value={confirm} onChange={setConfirm} type="password" />
+        {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
+        {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
+        <button
+          type="submit"
+          disabled={loading || !!message}
+          className="w-full rounded-2xl bg-stone-900 px-4 py-3 font-bold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
+        >
+          {loading ? 'מעדכן...' : 'עדכון סיסמה'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }
 

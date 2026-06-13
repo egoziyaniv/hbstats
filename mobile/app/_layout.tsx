@@ -18,19 +18,21 @@ if (!I18nManager.isRTL) {
 }
 
 function AuthGate() {
-  const { user, isLoading } = useAuth();
+  const { user, isGuest, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === 'login';
-    if (!user && !inAuthGroup) {
+    // A logged-in user OR a guest may browse the app. Only bounce to /login
+    // when there's neither.
+    if (!user && !isGuest && !inAuthGroup) {
       router.replace('/login');
     } else if (user && inAuthGroup) {
       router.replace('/');
     }
-  }, [user, isLoading, segments, router]);
+  }, [user, isGuest, isLoading, segments, router]);
 
   return null;
 }

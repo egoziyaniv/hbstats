@@ -14,7 +14,7 @@ import type { PreferencesPayload, PreferenceTeamOption, PreferenceCompetitionOpt
 
 export default function PreferencesScreen() {
   const router = useRouter();
-  const { user, logout, deleteAccount } = useAuth();
+  const { user, isGuest, logout, deleteAccount } = useAuth();
   const { data, isLoading } = usePreferences();
   const { color, brand, schemes, setColor } = useTheme();
   const update = useUpdatePreferences();
@@ -56,6 +56,27 @@ export default function PreferencesScreen() {
           },
         },
       ],
+    );
+  }
+
+  // Guests have no account and the preferences endpoint requires auth — show a
+  // sign-in call to action instead of an endless spinner.
+  if (isGuest && !user) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.canvas.start, padding: 28 }}>
+        <Text style={{ color: theme.ink[900], fontSize: 20, fontWeight: '800', textAlign: 'center' }}>
+          את/ה גולש/ת כאורח
+        </Text>
+        <Text style={{ color: theme.ink[500], fontSize: 14, marginTop: 8, textAlign: 'center', writingDirection: 'rtl' }}>
+          התחבר/י או הירשם/י כדי לשמור קבוצות מועדפות, העדפות וחשבון.
+        </Text>
+        <Pressable
+          onPress={() => router.replace('/login')}
+          style={{ marginTop: 22, backgroundColor: brand.accent, paddingVertical: 14, paddingHorizontal: 40, borderRadius: 10 }}
+        >
+          <Text style={{ color: 'white', fontSize: 15, fontWeight: '800' }}>התחברות / הרשמה</Text>
+        </Pressable>
+      </View>
     );
   }
 

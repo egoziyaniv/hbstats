@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { theme } from '@/design-system/theme';
+import { config } from '@/lib/config';
 
 export default function LoginScreen() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, continueAsGuest } = useAuth();
   const { brand } = useTheme();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +43,16 @@ export default function LoginScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const goGuest = async () => {
+    await continueAsGuest();
+    router.replace('/');
+  };
+
+  const openForgotPassword = () => {
+    const base = config.apiBaseUrl.replace(/\/$/, '');
+    Linking.openURL(`${base}/forgot-password`);
   };
 
   return (
@@ -138,12 +151,20 @@ export default function LoginScreen() {
                 fontSize: 14,
               }}
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
               textContentType="password"
               value={password}
               onChangeText={setPassword}
               editable={!busy}
               testID="password-input"
             />
+
+            <Pressable onPress={openForgotPassword} disabled={busy} style={{ marginBottom: 14 }}>
+              <Text style={{ color: brand.accent, fontSize: 13, fontWeight: '700', textAlign: 'right' }}>
+                שכחת סיסמה?
+              </Text>
+            </Pressable>
 
             {error ? (
               <View
@@ -197,6 +218,17 @@ export default function LoginScreen() {
               }}
             >
               <Text style={{ color: '#1f2937', fontSize: 15, fontWeight: '700' }}>המשך עם Google</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={goGuest}
+              disabled={busy}
+              testID="guest-continue"
+              style={{ marginTop: 16, alignItems: 'center' }}
+            >
+              <Text style={{ color: theme.ink[500], fontSize: 14, fontWeight: '700' }}>
+                המשך כאורח ←
+              </Text>
             </Pressable>
           </View>
         </View>

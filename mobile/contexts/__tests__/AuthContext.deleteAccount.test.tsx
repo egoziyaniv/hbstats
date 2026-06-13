@@ -14,6 +14,8 @@ jest.mock('@/lib/auth', () => ({
   storeUser: jest.fn(),
   loadUser: jest.fn().mockResolvedValue(null),
   clearRefreshToken: jest.fn(),
+  storeGuest: jest.fn(),
+  loadGuest: jest.fn().mockResolvedValue(false),
 }));
 
 it('deleteAccount calls the endpoint and clears local auth', async () => {

@@ -28,8 +28,22 @@ model User {
   fetchJobs                 FetchJob[]       @relation("FetchJobInitiator")
   mergeOperations           MergeOperation[]
   sessions                  Session[]
+  passwordResetTokens       PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique // sha256 of the raw token emailed to the user
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model SiteSetting {
