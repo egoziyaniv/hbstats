@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
     if (getFlashscoreStatus().running) {
       return NextResponse.json({ error: 'תהליך כבר רץ', status: getFlashscoreStatus() }, { status: 429 });
     }
-    runFlashscoreMergeOnly().catch(() => null);
+    runFlashscoreMergeOnly().catch((e) =>
+      console.error('[flashscore] background merge failed:', e?.message || e),
+    );
     return NextResponse.json({ success: true, message: 'מיזוג התחיל' });
   }
 
@@ -45,7 +47,9 @@ export async function POST(request: NextRequest) {
       skipMerge: !!body?.skipMerge,
       headful: !!body?.headful,
     };
-    runFlashscoreImport(opts).catch(() => null);
+    runFlashscoreImport(opts).catch((e) =>
+      console.error('[flashscore] background import failed:', e?.message || e),
+    );
     return NextResponse.json({ success: true, message: 'ייבוא התחיל', options: opts });
   }
 
@@ -62,7 +66,9 @@ export async function POST(request: NextRequest) {
     if (!/^https:\/\/www\.flashscore\.com\/match\/football\//.test(url)) {
       return NextResponse.json({ error: 'URL לא תואם פורמט Flashscore match' }, { status: 400 });
     }
-    runFlashscoreSingleMatch({ url, leagueSlug, season }).catch(() => null);
+    runFlashscoreSingleMatch({ url, leagueSlug, season }).catch((e) =>
+      console.error('[flashscore] background single-match import failed:', e?.message || e),
+    );
     return NextResponse.json({ success: true, message: 'ייבוא משחק בודד התחיל', url, leagueSlug, season });
   }
 

@@ -4,7 +4,7 @@
  * Designed to run in the background from an API call.
  */
 
-import { execSync } from 'child_process';
+import { spawn } from 'child_process';
 import path from 'path';
 
 export type SetupMode = 'full' | 'quick' | 'merge-only';
@@ -44,11 +44,38 @@ export function getSetupStatus(): SetupState {
   return { ...state, steps: [...state.steps] };
 }
 
-function runScript(command: string, timeoutMs = 600000): void {
-  execSync(command, {
-    cwd: path.resolve(process.cwd()),
-    stdio: 'pipe',
-    timeout: timeoutMs,
+// Async spawn (NOT execSync): the setup runs for up to ~90 minutes, and a
+// synchronous child would block the single-threaded Node event loop the whole
+// time — freezing every request to the site. spawn yields the loop between/while
+// steps run. stdout is ignored (scripts log on their own); stderr is captured
+// (capped) for the error message.
+function runScript(command: string, timeoutMs = 600000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, {
+      cwd: path.resolve(process.cwd()),
+      shell: true,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    let stderr = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, timeoutMs);
+
+    child.stderr?.on('data', (d) => {
+      if (stderr.length < 4000) stderr += d.toString();
+    });
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on('close', (code, signal) => {
+      clearTimeout(timer);
+      if (timedOut) reject(new Error(`Script timed out after ${timeoutMs}ms`));
+      else if (code === 0) resolve();
+      else reject(new Error(`Script exited with code ${code}${signal ? ` (${signal})` : ''}: ${stderr.slice(-500)}`));
+    });
   });
 }
 
@@ -136,7 +163,7 @@ export async function runFullSetup(mode: SetupMode): Promise<void> {
     const stepStart = Date.now();
 
     try {
-      runScript(command);
+      await runScript(command);
       step.status = 'done';
       step.durationMs = Date.now() - stepStart;
     } catch (e: any) {

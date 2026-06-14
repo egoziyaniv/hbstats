@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
       skipMerge: !!body?.skipMerge,
       headful: !!body?.headful,
     };
-    runMatchdayUpdate(options).catch(() => null);
+    runMatchdayUpdate(options).catch((e) =>
+      console.error('[matchday] background update failed:', e?.message || e),
+    );
     return NextResponse.json({ success: true, message: 'עדכון התחיל', options });
   }
 

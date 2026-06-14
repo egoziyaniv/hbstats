@@ -18,7 +18,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ייבוא כבר רץ', status }, { status: 429 });
     }
     // Start in background — don't await
-    runFullSetup(mode).catch(() => null);
+    runFullSetup(mode).catch((e) =>
+      console.error('[setup] background run failed:', e?.message || e),
+    );
     return NextResponse.json({ success: true, message: 'ייבוא התחיל' });
   }
 

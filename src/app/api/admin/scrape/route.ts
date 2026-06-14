@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { scrapeAndSaveTeam, scrapeAndSavePlayer, scrapeAllSport5, SPORT5_TEAMS } from '@/lib/sport5-scraper';
 import prisma from '@/lib/prisma';
-import { execSync, exec } from 'child_process';
+import { exec } from 'child_process';
 import path from 'path';
 
 // Concurrency lock — prevent multiple simultaneous scrape operations
@@ -97,10 +97,16 @@ export async function POST(request: NextRequest) {
       try {
         const maxYear = Number(body?.maxYear) || 2000;
         const cwd = path.resolve(process.cwd());
-        const output = execSync(
-          `node scripts/merge-rsssf.js --mode all --max-year ${maxYear}`,
-          { cwd, timeout: 120_000, encoding: 'utf8' }
-        );
+        // Async exec — execSync would block the event loop (freeze the site) for
+        // up to the 2-minute timeout. maxYear is coerced to a number above, so
+        // the interpolation is injection-safe.
+        const output = await new Promise<string>((resolve, reject) => {
+          exec(
+            `node scripts/merge-rsssf.js --mode all --max-year ${maxYear}`,
+            { cwd, timeout: 120_000, maxBuffer: 16 * 1024 * 1024 },
+            (err, stdout, stderr) => (err ? reject(new Error(stderr || err.message)) : resolve(stdout)),
+          );
+        });
         return NextResponse.json({ success: true, message: output.slice(-800) });
       } catch (err: any) {
         return NextResponse.json({ error: err.message?.slice(0, 300) || 'Merge failed' }, { status: 500 });

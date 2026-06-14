@@ -56,7 +56,9 @@ export async function POST(request: NextRequest) {
     if (Number.isFinite(limit) && limit > 0) extraArgs.push('--limit', String(limit));
   }
 
-  runSofascoreAction(action as SofascoreAction, extraArgs).catch(() => null);
+  runSofascoreAction(action as SofascoreAction, extraArgs).catch((e) =>
+    console.error('[sofascore] background action failed:', e?.message || e),
+  );
   return NextResponse.json({
     success: true,
     message: 'התהליך התחיל',
