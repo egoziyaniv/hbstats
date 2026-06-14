@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { encryptSecret, decryptSecret } from '@/lib/secret-box';
 
 export const AI_ENABLED_KEY = 'ai_enabled';
 export const AI_PROVIDER_KEY = 'ai_provider';
@@ -30,9 +31,15 @@ export async function getAiSettings(): Promise<AiSettings> {
   return {
     enabled: enabled === true,
     provider: provider === 'openai' ? 'openai' : 'claude',
-    apiKeyClaude: typeof keyClaude === 'string' ? keyClaude : '',
-    apiKeyOpenai: typeof keyOpenai === 'string' ? keyOpenai : '',
+    // Stored encrypted (AES-GCM); decryptSecret passes through legacy plaintext.
+    apiKeyClaude: decryptSecret(keyClaude),
+    apiKeyOpenai: decryptSecret(keyOpenai),
   };
+}
+
+/** Store an AI API key encrypted at rest. */
+export async function updateAiApiKey(key: string, plaintext: string): Promise<void> {
+  await updateAiSetting(key, encryptSecret(plaintext));
 }
 
 export async function getActiveApiKey(settings: AiSettings): Promise<string | null> {

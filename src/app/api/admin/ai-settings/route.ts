@@ -3,6 +3,7 @@ import { getRequestUser } from '@/lib/auth';
 import {
   getAiSettings,
   updateAiSetting,
+  updateAiApiKey,
   AI_ENABLED_KEY,
   AI_PROVIDER_KEY,
   AI_API_KEY_CLAUDE,
@@ -44,10 +45,10 @@ export async function PUT(request: NextRequest) {
     updates.push(updateAiSetting(AI_PROVIDER_KEY, body.provider));
   }
   if (typeof body.apiKeyClaude === 'string' && body.apiKeyClaude.length > 0) {
-    updates.push(updateAiSetting(AI_API_KEY_CLAUDE, body.apiKeyClaude));
+    updates.push(updateAiApiKey(AI_API_KEY_CLAUDE, body.apiKeyClaude));
   }
   if (typeof body.apiKeyOpenai === 'string' && body.apiKeyOpenai.length > 0) {
-    updates.push(updateAiSetting(AI_API_KEY_OPENAI, body.apiKeyOpenai));
+    updates.push(updateAiApiKey(AI_API_KEY_OPENAI, body.apiKeyOpenai));
   }
 
   await Promise.all(updates);
