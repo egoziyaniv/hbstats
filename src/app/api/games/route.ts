@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getRequestUser } from '@/lib/auth';
+import { recomputeStoredStandings } from '@/lib/standings-from-games';
 
 function parseOptionalInteger(value: unknown) {
   if (value === undefined) return undefined;
@@ -287,6 +288,21 @@ export async function PUT(request: NextRequest) {
           },
           update: statsData,
         });
+      }
+
+      // Keep the league table consistent with the edited result. Only when a
+      // standings-affecting field changed; the recompute itself is guarded so
+      // it never corrupts seasons whose games are only partially imported.
+      const affectsStandings =
+        homeScore !== undefined ||
+        awayScore !== undefined ||
+        status !== undefined ||
+        competitionId !== undefined ||
+        seasonId !== undefined ||
+        homeTeamId !== undefined ||
+        awayTeamId !== undefined;
+      if (affectsStandings) {
+        await recomputeStoredStandings(tx, updatedGame.seasonId, updatedGame.competitionId);
       }
 
       return updatedGame;

@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { sortStandings } from './standings';
 
 type TeamName = {
@@ -155,4 +156,94 @@ export function shouldDeriveStandings(
     return m ? Math.max(max, parseInt(m[1], 10)) : max;
   }, 0);
   return maxRoundInGames > maxRoundInStandings;
+}
+
+/**
+ * Recompute the stored Standing rows for a (season, competition) from its
+ * completed games — call after an admin edits a game score/status so the table
+ * stays consistent instead of drifting. Runs inside the caller's transaction.
+ *
+ * Safety guards (this writes to authoritative data):
+ *  - Only updates teams that ALREADY have a Standing row — never invents rows.
+ *  - Never reduces a row's `played` below its stored value, so a season whose
+ *    games are only partially imported (but whose standings were imported whole
+ *    from IFA/API) is left untouched rather than corrupted by a low game count.
+ *  - Preserves pointsAdjustment / groupName. Recomputes `position` only when the
+ *    table has no playoff groups (group ordering is non-trivial and rarely edited).
+ *
+ * Returns the number of rows updated.
+ */
+export async function recomputeStoredStandings(
+  tx: Prisma.TransactionClient,
+  seasonId: string,
+  competitionId: string | null,
+): Promise<number> {
+  if (!competitionId) return 0;
+  const existing = await tx.standing.findMany({ where: { seasonId, competitionId } });
+  if (existing.length === 0) return 0;
+
+  const games = await tx.game.findMany({
+    where: { seasonId, competitionId, status: 'COMPLETED', homeScore: { not: null }, awayScore: { not: null } },
+    select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+  });
+
+  type Tally = { played: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number; points: number };
+  const tally = new Map<string, Tally>();
+  for (const row of existing) {
+    tally.set(row.teamId, { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, points: 0 });
+  }
+
+  for (const g of games) {
+    if (g.homeScore === null || g.awayScore === null) continue;
+    const h = tally.get(g.homeTeamId);
+    const a = tally.get(g.awayTeamId);
+    if (!h || !a) continue; // game involves a team not in this table (cup cross-over) — skip
+    h.played++; a.played++;
+    h.goalsFor += g.homeScore; h.goalsAgainst += g.awayScore;
+    a.goalsFor += g.awayScore; a.goalsAgainst += g.homeScore;
+    if (g.homeScore > g.awayScore) { h.wins++; h.points += 3; a.losses++; }
+    else if (g.homeScore < g.awayScore) { a.wins++; a.points += 3; h.losses++; }
+    else { h.draws++; a.draws++; h.points++; a.points++; }
+  }
+
+  const hasGroups = existing.some((s) => /championship|relegation/i.test(s.groupNameEn || ''));
+  const passesGuard = (row: (typeof existing)[number]) => {
+    const d = tally.get(row.teamId);
+    return !!d && d.played >= row.played;
+  };
+
+  // Recompute positions only in the no-playoff-group case (safe + common).
+  const positionByTeam = new Map<string, number>();
+  if (!hasGroups) {
+    const sorted = sortStandings(
+      existing.map((row) => {
+        const d = tally.get(row.teamId)!;
+        const use = passesGuard(row) ? d : row; // keep stored totals for guarded-out rows
+        return {
+          id: row.id, position: row.position,
+          played: use.played, wins: use.wins, draws: use.draws, losses: use.losses,
+          goalsFor: use.goalsFor, goalsAgainst: use.goalsAgainst, points: use.points,
+          pointsAdjustment: row.pointsAdjustment, pointsAdjustmentNoteHe: row.pointsAdjustmentNoteHe,
+          teamId: row.teamId,
+        };
+      }),
+    );
+    sorted.forEach((r) => positionByTeam.set(r.teamId, r.displayPosition));
+  }
+
+  let updated = 0;
+  for (const row of existing) {
+    if (!passesGuard(row)) continue;
+    const d = tally.get(row.teamId)!;
+    await tx.standing.update({
+      where: { id: row.id },
+      data: {
+        played: d.played, wins: d.wins, draws: d.draws, losses: d.losses,
+        goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst, points: d.points,
+        ...(positionByTeam.has(row.teamId) ? { position: positionByTeam.get(row.teamId)! } : {}),
+      },
+    });
+    updated++;
+  }
+  return updated;
 }
