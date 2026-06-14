@@ -13,10 +13,14 @@ function sha256(value: string) {
 }
 
 function appOrigin(request: NextRequest): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '') ||
-    request.nextUrl.origin
-  );
+  // Prefer explicit config, then nginx's forwarded headers (the request reaches
+  // Next as localhost:3100, so nextUrl.origin would build a useless link).
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '');
+  if (configured) return configured;
+  const host = request.headers.get('host');
+  const proto = request.headers.get('x-forwarded-proto') || 'https';
+  if (host) return `${proto}://${host}`;
+  return request.nextUrl.origin;
 }
 
 export async function POST(request: NextRequest) {
