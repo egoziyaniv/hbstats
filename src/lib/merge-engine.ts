@@ -617,9 +617,14 @@ export async function previewGamesMerge(
         seasonId,
         homeTeamId: homeTeam.id,
         awayTeamId: awayTeam.id,
+        // ±48h: the same match is sometimes scraped with a kickoff time that
+        // differs by more than a day across sources/runs. A 24h window let those
+        // through as duplicate rows (H-2). Teams that meet again in the season
+        // (regular + playoff) are months apart, so 48h never merges distinct
+        // fixtures.
         dateTime: {
-          gte: new Date(match.dateTime.getTime() - 24 * 60 * 60 * 1000),
-          lte: new Date(match.dateTime.getTime() + 24 * 60 * 60 * 1000),
+          gte: new Date(match.dateTime.getTime() - 48 * 60 * 60 * 1000),
+          lte: new Date(match.dateTime.getTime() + 48 * 60 * 60 * 1000),
         },
       },
       include: { events: { select: { id: true } }, lineupEntries: { select: { id: true } } },
