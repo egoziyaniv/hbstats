@@ -715,11 +715,49 @@ export async function previewMerge(
 // Execute: apply approved changes
 // ──────────────────────────────────────────────
 
-export async function executeMerge(mergeId: string): Promise<{ updated: number; errors: string[] }> {
-  const merge = await prisma.mergeOperation.findUnique({ where: { id: mergeId } });
-  if (!merge || merge.status !== 'approved') {
-    throw new Error('Merge must be approved before execution');
+// Optimistic concurrency for merge updates: a field is safe to apply only if
+// the live DB value still matches what the preview recorded as `old`. If it
+// changed since preview (e.g. an API fetch filled it), applying the stale
+// scraped value would clobber fresh data — so we skip that field. When the
+// preview didn't record an `old` baseline we keep the legacy behaviour (apply).
+export function fieldMatchesPreview(current: any, fv: { old?: any; new: any }): boolean {
+  if (!fv || !('old' in fv)) return true;
+  const norm = (v: any) => (v === null || v === undefined ? '' : String(v));
+  return norm(current) === norm(fv.old);
+}
+
+export function buildSafeUpdate(
+  original: Record<string, any>,
+  fields: Record<string, { old?: any; new: any }> | undefined,
+  opts?: { skipUnderscore?: boolean },
+): { updateData: Record<string, any>; originalFields: Record<string, any>; skipped: string[] } {
+  const updateData: Record<string, any> = {};
+  const originalFields: Record<string, any> = {};
+  const skipped: string[] = [];
+  for (const [field, fv] of Object.entries(fields || {})) {
+    if (opts?.skipUnderscore && field.startsWith('_')) continue;
+    const current = (original as any)[field];
+    if (!fieldMatchesPreview(current, fv)) { skipped.push(field); continue; }
+    originalFields[field] = current;
+    updateData[field] = fv?.new;
   }
+  return { updateData, originalFields, skipped };
+}
+
+export async function executeMerge(mergeId: string): Promise<{ updated: number; errors: string[] }> {
+  // Atomic claim: flip approved→executing in one statement so two concurrent
+  // executes (double-click / two admins) can't both run and double-apply.
+  const claim = await prisma.mergeOperation.updateMany({
+    where: { id: mergeId, status: 'approved' },
+    data: { status: 'executing' },
+  });
+  if (claim.count === 0) {
+    const current = await prisma.mergeOperation.findUnique({ where: { id: mergeId }, select: { status: true } });
+    throw new Error(current ? `Merge cannot be executed (status: ${current.status})` : 'Merge not found');
+  }
+
+  const merge = await prisma.mergeOperation.findUnique({ where: { id: mergeId } });
+  if (!merge) throw new Error('Merge not found');
 
   const preview = merge.previewJson as { changes: PreviewChange[] } | null;
   if (!preview?.changes) throw new Error('No preview data');
@@ -734,12 +772,8 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
       if (change.entity === 'playerStats' && change.type === 'update' && change.matchedId) {
         const original = await prisma.playerStatistics.findUnique({ where: { id: change.matchedId } });
         if (!original) { errors.push(`PlayerStats ${change.matchedId} not found`); continue; }
-        const originalFields: Record<string, any> = {};
-        const updateData: Record<string, any> = {};
-        for (const [field, { new: newVal }] of Object.entries(change.fields || {})) {
-          originalFields[field] = (original as any)[field];
-          updateData[field] = newVal;
-        }
+        const { updateData, originalFields } = buildSafeUpdate(original as any, change.fields);
+        if (Object.keys(updateData).length === 0) continue; // all fields changed since preview — skip stale write
         snapshots.push({ id: change.matchedId, entity: 'playerStats', original: originalFields, action: 'update' });
         await prisma.playerStatistics.update({ where: { id: change.matchedId }, data: updateData });
         applied.push({ id: change.matchedId, entity: 'playerStats', fields: updateData });
@@ -807,12 +841,8 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
       if (change.entity === 'standing' && change.type === 'update' && change.matchedId) {
         const original = await prisma.standing.findUnique({ where: { id: change.matchedId } });
         if (!original) { errors.push(`Standing ${change.matchedId} not found`); continue; }
-        const originalFields: Record<string, any> = {};
-        const updateData: Record<string, any> = {};
-        for (const [field, { new: newVal }] of Object.entries(change.fields)) {
-          originalFields[field] = (original as any)[field];
-          updateData[field] = newVal;
-        }
+        const { updateData, originalFields } = buildSafeUpdate(original as any, change.fields);
+        if (Object.keys(updateData).length === 0) continue;
         snapshots.push({ id: change.matchedId, entity: 'standing', original: originalFields, action: 'update' });
         await prisma.standing.update({ where: { id: change.matchedId }, data: updateData });
         applied.push({ id: change.matchedId, entity: 'standing', fields: updateData });
@@ -908,13 +938,7 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
         const original = await prisma.game.findUnique({ where: { id: change.matchedId } });
         if (!original) { errors.push(`Game ${change.matchedId} not found`); continue; }
 
-        const originalFields: Record<string, any> = {};
-        const updateData: Record<string, any> = {};
-        for (const [field, { new: newVal }] of Object.entries(change.fields)) {
-          if (field.startsWith('_')) continue; // skip pseudo-fields like _events, _lineups
-          originalFields[field] = (original as any)[field];
-          updateData[field] = newVal;
-        }
+        const { updateData, originalFields } = buildSafeUpdate(original as any, change.fields, { skipUnderscore: true });
 
         if (Object.keys(updateData).length > 0) {
           snapshots.push({ id: change.matchedId, entity: 'game', original: originalFields, action: 'update' });
@@ -1088,52 +1112,63 @@ export async function rollbackMerge(mergeId: string): Promise<{ reverted: number
 
   let reverted = 0;
   const errors: string[] = [];
+  const snaps = snapshot.snapshots;
 
-  for (const snap of snapshot.snapshots) {
+  // 1) Revert field updates (order independent). Count only real successes — no
+  //    silent .catch() swallowing that inflated the previous reverted count.
+  for (const snap of snaps.filter((s) => s.action !== 'create')) {
     try {
-      if (snap.action === 'create') {
-        // Delete created records (order matters for FK)
-        if (snap.entity === 'playerStats') {
-          await prisma.playerStatistics.delete({ where: { id: snap.id } }).catch(() => null);
-          reverted++;
+      if (snap.entity === 'playerStats') await prisma.playerStatistics.update({ where: { id: snap.id }, data: snap.original });
+      else if (snap.entity === 'standing') await prisma.standing.update({ where: { id: snap.id }, data: snap.original });
+      else if (snap.entity === 'game') await prisma.game.update({ where: { id: snap.id }, data: snap.original });
+      else continue;
+      reverted++;
+    } catch (e: any) {
+      errors.push(`Rollback update ${snap.entity} ${snap.id}: ${e.message}`);
+    }
+  }
+
+  // 2) Delete created rows in REVERSE creation order (children before parents),
+  //    so this merge's own children are gone before we reach their season/team.
+  //    A created season/team is deleted ONLY if it has no remaining children —
+  //    any that remain were added AFTER the merge, and Season/Team cascade on
+  //    delete, so removing them would wipe that newer data. Refuse instead.
+  for (const snap of [...snaps.filter((s) => s.action === 'create')].reverse()) {
+    try {
+      if (snap.entity === 'playerStats') {
+        await prisma.playerStatistics.delete({ where: { id: snap.id } }); reverted++;
+      } else if (snap.entity === 'player') {
+        await prisma.player.delete({ where: { id: snap.id } }); reverted++;
+      } else if (snap.entity === 'game') {
+        await prisma.game.delete({ where: { id: snap.id } }); reverted++;
+      } else if (snap.entity === 'standing') {
+        await prisma.standing.delete({ where: { id: snap.id } }); reverted++;
+      } else if (snap.entity === 'team') {
+        const [st, pl, hg, ag] = await Promise.all([
+          prisma.standing.count({ where: { teamId: snap.id } }),
+          prisma.player.count({ where: { teamId: snap.id } }),
+          prisma.game.count({ where: { homeTeamId: snap.id } }),
+          prisma.game.count({ where: { awayTeamId: snap.id } }),
+        ]);
+        if (st + pl + hg + ag > 0) {
+          errors.push(`Kept team ${snap.id} — it has data added after the merge (${st} standings, ${pl} players, ${hg + ag} games); not deleting to avoid wiping it.`);
+        } else {
+          await prisma.team.delete({ where: { id: snap.id } }); reverted++;
         }
-        if (snap.entity === 'player') {
-          await prisma.player.delete({ where: { id: snap.id } }).catch(() => null);
-          reverted++;
-        }
-        if (snap.entity === 'game') {
-          await prisma.game.delete({ where: { id: snap.id } }).catch(() => null);
-          reverted++;
-        }
-        if (snap.entity === 'standing') {
-          await prisma.standing.delete({ where: { id: snap.id } }).catch(() => null);
-          reverted++;
-        }
-        if (snap.entity === 'team') {
-          await prisma.team.delete({ where: { id: snap.id } }).catch(() => null);
-          reverted++;
-        }
-        if (snap.entity === 'season') {
-          await prisma.season.delete({ where: { id: snap.id } }).catch(() => null);
-          reverted++;
-        }
-      } else {
-        // Revert to original values
-        if (snap.entity === 'playerStats') {
-          await prisma.playerStatistics.update({ where: { id: snap.id }, data: snap.original });
-          reverted++;
-        }
-        if (snap.entity === 'standing') {
-          await prisma.standing.update({ where: { id: snap.id }, data: snap.original });
-          reverted++;
-        }
-        if (snap.entity === 'game') {
-          await prisma.game.update({ where: { id: snap.id }, data: snap.original });
-          reverted++;
+      } else if (snap.entity === 'season') {
+        const [tm, gm, st] = await Promise.all([
+          prisma.team.count({ where: { seasonId: snap.id } }),
+          prisma.game.count({ where: { seasonId: snap.id } }),
+          prisma.standing.count({ where: { seasonId: snap.id } }),
+        ]);
+        if (tm + gm + st > 0) {
+          errors.push(`Kept season ${snap.id} — it has data added after the merge (${tm} teams, ${gm} games, ${st} standings); not deleting to avoid wiping it.`);
+        } else {
+          await prisma.season.delete({ where: { id: snap.id } }); reverted++;
         }
       }
     } catch (e: any) {
-      errors.push(`Rollback ${snap.id}: ${e.message}`);
+      errors.push(`Rollback delete ${snap.entity} ${snap.id}: ${e.message}`);
     }
   }
 
