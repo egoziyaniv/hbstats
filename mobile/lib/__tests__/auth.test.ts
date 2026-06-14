@@ -54,7 +54,9 @@ describe('auth token storage', () => {
   test('storeUser writes JSON-encoded user to SecureStore', async () => {
     const user = { id: 'u1', email: 'a@b.c', name: 'A', role: 'USER' as const, avatarUrl: null };
     await storeUser(user);
-    expect(mockSet).toHaveBeenCalledWith('hbs_user', JSON.stringify(user));
+    expect(mockSet).toHaveBeenCalledWith('hbs_user', JSON.stringify(user), {
+      keychainAccessible: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+    });
   });
 
   test('loadUser parses JSON from SecureStore', async () => {
