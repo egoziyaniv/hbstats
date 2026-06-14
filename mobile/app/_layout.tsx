@@ -18,21 +18,20 @@ if (!I18nManager.isRTL) {
 }
 
 function AuthGate() {
-  const { user, isGuest, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === 'login';
-    // A logged-in user OR a guest may browse the app. Only bounce to /login
-    // when there's neither.
-    if (!user && !isGuest && !inAuthGroup) {
-      router.replace('/login');
-    } else if (user && inAuthGroup) {
+    // The app opens straight to the content for everyone — login is optional.
+    // We never force the login screen; we only send a user who just logged in
+    // back out of it.
+    if (user && inAuthGroup) {
       router.replace('/');
     }
-  }, [user, isGuest, isLoading, segments, router]);
+  }, [user, isLoading, segments, router]);
 
   return null;
 }

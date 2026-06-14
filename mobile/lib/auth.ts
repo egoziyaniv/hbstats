@@ -36,14 +36,23 @@ export async function storeUser(user: SafeUser): Promise<void> {
 }
 
 // Guest mode: the user chose to browse without an account. Persisted so the
-// choice survives app restarts (until they log in or log out).
+// choice survives app restarts (until they log in or log out). Best-effort —
+// a SecureStore failure must never block browsing, so we swallow errors.
 export async function storeGuest(isGuest: boolean): Promise<void> {
-  if (isGuest) await SecureStore.setItemAsync(GUEST_KEY, '1');
-  else await SecureStore.deleteItemAsync(GUEST_KEY);
+  try {
+    if (isGuest) await SecureStore.setItemAsync(GUEST_KEY, '1');
+    else await SecureStore.deleteItemAsync(GUEST_KEY);
+  } catch {
+    // ignore — guest mode still works in-memory for this session
+  }
 }
 
 export async function loadGuest(): Promise<boolean> {
-  return (await SecureStore.getItemAsync(GUEST_KEY)) === '1';
+  try {
+    return (await SecureStore.getItemAsync(GUEST_KEY)) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export async function loadUser(): Promise<SafeUser | null> {

@@ -14,7 +14,7 @@ import type { PreferencesPayload, PreferenceTeamOption, PreferenceCompetitionOpt
 
 export default function PreferencesScreen() {
   const router = useRouter();
-  const { user, isGuest, logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const { data, isLoading } = usePreferences();
   const { color, brand, schemes, setColor } = useTheme();
   const update = useUpdatePreferences();
@@ -59,9 +59,9 @@ export default function PreferencesScreen() {
     );
   }
 
-  // Guests have no account and the preferences endpoint requires auth — show a
-  // sign-in call to action instead of an endless spinner.
-  if (isGuest && !user) {
+  // Not logged in (browsing as guest) — the preferences endpoint requires auth,
+  // so show a sign-in call to action instead of an endless spinner.
+  if (!user) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.canvas.start, padding: 28 }}>
         <Text style={{ color: theme.ink[900], fontSize: 20, fontWeight: '800', textAlign: 'center' }}>
