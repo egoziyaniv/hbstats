@@ -47,8 +47,8 @@ async function main() {
   }
 
   const toDelete = [];
+  const needsReview = [];
   let clusters = 0;
-  let dataLossClusters = 0;
 
   for (const list of groups.values()) {
     list.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
@@ -61,10 +61,14 @@ async function main() {
         (a, b) => score(b) - score(a) || new Date(a.dateTime) - new Date(b.dateTime) || (a.id < b.id ? -1 : 1),
       );
       const keeper = sorted[0];
-      const losers = sorted.slice(1);
-      const losersWithData = losers.filter((l) => l.events > 0 || l.lineups > 0);
-      if (losersWithData.length) dataLossClusters++;
-      for (const l of losers) toDelete.push({ ...l, keeperId: keeper.id, keeperScore: score(keeper) });
+      for (const l of sorted.slice(1)) {
+        // Only delete a loser the keeper FULLY DOMINATES on data, so we never
+        // drop events/lineups the keeper lacks. Otherwise flag for manual review.
+        const dominated = keeper.events >= l.events && keeper.lineups >= l.lineups;
+        const rec = { ...l, keeperId: keeper.id, keeperEvents: keeper.events, keeperLineups: keeper.lineups };
+        if (dominated) toDelete.push(rec);
+        else needsReview.push(rec);
+      }
     };
     for (let i = 1; i < list.length; i++) {
       const prev = cluster[cluster.length - 1];
@@ -74,16 +78,16 @@ async function main() {
     flush();
   }
 
-  const losersWithData = toDelete.filter((l) => l.events > 0 || l.lineups > 0);
-  console.log(`Duplicate clusters: ${clusters}`);
-  console.log(`Games to delete:    ${toDelete.length}`);
-  console.log(`  …of which carry events/lineups (data folded into keeper): ${losersWithData.length}`);
-  if (losersWithData.length) {
-    console.log('\nDeletions that drop a row WITH data (keeper has >= data):');
-    losersWithData.slice(0, 40).forEach((l) =>
-      console.log(`  del ${l.id} (e${l.events}/l${l.lineups}) → keep ${l.keeperId} (score ${l.keeperScore})`),
+  const deletedWithData = toDelete.filter((l) => l.events > 0 || l.lineups > 0);
+  console.log(`Duplicate clusters:        ${clusters}`);
+  console.log(`Games to delete (safe):    ${toDelete.length}`);
+  console.log(`  …carrying data the keeper already meets/exceeds: ${deletedWithData.length}`);
+  console.log(`Flagged for MANUAL review (keeper does NOT dominate, NOT deleted): ${needsReview.length}`);
+  if (needsReview.length) {
+    needsReview.slice(0, 40).forEach((l) =>
+      console.log(`  review: dup ${l.id} (e${l.events}/l${l.lineups}) vs keep ${l.keeperId} (e${l.keeperEvents}/l${l.keeperLineups})`),
     );
-    if (losersWithData.length > 40) console.log(`  …and ${losersWithData.length - 40} more`);
+    if (needsReview.length > 40) console.log(`  …and ${needsReview.length - 40} more`);
   }
 
   if (execute && toDelete.length) {
