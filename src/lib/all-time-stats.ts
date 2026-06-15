@@ -51,8 +51,11 @@ export type AllTimeCategory = keyof typeof METRIC_MAP;
 
 export async function buildAllTimeLeaderboard(category: AllTimeCategory, limit = 50, sinceYear?: number): Promise<AllTimeEntry[]> {
   const column = METRIC_MAP[category];
-  const sinceFilter = sinceYear ? ` AND s.year >= ${sinceYear}` : '';
-  const sinceJoin = sinceYear ? ` JOIN "seasons" s ON s.id = ps."seasonId"` : '';
+  // sinceYear is interpolated into a $queryRawUnsafe string — only allow a real
+  // integer to reach it (defense-in-depth against a non-numeric value).
+  const safeSinceYear = Number.isInteger(sinceYear) ? sinceYear : undefined;
+  const sinceFilter = safeSinceYear ? ` AND s.year >= ${safeSinceYear}` : '';
+  const sinceJoin = safeSinceYear ? ` JOIN "seasons" s ON s.id = ps."seasonId"` : '';
 
   // Pick MAX per (canonical, season) to avoid double-counting across competitions,
   // then SUM per canonical player. Names/photos/teams come from subqueries on

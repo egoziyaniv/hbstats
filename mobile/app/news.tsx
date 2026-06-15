@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl, Linking } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { openExternalUrl } from '@/lib/openExternal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { rtlRow } from '@/lib/rtl';
@@ -101,7 +102,7 @@ function NewsRow({
   })();
 
   return (
-    <Pressable onPress={() => item.url && Linking.openURL(item.url)}>
+    <Pressable onPress={() => openExternalUrl(item.url)}>
       <View
         style={{
           flexDirection: rtlRow(),

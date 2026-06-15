@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable, Linking } from 'react-native';
+import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
+import { openExternalUrl } from '@/lib/openExternal';
 import { CachedImage } from '@/design-system/CachedImage';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -210,7 +211,7 @@ export default function HomeScreen() {
                 return (
                   <Pressable
                     key={n.id}
-                    onPress={() => n.url && Linking.openURL(n.url)}
+                    onPress={() => openExternalUrl(n.url)}
                   >
                     <View
                       style={{

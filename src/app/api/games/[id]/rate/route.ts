@@ -54,6 +54,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const game = await prisma.game.findUnique({ where: { id: params.id }, select: { id: true, status: true } });
     if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+    // Only games that have actually been played can be rated (not SCHEDULED/CANCELLED).
+    if (game.status !== 'COMPLETED' && game.status !== 'ONGOING') {
+      return NextResponse.json({ error: 'אפשר לנקד רק משחקים ששוחקו.' }, { status: 400 });
+    }
 
     let saved = 0;
     let cleared = 0;
@@ -69,8 +73,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         if (existing) { await prisma.playerMatchRating.delete({ where: { id: existing.id } }); cleared++; }
         continue;
       }
-      const value = Math.max(1, Math.min(10, Number(raw)));
-      if (!Number.isFinite(value)) continue;
+      // Reject out-of-range / non-numeric instead of silently clamping.
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value < 1 || value > 10) continue;
       const existing = await prisma.playerMatchRating.findFirst({
         where: { gameId: params.id, playerId, source: 'user', sourceUserId: user.id },
         select: { id: true },
@@ -86,6 +91,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
     return NextResponse.json({ saved, cleared });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed' }, { status: 400 });
+    console.error('[rate] failed:', e?.message || e);
+    return NextResponse.json({ error: 'שמירת הניקוד נכשלה.' }, { status: 400 });
   }
 }

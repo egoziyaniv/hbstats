@@ -227,7 +227,10 @@ function mapEventType(eventType: string | undefined, detail: string | undefined)
 
   if (eventType === 'subst') return 'SUBSTITUTION_OUT';
 
-  return 'ASSIST';
+  // Unknown type (e.g. 'Var') — return null so the caller skips it rather than
+  // mislabelling it as an ASSIST (assists are captured via assistPlayerId on
+  // goal events, never as standalone events).
+  return null;
 }
 
 function mapLeaderboardCategory(resourceKey: string) {
@@ -2105,12 +2108,15 @@ export async function POST(request: NextRequest) {
               : null;
           const eventTeam = event?.team?.name ? teamMap.get(event.team.name) : null;
 
+          const mappedType = mapEventType(event?.type, event?.detail);
+          if (!mappedType) continue; // skip unknown event types (e.g. VAR)
+
           await prisma.gameEvent.create({
             data: {
               apiFootballId: buildEventApiFootballId(fixtureId, eventIndex + 1),
               minute: event?.time?.elapsed || 0,
               extraMinute: event?.time?.extra || null,
-              type: mapEventType(event?.type, event?.detail) as any,
+              type: mappedType as any,
               team: event?.team?.name || '',
               notesEn: event?.detail || null,
               notesHe: translateName(event?.detail),

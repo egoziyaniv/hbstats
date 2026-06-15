@@ -60,7 +60,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to update' }, { status: 400 });
+    return NextResponse.json({ error: 'Failed to update' }, { status: 400 });
   }
 }
 
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed' }, { status: 400 });
+    return NextResponse.json({ error: 'Failed' }, { status: 400 });
   }
 }
 
@@ -142,6 +142,6 @@ export async function DELETE(req: NextRequest) {
     await prisma.referee.delete({ where: { id } });
     return NextResponse.json({ message: 'Deleted' });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to delete' }, { status: 400 });
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 400 });
   }
 }
