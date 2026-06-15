@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { apiClient } from '@/lib/apiClient';
+import { queryClient, persister, clearUserQueries } from '@/lib/queryClient';
 import { getGoogleIdToken } from '@/lib/googleAuth';
 import {
   setAccessToken,
@@ -58,8 +59,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await storeRefreshToken(res.refreshToken);
     await storeUser(res.user);
     await storeGuest(false);
+    // Drop any personalized data cached under the previous identity (guest or
+    // another user) so this user's home/preferences load fresh.
+    clearUserQueries();
     setIsGuest(false);
     setUser(res.user);
+  };
+
+  // Full cache reset on leaving an account: drop in-memory queries and wipe the
+  // on-disk persisted cache so no trace of the user's data remains on device.
+  const resetCaches = async () => {
+    queryClient.clear();
+    try {
+      await persister.removeClient();
+    } catch {
+      // best-effort — storage may be unavailable
+    }
   };
 
   const login = async (email: string, password: string) => {
@@ -89,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await clearRefreshToken();
     await storeGuest(false);
+    await resetCaches();
     setIsGuest(false);
     setUser(null);
   };
@@ -97,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await apiClient.del('/account');
     await clearRefreshToken();
     await storeGuest(false);
+    await resetCaches();
     setIsGuest(false);
     setUser(null);
   };

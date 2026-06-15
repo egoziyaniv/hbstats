@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { I18nManager } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { queryClient, persister } from '@/lib/queryClient';
+import { queryClient, persister, shouldDehydrateQuery } from '@/lib/queryClient';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SeasonContext, useSeasonStoreValue } from '@/lib/seasonStore';
@@ -45,6 +45,7 @@ export default function RootLayout() {
         persister,
         maxAge: 24 * 60 * 60 * 1000,
         buster: 'v1',
+        dehydrateOptions: { shouldDehydrateQuery },
       }}
     >
       <ThemeProvider>
