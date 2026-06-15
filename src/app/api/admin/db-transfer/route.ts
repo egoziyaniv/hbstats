@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 import { execFile } from 'child_process';
 import {
   createWriteStream,
@@ -109,6 +110,8 @@ export async function GET(request: NextRequest) {
     const fileBuffer = readFileSync(filepath);
     try { unlinkSync(filepath); } catch { /* noop */ }
 
+    await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: `ייצוא בסיס נתונים (${sizeMB}MB, ${isSql ? 'SQL' : 'DUMP'})` });
+
     return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
@@ -216,11 +219,13 @@ export async function POST(request: NextRequest) {
       );
       if (rb.code !== 0) {
         console.error('[db-transfer] ROLLBACK FAILED — snapshot retained at', snapshotPath, rb.stderr?.slice(0, 1000));
+        await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB נכשל — ושחזור הגיבוי נכשל (התערבות ידנית נדרשת)' });
         return NextResponse.json(
           { error: 'הייבוא נכשל ושחזור הגיבוי נכשל. הגיבוי נשמר בשרת — נדרשת התערבות ידנית.', rolledBack: false },
           { status: 500 }
         );
       }
+      await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB נכשל — שוחזר אוטומטית' });
       return NextResponse.json(
         { error: 'הייבוא נכשל — בסיס הנתונים שוחזר אוטומטית למצב הקודם.', rolledBack: true },
         { status: 500 }
@@ -229,6 +234,7 @@ export async function POST(request: NextRequest) {
 
     // Success — drop the snapshot to reclaim disk.
     try { if (snapshotPath) unlinkSync(snapshotPath); } catch { /* noop */ }
+    await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: `ייבוא בסיס נתונים הושלם (${sizeMB}MB)` });
 
     return NextResponse.json({
       success: true,

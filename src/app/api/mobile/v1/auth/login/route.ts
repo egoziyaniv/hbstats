@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyPassword, issueMobileSession } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { logAuthEvent } from '@/lib/activity';
 import type { LoginRequest } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
@@ -34,18 +35,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Too many login attempts for this account.' }, { status: 429 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: body.email.toLowerCase() },
-  });
+  const email = body.email.toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.isActive) {
+    await logAuthEvent({ actionHe: 'ניסיון התחברות נכשל', email, ip, channel: 'mobile' });
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
   const passwordValid = user.password ? await verifyPassword(body.password, user.password) : false;
   if (!passwordValid) {
+    await logAuthEvent({ actionHe: 'ניסיון התחברות נכשל', userId: user.id, email, ip, channel: 'mobile' });
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
   const payload = await issueMobileSession(user);
+  await logAuthEvent({ actionHe: 'התחברות', userId: user.id, email, ip, channel: 'mobile' });
   return NextResponse.json(payload, { status: 200 });
 }

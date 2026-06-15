@@ -10,7 +10,7 @@ import {
   toSafeUser,
   verifyPassword,
 } from '@/lib/auth';
-import { logActivity } from '@/lib/activity';
+import { logActivity, logAuthEvent } from '@/lib/activity';
 
 // In-memory rate limiter for login/register
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -110,10 +110,12 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive || !user.password || !(await verifyPassword(password, user.password))) {
+      await logAuthEvent({ actionHe: 'ניסיון התחברות נכשל', email, ip, channel: 'web' });
       return NextResponse.json({ error: 'אימייל או סיסמה שגויים.' }, { status: 401 });
     }
 
     await createSession(user.id);
+    await logAuthEvent({ actionHe: 'התחברות', userId: user.id, email, ip, channel: 'web' });
 
     return NextResponse.json({ user: toSafeUser(user) });
   }
