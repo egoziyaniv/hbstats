@@ -17,6 +17,24 @@ function extensionFromContentType(contentType: string | null) {
   return '.jpg';
 }
 
+// Sniff the real image type from the file's magic bytes — never trust the
+// client-supplied MIME type or filename. Returns null for anything that isn't a
+// supported raster image (notably SVG/XML/HTML, which can carry <script> and
+// would be a stored-XSS vector when served from our origin).
+export function sniffRasterImage(buffer: Buffer): '.png' | '.jpg' | '.webp' | '.gif' | null {
+  if (buffer.length < 12) return null;
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return '.png';
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return '.jpg';
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return '.gif';
+  if (
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && // 'RIFF'
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50 // 'WEBP'
+  ) return '.webp';
+  return null;
+}
+
+export const ALLOWED_UPLOAD_MIME = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']);
+
 function extensionFromUrl(url: string) {
   try {
     const pathname = new URL(url).pathname;
@@ -145,8 +163,14 @@ export async function storeUploadedImage({
 }) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const ext = extensionFromUrl(file.name) || extensionFromContentType(file.type);
-  const safeName = `${Date.now()}-${slugify(label || file.name || entityId)}${ext}`;
+  // Trust the bytes, not the filename/MIME: reject anything that isn't a real
+  // raster image (blocks SVG/HTML stored-XSS) and derive the extension from the
+  // sniffed type so a file named *.svg can't be written as such.
+  const ext = sniffRasterImage(buffer);
+  if (!ext) {
+    throw new Error('Unsupported image type. Allowed: PNG, JPEG, WebP, GIF.');
+  }
+  const safeName = `${Date.now()}-${slugify(label || entityId)}${ext}`;
   const relativePath =
     entityType === 'venues'
       ? path.join('uploads', entityType, slugify(folderName || entityId), `${entityId}-${safeName}`)

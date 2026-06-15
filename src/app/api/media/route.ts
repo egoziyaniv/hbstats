@@ -2,7 +2,7 @@ import { MediaAssetKind } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { storeUploadedImage } from '@/lib/media-storage';
+import { storeUploadedImage, ALLOWED_UPLOAD_MIME } from '@/lib/media-storage';
 
 export async function POST(request: NextRequest) {
   const viewer = await getRequestUser(request);
@@ -22,8 +22,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing upload fields.' }, { status: 400 });
   }
 
-  if (!file.type.startsWith('image/')) {
-    return NextResponse.json({ error: 'Only image uploads are supported.' }, { status: 400 });
+  // Allowlist raster types only — `image/svg+xml` would pass a loose image/*
+  // check and SVG can carry <script> (stored XSS). The bytes are also sniffed
+  // in storeUploadedImage as defense-in-depth (MIME is client-controlled).
+  if (!ALLOWED_UPLOAD_MIME.has(file.type)) {
+    return NextResponse.json({ error: 'סוג קובץ לא נתמך. מותר: PNG, JPEG, WebP, GIF.' }, { status: 400 });
   }
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB

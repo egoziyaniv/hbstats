@@ -76,6 +76,12 @@ export async function GET(request: NextRequest) {
     ];
   }
 
+  // Pagination with a hard ceiling — this public endpoint pulls each game with
+  // all its events; an unbounded call would return ~13k games (every event) and
+  // is a scraping/DoS vector. Default 100, max 500, with offset paging.
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '100', 10) || 100, 1), 500);
+  const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
+
   const games = await prisma.game.findMany({
     where,
     include: {
@@ -88,6 +94,8 @@ export async function GET(request: NextRequest) {
       competition: true,
     },
     orderBy: { dateTime: 'desc' },
+    take: limit,
+    skip: offset,
   });
 
   return NextResponse.json(games);
