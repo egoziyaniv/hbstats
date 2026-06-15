@@ -13,6 +13,7 @@
  */
 
 import prisma from '@/lib/prisma';
+import { playerNamesMatch } from '@/lib/name-match';
 import type { Sport5TeamData, Sport5PlayerData, Sport5PlayerSeason } from '@/lib/sport5-scraper';
 
 type MergeLog = {
@@ -111,7 +112,7 @@ async function findMatchingPlayer(
     select: { id: true, nameHe: true, nameEn: true, canonicalPlayerId: true },
   });
 
-  return teamPlayers.find((p) => namesMatch(p.nameHe, nameHe)) || null;
+  return teamPlayers.find((p) => playerNamesMatch(p.nameHe, nameHe)) || null;
 }
 
 /**
