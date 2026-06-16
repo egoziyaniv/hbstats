@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<title>StatsAI — סקירת אבטחה ומוכנות לפרודקשן</title>
+<style>
+  @page { size: A4; margin: 18mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Arial Hebrew", Arial, "Helvetica Neue", sans-serif;
+    color: #1c1917; margin: 0; font-size: 11.5px; line-height: 1.55;
+  }
+  .cover { text-align: center; padding-top: 120px; page-break-after: always; }
+  .cover img { height: 110px; }
+  .cover h1 { font-size: 30px; margin: 40px 0 8px; color: #171717; }
+  .cover .sub { font-size: 16px; color: #57534e; margin-bottom: 36px; }
+  .verdict {
+    display: inline-block; padding: 12px 28px; border-radius: 999px;
+    background: #fef3c7; border: 2px solid #f59e0b; color: #92400e;
+    font-size: 17px; font-weight: bold;
+  }
+  .cover .meta { margin-top: 60px; color: #78716c; font-size: 12px; line-height: 2; }
+  h2 {
+    font-size: 19px; color: #171717; border-bottom: 3px solid #dc2626;
+    padding-bottom: 6px; margin: 28px 0 12px;
+  }
+  h3 { font-size: 14px; color: #292524; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10.5px; }
+  th { background: #171717; color: #fff; padding: 6px 8px; text-align: right; }
+  td { border: 1px solid #e7e5e4; padding: 5px 8px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafaf9; }
+  code {
+    font-family: Menlo, monospace; font-size: 9.5px; background: #f5f5f4;
+    padding: 1px 4px; border-radius: 4px; direction: ltr; unicode-bidi: embed;
+  }
+  .chip { display: inline-block; padding: 1px 10px; border-radius: 999px; font-weight: bold; font-size: 10px; }
+  .crit { background: #fee2e2; color: #991b1b; border: 1px solid #dc2626; }
+  .high { background: #ffedd5; color: #9a3412; border: 1px solid #f97316; }
+  .med  { background: #fef9c3; color: #854d0e; border: 1px solid #eab308; }
+  .low  { background: #ecfdf5; color: #065f46; border: 1px solid #10b981; }
+  .good { background: #ecfdf5; color: #065f46; border: 1px solid #10b981; }
+  .kpi-row { display: flex; gap: 10px; margin: 14px 0; }
+  .kpi {
+    flex: 1; border-radius: 14px; padding: 12px 10px; text-align: center;
+    border: 1.5px solid #e7e5e4;
+  }
+  .kpi .n { font-size: 26px; font-weight: 800; }
+  .kpi .l { font-size: 10.5px; color: #57534e; }
+  .kpi.c { border-color: #dc2626; } .kpi.c .n { color: #dc2626; }
+  .kpi.h { border-color: #f97316; } .kpi.h .n { color: #ea580c; }
+  .kpi.m { border-color: #eab308; } .kpi.m .n { color: #ca8a04; }
+  .kpi.l2 { border-color: #10b981; } .kpi.l2 .n { color: #059669; }
+  .box {
+    border: 1.5px solid #e7e5e4; border-radius: 12px; padding: 12px 16px; margin: 10px 0;
+    page-break-inside: avoid;
+  }
+  .box.red { border-color: #dc2626; background: #fff7f7; }
+  .box.green { border-color: #10b981; background: #f0fdf9; }
+  .box h4 { margin: 0 0 6px; font-size: 13px; }
+  .box.red h4 { color: #b91c1c; }
+  ul, ol { margin: 6px 0; padding-right: 22px; }
+  li { margin: 3px 0; }
+  .pb { page-break-before: always; }
+  .small { font-size: 10px; color: #78716c; }
+  .footer-note { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e7e5e4; font-size: 9.5px; color: #a8a29e; }
+  .phase {
+    border-radius: 12px; border: 1.5px solid #e7e5e4; margin: 12px 0; overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .phase .ph-head { padding: 8px 14px; font-weight: 800; font-size: 13px; color: #fff; }
+  .phase .ph-body { padding: 10px 14px; }
+  .ph0 .ph-head { background: #dc2626; } .ph1 .ph-head { background: #ea580c; }
+  .ph2 .ph-head { background: #ca8a04; } .ph3 .ph-head { background: #059669; }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<div class="cover">
+  <img src="../../public/statsai-logo-full.png" alt="StatsAI">
+  <h1>סקירת אבטחה ומוכנות לפרודקשן</h1>
+  <div class="sub">דוח ממצאים מלא ותוכנית טיפול · אתר, מובייל, API ובסיס נתונים</div>
+  <div class="verdict">⚠️ לא מוכן לעלייה — מוכן עם תיקונים (1–2 שבועות עבודה ממוקדת)</div>
+  <div class="meta">
+    תאריך הסקירה: 11.06.2026 · גרסת מערכת: v0.13.9<br>
+    היקף: 70 נקודות קצה API · 72 מודלי DB · אפליקציית iOS · 74 סקריפטים · היסטוריית Git מלאה (392 קומיטים)<br>
+    מתודולוגיה: 11 פאזות בדיקה · 7 תחומי סקירה מקבילים · כל ממצא אומת מול הקוד בפועל (קובץ:שורה)
+  </div>
+</div>
+
+<!-- ================= EXEC SUMMARY ================= -->
+<h2>1. תקציר מנהלים</h2>
+<p>
+בוצעה סקירת עומק (read-only) של פלטפורמת StatsAI לקראת עלייה לפרודקשן: ארכיטקטורה, הזדהות והרשאות,
+אבטחת API, בסיס נתונים, פרונטאנד, אפליקציית מובייל, סודות, תלויות, לוגים ולוגיקת הסטטיסטיקות עצמה.
+</p>
+<p>
+<b>השורה התחתונה:</b> יסודות האבטחה הקלאסיים חזקים באופן יוצא דופן לפרויקט בסדר הגודל הזה — אין דליפת
+סודות, אין XSS, אין IDOR, וכל ממשקי האדמין מוגנים בצד השרת. מה שחוסם עלייה הוא <b>שלמות נתונים ותפעול</b>:
+באג חמור שמשחית סטטיסטיקות שחקנים, מחיקה שקטה של נתונים ממוזגים, היעדר גיבויים, וארכיטקטורת
+דפים שמחשבת 26 שנות נתונים בכל בקשה.
+</p>
+
+<div class="kpi-row">
+  <div class="kpi c"><div class="n">4</div><div class="l">ממצאים קריטיים</div></div>
+  <div class="kpi h"><div class="n">12</div><div class="l">חומרה גבוהה</div></div>
+  <div class="kpi m"><div class="n">16</div><div class="l">חומרה בינונית</div></div>
+  <div class="kpi l2"><div class="n">19</div><div class="l">נמוכה / אינפורמטיבי</div></div>
+</div>
+
+<div class="box green">
+  <h4>✅ מה שנמצא חזק (לשמר)</h4>
+  <ul>
+    <li><b>הזדהות:</b> bcrypt(12), טוקני סשן אקראיים נשמרים כ-hash בלבד, ביטול כל הסשנים בשינוי סיסמה, refresh-rotation עם זיהוי שימוש חוזר (family revocation).</li>
+    <li><b>הרשאות:</b> כל 21 נתיבי האדמין אומתו — בדיקת role בצד השרת. אפס IDOR. אפס mass-assignment (רשימות שדות מפורשות בכל עדכון).</li>
+    <li><b>סודות:</b> היסטוריית Git נקייה לחלוטין (392 קומיטים נסרקו) — אף מפתח אמיתי לא הוזרק מעולם. CI כולל סריקת סודות ל-bundle המובייל.</li>
+    <li><b>XSS:</b> אפס שימוש מסוכן ב-HTML — כל תוכן דינמי (חדשות טלגרם, תשובות AI, שמות מ-scraping) מרונדר כטקסט מוגן React.</li>
+    <li><b>מובייל:</b> ארכיטקטורת טוקנים מדויקת — refresh ב-Keychain בלבד, access בזיכרון בלבד, ATS מלא, אפס לוגים רגישים.</li>
+    <li><b>ארכיטקטורת מיזוג:</b> מודל staging → preview → approve → execute → rollback הוא העיצוב הנכון; הפערים בביצוע, לא בתפיסה.</li>
+  </ul>
+</div>
+
+<!-- ================= CRITICAL FINDINGS ================= -->
+<h2 class="pb">2. ארבעת הממצאים הקריטיים — פירוט</h2>
+
+<div class="box red">
+  <h4>C-1 · עריכת אירוע משחק משחיתה סטטיסטיקות קריירה <span class="chip crit">CRITICAL</span></h4>
+  <p><b>מיקום:</b> <code>src/app/api/events/route.ts:21-45</code></p>
+  <p>
+    הפונקציה <code>buildStatDelta</code> מחזירה <code>{ goals: 1 }</code> (ערך מוחלט) במקום
+    <code>{ goals: { increment: 1 } }</code> — Prisma <b>מציב</b> 1 במקום להוסיף 1. חמור מכך:
+    ה-<code>where</code> הוא <code>{ playerId }</code> בלבד, ללא עונה/מסגרת — כלומר העדכון פוגע
+    <b>בכל שורות הסטטיסטיקה של השחקן, בכל העונות</b>.
+  </p>
+  <p><b>משמעות:</b> הוספת שער אחד דרך עורך המשחקים מאפסת מלך שערים היסטורי ל-1 שער בכל עונה. מחיקת אירוע מציבה 1-. כל עריכת אירוע מאז שהקוד עלה גרמה נזק שקט.</p>
+  <p><b>טיפול:</b> (1) תיקון ל-increment + צמצום ה-where לעונה ולמסגרת של המשחק. (2) <b>ביקורת נזק</b>: <code>SELECT * FROM player_statistics WHERE goals &lt; 0</code> + השוואה מול מקורות הגלם ושחזור. <b>מאמץ: ~10 שורות קוד + חצי יום ביקורת נזק.</b></p>
+</div>
+
+<div class="box red">
+  <h4>C-2 · משיכת שחקנים חוזרת מוחקת שחקנים ממוזגים וכל הסטטיסטיקות שלהם <span class="chip crit">CRITICAL</span></h4>
+  <p><b>מיקום:</b> <code>src/app/api/admin/fetch/route.ts:1636-1661</code></p>
+  <p>
+    בסוף סנכרון שחקנים מ-API-Football רץ <code>player.deleteMany</code> שמוחק כל שחקן עם
+    <code>apiFootballId = null</code> ששמו האנגלי אינו ברשימת ה-API. שחקנים שנוצרו ממיזוג IFA
+    מקבלים שם עברי בשדה nameEn — הם לעולם לא ברשימה, ולכן נמחקים יחד עם
+    הסטטיסטיקות שלהם (cascade). עיקרון "מיזוג לא מוחק לעולם" נשבר במסלול ה-fetch.
+  </p>
+  <p><b>משמעות:</b> פעולת אדמין שגרתית (רענון סגל) משמידה בשקט נתונים סרוקים שאין להם תחליף.</p>
+  <p><b>טיפול:</b> צמצום המחיקה לשחקנים עם <code>apiFootballId ≠ null</code> בלבד, או תיוג מקור (source) לכל שחקן. <b>מאמץ: ~5 שורות.</b></p>
+</div>
+
+<div class="box red">
+  <h4>C-3 · אין גיבויים אוטומטיים <span class="chip crit">CRITICAL</span></h4>
+  <p><b>מיקום:</b> אין — זו הבעיה. נבדקו <code>scripts/</code>, crontab ותיעוד הפריסה.</p>
+  <p>
+    26 עונות של נתונים (~13K משחקים, ~208K הרכבים, ~122K אירועים) שעלות שחזורם היא חודשי scraping —
+    קיימים בעותק יחיד על דיסק יחיד בשרת יחיד. הייצוא הידני מהאדמין אינו תחליף.
+  </p>
+  <p><b>טיפול:</b> cron לילי: <code>pg_dump -Fc</code> → רוטציה 7/30 יום → עותק מחוץ לשרת (Hetzner Storage Box / S3). לבצע תרגול שחזור אחד. <b>מאמץ: ~שעה.</b></p>
+</div>
+
+<div class="box red">
+  <h4>C-4 · ייבוא DB מהאדמין: מחיקת הכל לפני שחזור, ללא רשת ביטחון <span class="chip crit">CRITICAL</span></h4>
+  <p><b>מיקום:</b> <code>src/app/api/admin/db-transfer/route.ts:113-140</code></p>
+  <p>
+    הייבוא מוחק את <b>כל</b> הטבלאות (DROP CASCADE, שגיאות נבלעות) ואז משחזר. כשל זיהוי שגיאות
+    (רק "FATAL" ב-stderr נחשב כישלון), הקובץ כולו נטען לזיכרון ללא הגבלת גודל (סכנת OOM על שרת
+    3GB = השבתה באמצע DROP), וקובץ פגום משמיד את ה-DB ללא דרך חזרה.
+  </p>
+  <p><b>טיפול:</b> snapshot אוטומטי לפני DROP, בדיקת גודל קובץ, שחזור לסכמה זמנית והחלפה אטומית, כשל על exit code. <b>מאמץ: חצי יום.</b></p>
+</div>
+
+<!-- ================= HIGH FINDINGS TABLE ================= -->
+<h2 class="pb">3. ממצאים בחומרה גבוהה</h2>
+<table>
+  <tr><th style="width:34px">#</th><th style="width:170px">ממצא</th><th>פירוט ומיקום</th><th style="width:150px">טיפול</th></tr>
+  <tr><td>H-1</td><td>עקיפת הגנת CSRF</td><td>בדיקת Origin עם <code>startsWith</code> — <code>https://hbs.co.il.evil.com</code> עובר. <code>src/middleware.ts:59</code></td><td>השוואת origin מדויקת מול רשימה קבועה (שורה אחת)</td></tr>
+  <tr><td>H-2</td><td>משחקים כפולים בין מקורות</td><td>fetch מזהה כפילות לפי תאריך מדויק; merge לפי חלון ±24ש'. כפילויות כבר קיימות בפרודקשן (workaround בדף הבית). <code>fetch/route.ts:1783</code>, <code>merge-engine.ts:615</code></td><td>חלון תאריכים גם ב-fetch + דה-דופ + constraint</td></tr>
+  <tr><td>H-3</td><td>עריכת תוצאה לא מעדכנת טבלה</td><td>עדכון תוצאת משחק לא מחשב מחדש Standing / סטטיסטיקות. אין פונקציית recompute בכלל. <code>games/route.ts:188-295</code></td><td>recompute לשורות המושפעות בכל שינוי תוצאה</td></tr>
+  <tr><td>H-4</td><td>מנוע מיזוג: TOCTOU + הרצה כפולה</td><td>execute משחזר preview ישן בלי אימות מחודש; בדיקת סטטוס לא אטומית — שני אדמינים = כפילויות. <code>merge-engine.ts:718</code>, <code>merge/route.ts:66</code></td><td>אימות ערכי old בזמן execute + נעילת CAS על הסטטוס</td></tr>
+  <tr><td>H-5</td><td>rollback מוחק יותר מדי</td><td>מחיקת Season/Team שנוצרו במיזוג גוררת cascade על נתונים שנוספו אחר-כך ממקורות אחרים; כשלים נספרים כהצלחה. <code>merge-engine.ts:1112</code></td><td>סירוב למחוק ישויות שצברו ילדים אחרי המיזוג</td></tr>
+  <tr><td>H-6</td><td>דפים ציבוריים כבדים ללא cache</td><td>force-dynamic על דף הבית, טבלאות, סטטיסטיקות והיסטוריה (שם revalidate נדרס בשקט) — חישוב 26 עונות בכל בקשה, על תהליך pm2 יחיד</td><td>הסרת force-dynamic + unstable_cache לאגרגציות</td></tr>
+  <tr><td>H-7</td><td>אינדקסים חסרים</td><td><code>Game.homeTeamId/awayTeamId/dateTime/status</code>, <code>GameEvent.playerId/type</code> (122K שורות) — סריקות מלאות בכל דף קבוצה/שחקן</td><td>6 שורות @@index בסכמה (~15 דקות)</td></tr>
+  <tr><td>H-8</td><td>עבודות ארוכות בתוך בקשת HTTP</td><td>fetch מלא (דקות) רץ בתוך ה-POST; ‎pm2 restart באמצע = עבודה תקועה RUNNING לנצח + נתוני עונה חלקיים. <code>fetch/route.ts:782-3273</code></td><td>סימון עבודות ישנות ככושלות באתחול; בהמשך — job runner</td></tr>
+  <tr><td>H-9</td><td>execSync מקפיא את האתר</td><td>setup מלא (~90 דק') חוסם את ה-event-loop — האתר כולו קפוא. <code>setup-runner.ts:47-53</code></td><td>מעבר ל-spawn אסינכרוני</td></tr>
+  <tr><td>H-10</td><td>בליעת שגיאות בכתיבות</td><td><code>.catch(() =&gt; null)</code> על השקות עבודות רקע, יצירת אירועים במיזוג ו-rollback — כשלים נעלמים בלי לוג</td><td>לתפוס P2002 בלבד; לוג + ספירה לכל השאר</td></tr>
+  <tr><td>H-11</td><td>מפתחות AI בטקסט גלוי ב-DB</td><td>מפתחות Claude/OpenAI נשמרים plaintext ב-SiteSetting — דולפים בכל ייצוא DB. <code>ai-settings.ts:44-50</code></td><td>הצפנה (AES-GCM ממפתח env) או מעבר ל-env</td></tr>
+  <tr><td>H-12</td><td>Rate-limit ניתן לזיוף <b>(דורש אימות ידני)</b></td><td>המפתח נגזר מ-<code>x-forwarded-for</code> שהלקוח שולט בו אם nginx לא דורס אותו — עוקף הגנת brute-force בלוגין. <code>rate-limit.ts:25</code></td><td>לוודא ‎<code>proxy_set_header X-Forwarded-For $remote_addr</code> ב-nginx</td></tr>
+</table>
+
+<!-- ================= MEDIUM SUMMARY ================= -->
+<h2>4. עיקרי הממצאים בחומרה בינונית</h2>
+<table>
+  <tr><th style="width:34px">#</th><th>ממצא</th><th style="width:300px">מיקום</th></tr>
+  <tr><td>M-1</td><td>הרשמה חברתית (Google/Apple) עוקפת את REGISTRATION_DISABLED</td><td><code>social-auth.ts:99-109</code></td></tr>
+  <tr><td>M-2</td><td>Standing ייחודי לפי (עונה, קבוצה) בלבד — מסגרת שנייה דורסת (כבר נתקלנו ב-P2002 במיזוג)</td><td><code>schema.prisma:542</code></td></tr>
+  <tr><td>M-3</td><td>PlayerStatistics עם competitionId=NULL — ייחודיות לא נאכפת, סיכון ספירה כפולה</td><td><code>schema.prisma:592</code>, <code>merge-engine.ts:774</code></td></tr>
+  <tr><td>M-4</td><td>‎/api/games ציבורי ללא הגבלה — שליפת ~13K משחקים עם includes בכל בקשה</td><td><code>games/route.ts:52-92</code></td></tr>
+  <tr><td>M-5</td><td>העלאת SVG מותרת (אדמין) — וקטור ה-XSS היחיד שנמצא</td><td><code>media-storage.ts:16,148</code></td></tr>
+  <tr><td>M-6</td><td>התאמת שחקנים עמומה מדי (Levenshtein ≤2 על שמות משפחה עבריים, 20K שחקנים)</td><td><code>merge-engine.ts:45-73</code></td></tr>
+  <tr><td>M-7</td><td>זהות מועדון = שם עברי מדויק — קבוצות ששינו שם מפוצלות בהיסטוריה</td><td><code>teams/[id]/page.tsx:239</code></td></tr>
+  <tr><td>M-8</td><td>מובייל: cache שאילתות נשמר ב-AsyncStorage כולל פרטי משתמש; logout לא מנקה אותו</td><td><code>queryClient.ts:16</code>, <code>AuthContext.tsx:66</code></td></tr>
+  <tr><td>M-9</td><td>תלויות מתות עם חולשות: axios, next-auth, i18next×3, html2canvas, jspdf — אפס imports</td><td><code>package.json</code></td></tr>
+  <tr><td>M-10</td><td>בלוק ‎api:{}‎ מת ב-next.config — אין בפועל הגבלת גודל בקשה ב-route handlers</td><td><code>next.config.js:14-19</code></td></tr>
+  <tr><td>M-11</td><td>לוגינג ביטחוני כמעט אפסי — 4 קריאות logActivity בלבד; אין לוג לכניסות כושלות/מחיקות/ייבוא</td><td><code>src/lib/activity.ts</code></td></tr>
+  <tr><td>M-12</td><td>חיפוש ציבורי ב-ILIKE ללא אינדקס trigram — 4 סריקות מלאות בכל הקלדה</td><td><code>api/search/route.ts:13-57</code></td></tr>
+</table>
+
+<!-- ================= ROADMAP ================= -->
+<h2 class="pb">5. תוכנית טיפול — ארבעה שלבים</h2>
+
+<div class="phase ph0">
+  <div class="ph-head">שלב 0 · עצירת הנזק — היום-מחר (יום עבודה אחד)</div>
+  <div class="ph-body">
+    <ol>
+      <li><b>C-1:</b> תיקון באג ה-increment בעריכת אירועים + צמצום ה-where (10 שורות)</li>
+      <li><b>C-1:</b> ביקורת נזק: שאילתת goals&lt;0 + השוואה מול מקורות ושחזור ערכים</li>
+      <li><b>C-2:</b> צמצום מחיקת השחקנים ב-fetch לשחקני API בלבד (5 שורות)</li>
+      <li><b>C-3:</b> cron גיבוי לילי + עותק מחוץ לשרת + תרגול שחזור</li>
+      <li><b>H-1:</b> תיקון השוואת ה-Origin (שורה אחת)</li>
+      <li><b>H-12:</b> אימות תצורת X-Forwarded-For ב-nginx</li>
+      <li><b>M-1:</b> הוספת בדיקת REGISTRATION_DISABLED גם להרשמה חברתית + אימות שהדגל פעיל בפרודקשן</li>
+    </ol>
+  </div>
+</div>
+
+<div class="phase ph1">
+  <div class="ph-head">שלב 1 · חוסמי עלייה — שבוע עבודה</div>
+  <div class="ph-body">
+    <ol>
+      <li><b>C-4:</b> חיזוק db-transfer: snapshot לפני DROP, הגבלת גודל, כשל על exit code</li>
+      <li><b>H-7:</b> הוספת 6 אינדקסים חסרים (Game, GameEvent)</li>
+      <li><b>H-6:</b> caching לדפים הציבוריים הכבדים (הסרת force-dynamic, unstable_cache לדף הבית ולהיסטוריה)</li>
+      <li><b>H-2:</b> דה-דופליקציה של משחקים קיימים + התאמת חלון תאריכים ב-fetch</li>
+      <li><b>H-3:</b> פונקציית recompute לטבלה בעת עריכת תוצאה</li>
+      <li><b>H-11:</b> הצפנת מפתחות ה-AI ב-DB</li>
+      <li><b>H-8:</b> sweeper באתחול לעבודות RUNNING תקועות</li>
+      <li><b>Quick wins (מקבץ של ~2 שעות):</b> באג פילטר OR בדף משחקים · הסרת בלוק api מת · הסרת 8 תלויות מתות · חסימת SVG בהעלאות · guard ל-queryRawUnsafe · לוג במקום בליעה בהשקות רקע · בדיקת https ב-openURL במובייל · הודעות שגיאה גנריות</li>
+    </ol>
+  </div>
+</div>
+
+<div class="phase ph2">
+  <div class="ph-head">שלב 2 · התקשרות ועמידות — שבוע-שבועיים</div>
+  <div class="ph-body">
+    <ol>
+      <li><b>H-4/H-5:</b> מנוע המיזוג: אימות מחודש ב-execute, נעילת CAS, rollback בטוח, דיווח כשלים אמיתי</li>
+      <li><b>H-9:</b> החלפת execSync ב-spawn אסינכרוני (setup לא מקפיא את האתר)</li>
+      <li><b>H-10:</b> טיפול שגיאות ממוקד (P2002 בלבד) בכל מסלולי הכתיבה</li>
+      <li><b>M-2/M-3:</b> תיקון מפתחות ייחודיות: Standing+competitionId, ביטול NULL ב-PlayerStatistics</li>
+      <li><b>M-4/M-12:</b> הגבלות pagination ל-API ציבורי + אינדקסי pg_trgm לחיפוש</li>
+      <li><b>M-11:</b> Sentry/pino + הרחבת audit log (כניסות כושלות, מחיקות, ייבוא, מיזוגים)</li>
+      <li><b>M-8:</b> מובייל (לפני הגשה ל-App Store): סינון ה-persister + ניקוי cache ב-logout</li>
+    </ol>
+  </div>
+</div>
+
+<div class="phase ph3">
+  <div class="ph-head">שלב 3 · אחרי העלייה — שיפור מתמשך</div>
+  <div class="ph-body">
+    <ul>
+      <li>איחוד לוגיקת התאמת השמות (3 עותקים) למודול משותף אחד — כבר גרם לבאג פעם אחת</li>
+      <li>פיצול route ה-fetch (3,277 שורות) למודולים; job runner אמיתי לעבודות ארוכות</li>
+      <li>טבלת זהות מועדונים (alias) לקבוצות ששינו שם; הרצת קישור קנוני אוטומטית אחרי מיזוג</li>
+      <li>ביטול תוקף access tokens בעת logout-all (tokenVersion)</li>
+      <li>חתימת קוד ל-OTA updates במובייל (EAS code signing)</li>
+      <li>next/image לתמונות (26 קבצים עם img רגיל), שדרוג bcryptjs→bcrypt/argon2</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================= CHECKLIST + TESTS ================= -->
+<h2 class="pb">6. צ'קליסט עלייה לאוויר</h2>
+<table>
+  <tr><th style="width:30px">✓</th><th>פריט</th></tr>
+  <tr><td>☐</td><td>כל פריטי שלב 0 + שלב 1 סגורים</td></tr>
+  <tr><td>☐</td><td>ביקורת הנזק של C-1 הושלמה והערכים שוחזרו</td></tr>
+  <tr><td>☐</td><td>תרגול שחזור מגיבוי בוצע בהצלחה (גיבוי שלא שוחזר ≠ גיבוי)</td></tr>
+  <tr><td>☐</td><td>תצורת nginx אומתה: X-Forwarded-For נדרס ע"י השרת</td></tr>
+  <tr><td>☐</td><td>REGISTRATION_DISABLED=true מאומת בפרודקשן (כולל מסלול חברתי)</td></tr>
+  <tr><td>☐</td><td>רוטציית מפתחות API (API-Football, FootyStats, Firecrawl) — נקיים בגיט אך ותיקים בסביבה</td></tr>
+  <tr><td>☐</td><td>רוטציית לוגים ב-pm2 + התראת שטח דיסק</td></tr>
+  <tr><td>☐</td><td>בדיקות עומס בסיסיות על דף הבית והטבלאות אחרי ה-caching</td></tr>
+</table>
+
+<h2>7. בדיקות שמומלץ להוסיף</h2>
+<ol>
+  <li>בדיקות golden-file ל-<code>matchTeamName</code>/<code>normalizeName</code> — מפת הקיצורים היא תשתית קריטית לשלמות הנתונים</li>
+  <li>בדיקת round-trip למנוע המיזוג: preview → execute → rollback על נתוני fixture, כולל תרחיש "DB השתנה בין preview ל-execute"</li>
+  <li>בדיקת נכונות stat-delta ב-API האירועים — assertion אחד היה תופס את C-1</li>
+  <li>מיון טבלה: pointsAdjustment + קבוצות פלייאוף</li>
+  <li>אידמפוטנטיות fetch: אותה עונה פעמיים → אפס שורות חדשות</li>
+  <li>מטריצת CSRF ב-middleware: origin מדויק, התקפת prefix, origin חסר</li>
+  <li>מובייל: logout מנקה cache; ה-persister לא שומר שאילתות עם נתוני משתמש</li>
+</ol>
+
+<h2>8. החלטה: Go / No-Go</h2>
+<div class="box red">
+  <p style="font-size:13px">
+    <b>NO-GO כרגע</b> — אך ורק בגלל C-1 עד C-4 (השחתת נתונים פעילה + היעדר רשת ביטחון).
+    מדובר בימים, לא בחודשים: תיקון C-1 הוא ~10 שורות, C-2 ~5 שורות, גיבויים — cron אחד.
+  </p>
+  <p style="font-size:13px">
+    הארכיטקטורה עצמה — staging→preview→rollback, סטטיסטיקות בצד שרת, auth נקי — היא היסוד הנכון
+    ואינה דורשת בנייה מחדש. <b>עם סגירת שלב 0 ושלב 1: GO.</b>
+  </p>
+</div>
+
+<div class="footer-note">
+  הסקירה בוצעה במצב קריאה בלבד; אף קובץ לא שונה. כל ממצא אומת ישירות מול הקוד (קובץ:שורה).
+  ממצא H-12 (תצורת nginx) דורש אימות ידני בשרת. דוח זה הופק ב-11.06.2026 עבור גרסה v0.13.9.
+</div>
+
+</body>
+</html>
