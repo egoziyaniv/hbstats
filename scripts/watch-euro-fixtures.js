@@ -20,6 +20,22 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+
+// Self-load .env so the script runs under cron (which has no shell env). Parses
+// KEY=VALUE directly — tolerant of unquoted values with spaces — and only sets
+// vars not already present. Must run BEFORE PrismaClient reads DATABASE_URL.
+(function loadEnv() {
+  try {
+    const txt = fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8');
+    for (const line of txt.split('\n')) {
+      const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+      if (m && process.env[m[1]] === undefined) {
+        process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
+      }
+    }
+  } catch { /* env may already be set */ }
+})();
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
