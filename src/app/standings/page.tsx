@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCompetitionDisplayName, getRoundDisplayName } from '@/lib/competition-display';
 import { getCompetitionById } from '@/lib/competitions';
 import { getDisplayMode } from '@/lib/display-mode';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 import prisma from '@/lib/prisma';
 import { sortStandings, type StandingWithDerived } from '@/lib/standings';
 import { buildStandingsFromGames } from '@/lib/standings-from-games';
@@ -139,8 +140,12 @@ export default async function StandingsPage({
     orderBy: { year: 'desc' },
   });
 
-  const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
-  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
+  // Default to the latest season that has actually started — skip a future
+  // season (e.g. one created only to hold upcoming European fixtures) that has
+  // no league table yet. All seasons remain selectable via the dropdown.
+  const defaultSeason = seasons.find((s) => s.year <= getCurrentSeasonStartYear()) || seasons[0];
+  const selectedSeasonId = searchParams?.season || defaultSeason?.id || null;
+  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || defaultSeason || null;
 
   const [seasonTeams, rawStandings, seasonGames, seasonCompetitions] = selectedSeason
     ? await Promise.all([

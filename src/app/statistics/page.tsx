@@ -3,6 +3,7 @@ import Link from 'next/link';
 import StatisticsLeaderboardsClient from '@/components/StatisticsLeaderboardsClient';
 import { getCompetitionDisplayName, getRoundDisplayName } from '@/lib/competition-display';
 import { getDisplayMode } from '@/lib/display-mode';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 import { getDisplayZeroStatPlayersSetting } from '@/lib/player-zero-stat-settings';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
@@ -79,8 +80,11 @@ export default async function StatisticsPage({
     orderBy: { year: 'desc' },
   });
 
-  const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
-  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
+  // Default to the latest season that has started — skip a future season (e.g.
+  // one holding only upcoming European fixtures) with no stats yet.
+  const defaultSeason = seasons.find((s) => s.year <= getCurrentSeasonStartYear()) || seasons[0];
+  const selectedSeasonId = searchParams?.season || defaultSeason?.id || null;
+  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || defaultSeason || null;
   const displayZeroStatPlayers = await getDisplayZeroStatPlayersSetting();
 
   const allSeasonTeams = selectedSeason
