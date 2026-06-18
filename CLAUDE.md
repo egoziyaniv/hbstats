@@ -150,7 +150,7 @@ docs/
 ### API-Football (2016+)
 - teams, players, fixtures, events, lineups, statistics, standings
 - predictions, odds, head-to-head, live scores
-- Rate limiting: 250ms, 4 retries, 7,500 calls/day
+- Rate limiting: 250ms, 4 retries, 75,000 calls/day (current plan)
 
 ### Walla Sports (2000-2026)
 - טבלאות ליגה (ליגת העל + ליגה לאומית)
