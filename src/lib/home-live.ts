@@ -372,10 +372,15 @@ export function getCurrentSeasonStartYear(referenceDate = new Date()) {
 
 export async function cleanupFutureSeasons() {
   const currentSeasonStartYear = getCurrentSeasonStartYear();
+  // Keep the immediately-upcoming season: its fixtures (and a standings
+  // skeleton) are published by the providers weeks before kick-off, and we want
+  // to pre-load them. The default-season logic still won't *default* to a
+  // not-yet-started season. Only prune seasons further out than next — those are
+  // almost always API artifacts / bad data.
   return prisma.season.deleteMany({
     where: {
       year: {
-        gt: currentSeasonStartYear,
+        gt: currentSeasonStartYear + 1,
       },
     },
   });
