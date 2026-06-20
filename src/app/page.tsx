@@ -266,13 +266,16 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
 
   const [nextGamesRaw, lastGamesRaw, predictionsRaw, headToHeadEntriesRaw, nextRoundGamesRaw, telegramMessages, initialLiveItems] =
     await Promise.all([
+      // Upcoming games look ACROSS seasons: during the summer gap (last season
+      // finished, next not started) this surfaces the next season's opener as
+      // the hero instead of falling back to an old result. Standings/leaderboards
+      // stay pinned to latestSeason so we never show an all-zeros table.
       prisma.game.findMany({
         where: {
-          seasonId: latestSeason.id,
           status: 'SCHEDULED',
           dateTime: { gte: now },
         },
-        include: { homeTeam: true, awayTeam: true, competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } }, prediction: true },
+        include: { homeTeam: true, awayTeam: true, competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } }, prediction: true, season: { select: { name: true } } },
         orderBy: [{ dateTime: 'asc' }],
         take: 24,
       }),
@@ -306,9 +309,10 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
         orderBy: [{ game: { dateTime: 'desc' } }, { relatedDate: 'desc' }],
         take: 60,
       }),
+      // Same across-seasons rationale as nextGamesRaw — round-mates of the hero
+      // game (scoped to the hero's season below via seasonId match).
       prisma.game.findMany({
         where: {
-          seasonId: latestSeason.id,
           status: 'SCHEDULED',
           dateTime: { gte: now },
         },
@@ -459,6 +463,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   const nextRoundCompetitionId = nextGame?.competitionId || null;
   const nextRoundGamesAll = nextGame
     ? nextRoundGamesRaw
+        .filter((game) => game.seasonId === nextGame.seasonId)
         .filter((game) => (nextRoundCompetitionId ? game.competitionId === nextRoundCompetitionId : true) && getRoundLabel(game) === nextRoundLabel)
         .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))
     : [];
@@ -591,7 +596,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
                   {heroGame.status === 'ONGOING' ? 'משחק חי' : heroCompleted ? 'משחק אחרון' : 'המשחק הבא'}
                 </span>
               </div>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/50">{latestSeason.name}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/50">{(heroGame as { season?: { name: string } }).season?.name ?? latestSeason.name}</span>
             </div>
             <Link href={`/games/${heroGame.id}`} className="block">
               <div className="text-center">
