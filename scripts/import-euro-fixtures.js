@@ -48,7 +48,7 @@ async function api(p) {
 async function main() {
   const execute = process.argv.includes('--execute');
   const seasonYear = Number(arg('--season')) || 2026;
-  const seasonName = `${seasonYear}-${seasonYear + 1}`;
+  const seasonName = `${seasonYear}/${String(seasonYear + 1).slice(2)}`; // house style: "2026/27"
   console.log(`Mode: ${execute ? 'EXECUTE' : 'DRY-RUN'} | season ${seasonName}\n`);
 
   // Israeli league clubs by apiFootballId (+ a canonical nameHe cache).
