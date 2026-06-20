@@ -127,6 +127,19 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   }
 
   const now = new Date();
+
+  // The home page features the UPCOMING season (its table + fixtures + team
+  // filter) as soon as a future season has scheduled games — even before
+  // kickoff, where an all-zeros table is intentional. Player stats (scorers,
+  // cards) stay on the last completed season until the new one accrues data.
+  // Falls back to latestSeason when nothing is scheduled anywhere.
+  const upcomingGame = await prisma.game.findFirst({
+    where: { status: 'SCHEDULED', dateTime: { gte: now } },
+    orderBy: { dateTime: 'asc' },
+    select: { season: { select: { id: true, name: true, year: true } } },
+  });
+  const featuredSeason = upcomingGame?.season ?? latestSeason;
+
   const [storedUser, seasonTeams, rawStandings, telegramSourcesSetting, homepageLiveLimit, ligaHaalGames] = await Promise.all([
     viewer
       ? prisma.user.findUnique({
@@ -135,11 +148,11 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
         })
       : Promise.resolve(null),
     prisma.team.findMany({
-      where: { seasonId: latestSeason.id },
+      where: { seasonId: featuredSeason.id },
       orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }],
       select: { id: true, apiFootballId: true, nameHe: true, nameEn: true },
     }),
-    prisma.standing.findMany({ where: { seasonId: latestSeason.id, competition: { apiFootballId: 383 } }, include: { team: true } }),
+    prisma.standing.findMany({ where: { seasonId: featuredSeason.id, competition: { apiFootballId: 383 } }, include: { team: true } }),
     prisma.siteSetting.findUnique({
       where: { key: 'telegram_sources' },
     }),
@@ -148,7 +161,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
     // Include CANCELLED games with scores — these are technical wins (e.g. 3-0 forfeit).
     prisma.game.findMany({
       where: {
-        seasonId: latestSeason.id,
+        seasonId: featuredSeason.id,
         competition: { apiFootballId: 383 },
         homeScore: { not: null },
         roundNameEn: { not: null },
@@ -444,9 +457,16 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   // Find suspended players: red card in current or previous round, OR 5th/9th yellow
   const goalMinutesData = goalMinutesRaw.map((row) => ({ name: row.bucket, goals: Number(row.goals) }));
 
-  const nextGame = nextGamesRaw
-    .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
-    .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
+  // Prefer the favorite team's next game; if it has none upcoming (e.g. Beer
+  // Sheva's CL-qualifier opponent isn't drawn yet), fall back to the soonest
+  // game of any team so the hero never reverts to an old result.
+  const upcomingByCompetition = nextGamesRaw.filter((game) =>
+    gameMatchesPreferredCompetition(game, selectedCompetitionApiIds)
+  );
+  const nextGame =
+    upcomingByCompetition.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] ||
+    upcomingByCompetition[0] ||
+    null;
   const lastGame = lastGamesRaw
     .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
     .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
