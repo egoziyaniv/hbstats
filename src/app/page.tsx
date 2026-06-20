@@ -128,17 +128,28 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
 
   const now = new Date();
 
-  // The home page features the UPCOMING season (its table + fixtures + team
-  // filter) as soon as a future season has scheduled games — even before
-  // kickoff, where an all-zeros table is intentional. Player stats (scorers,
-  // cards) stay on the last completed season until the new one accrues data.
-  // Falls back to latestSeason when nothing is scheduled anywhere.
-  const upcomingGame = await prisma.game.findFirst({
-    where: { status: 'SCHEDULED', dateTime: { gte: now } },
-    orderBy: { dateTime: 'asc' },
-    select: { season: { select: { id: true, name: true, year: true } } },
-  });
+  // The home page features the UPCOMING season (table + fixtures + team filter)
+  // as soon as a future season has scheduled games — even before kickoff, where
+  // an all-zeros table is intentional. Player stats (scorers, cards) come from
+  // the most recently PLAYED season. In the summer gap these two differ:
+  // isPreseason then drives the "season hasn't started" messaging, the yellow-
+  // card reset (no at-risk players), and the red-card carryover (suspended for
+  // the first game). Once the new season kicks off all three converge again.
+  const [upcomingGame, lastCompletedGame] = await Promise.all([
+    prisma.game.findFirst({
+      where: { status: 'SCHEDULED', dateTime: { gte: now } },
+      orderBy: { dateTime: 'asc' },
+      select: { season: { select: { id: true, name: true, year: true } } },
+    }),
+    prisma.game.findFirst({
+      where: { status: 'COMPLETED' },
+      orderBy: { dateTime: 'desc' },
+      select: { season: { select: { id: true, name: true, year: true } } },
+    }),
+  ]);
   const featuredSeason = upcomingGame?.season ?? latestSeason;
+  const statsSeason = lastCompletedGame?.season ?? latestSeason;
+  const isPreseason = featuredSeason.id !== statsSeason.id;
 
   const [storedUser, seasonTeams, rawStandings, telegramSourcesSetting, homepageLiveLimit, ligaHaalGames] = await Promise.all([
     viewer
@@ -294,7 +305,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       }),
       prisma.game.findMany({
         where: {
-          seasonId: latestSeason.id,
+          seasonId: statsSeason.id,
           status: 'COMPLETED',
         },
         include: { homeTeam: true, awayTeam: true, competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } } },
@@ -365,7 +376,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       LEFT JOIN teams t ON t.id = p."teamId"
       JOIN games g ON g.id = ge."gameId"
       WHERE ge.type IN ('GOAL', 'PENALTY_GOAL')
-        AND g."seasonId" = ${latestSeason.id}
+        AND g."seasonId" = ${statsSeason.id}
         AND g."competitionId" = 'comp_liga_haal'
         AND g.status = 'COMPLETED'
         AND ge."playerId" IS NOT NULL
@@ -384,7 +395,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       LEFT JOIN teams t ON t.id = p."teamId"
       JOIN games g ON g.id = ge."gameId"
       WHERE ge.type IN ('GOAL', 'PENALTY_GOAL')
-        AND g."seasonId" = ${latestSeason.id}
+        AND g."seasonId" = ${statsSeason.id}
         AND g."competitionId" = 'comp_liga_haal'
         AND g.status = 'COMPLETED'
         AND ge."relatedPlayerId" IS NOT NULL
@@ -396,7 +407,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       where: {
         type: 'RED_CARD',
         playerId: { not: null },
-        game: { seasonId: latestSeason.id, competitionId: 'comp_liga_haal', status: 'COMPLETED' },
+        game: { seasonId: statsSeason.id, competitionId: 'comp_liga_haal', status: 'COMPLETED' },
       },
       select: {
         player: { select: { id: true, nameHe: true, team: { select: { nameHe: true } } } },
@@ -415,7 +426,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       LEFT JOIN teams t ON t.id = p."teamId"
       WHERE ge.type = 'YELLOW_CARD'
         AND ge."playerId" IS NOT NULL
-        AND g."seasonId" = ${latestSeason.id}
+        AND g."seasonId" = ${statsSeason.id}
         AND g."competitionId" = 'comp_liga_haal'
       ORDER BY g."dateTime" ASC
     `,
@@ -434,7 +445,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       FROM game_events ge
       JOIN games g ON ge."gameId" = g.id
       WHERE ge.type IN ('GOAL', 'PENALTY_GOAL')
-      AND g."seasonId" = ${latestSeason.id}
+      AND g."seasonId" = ${statsSeason.id}
       AND g."competitionId" = 'comp_liga_haal'
       GROUP BY bucket
       ORDER BY MIN(minute)
@@ -511,7 +522,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       id: e.player!.id,
       name: e.player!.nameHe,
       team: e.player!.team?.nameHe || '',
-      reason: `כרטיס אדום ב${getRoundDisplayName(e.game.roundNameHe, e.game.roundNameEn)}`,
+      reason: isPreseason
+        ? 'כרטיס אדום במחזור האחרון — מורחק מהמשחק הראשון'
+        : `כרטיס אדום ב${getRoundDisplayName(e.game.roundNameHe, e.game.roundNameEn)}`,
     }));
 
   const yellowsByPlayer = new Map<string, typeof allYellowCards>();
@@ -565,8 +578,10 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
     a.name.localeCompare(b.name, 'he')
   );
 
+  // In preseason, yellow cards reset — only red-card carryover (suspended for
+  // the first game of the new season) survives the season boundary.
   const suspendedMap = new Map<string, { id: string; name: string; team: string; reason: string }>();
-  for (const s of [...redCardSuspended, ...yellowSuspended]) {
+  for (const s of [...redCardSuspended, ...(isPreseason ? [] : yellowSuspended)]) {
     if (!suspendedMap.has(s.id)) suspendedMap.set(s.id, s);
   }
   const suspendedPlayers = Array.from(suspendedMap.values()).sort((a, b) =>
@@ -727,8 +742,14 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
               </Card>
             )}
 
-            {yellowAtRisk.length > 0 && (
+            {(isPreseason || yellowAtRisk.length > 0) && (
               <Card title="זהירות מהרחקה" actionHref="/statistics" actionLabel="לסטטיסטיקות">
+                {isPreseason ? (
+                  <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-5 text-center text-sm text-stone-500">
+                    בשלב זה אין שחקנים עם סכנת הרחקה — צבירת הכרטיסים הצהובים מתאפסת עם תחילת העונה החדשה.
+                  </div>
+                ) : (
+                <>
                 <div className="mb-2 text-[11px] text-amber-800">שחקנים שכרטיס צהוב נוסף יביא להרחקה אוטומטית</div>
                 <div className="space-y-2">
                   {yellowAtRisk.map((player) => (
@@ -741,6 +762,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
                     </Link>
                   ))}
                 </div>
+                </>
+                )}
               </Card>
             )}
           </div>
@@ -828,18 +851,21 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
 
             {topScorers.length > 0 && (
               <Card title="מלכי השערים" actionHref="/statistics" actionLabel="לסטטיסטיקות">
+                {isPreseason && <PreseasonStatNote seasonName={statsSeason.name} />}
                 <LeaderboardBars rows={topScorers} />
               </Card>
             )}
 
             {topAssistsMapped.length > 0 && (
               <Card title="מלכי הבישולים" actionHref="/statistics" actionLabel="לסטטיסטיקות">
+                {isPreseason && <PreseasonStatNote seasonName={statsSeason.name} />}
                 <LeaderboardBars rows={topAssistsMapped} />
               </Card>
             )}
 
             {goalMinutesData.length > 0 && (
               <Card title="שערים לפי דקות" actionHref="/statistics" actionLabel="לסטטיסטיקות">
+                {isPreseason && <PreseasonStatNote seasonName={statsSeason.name} />}
                 <GoalMinutesChart data={goalMinutesData} />
               </Card>
             )}
@@ -953,6 +979,15 @@ function TelegramMessageBody({ message, featured = false }: { message: TelegramC
       <div className={`hidden whitespace-pre-line rounded-lg bg-stone-50 p-3 group-open:block ${textClasses}`}>{message.text}</div>
       <summary className="mt-1 cursor-pointer list-none text-[11px] font-bold text-red-700 marker:hidden hover:text-red-600">הצג עוד</summary>
     </details>
+  );
+}
+
+function PreseasonStatNote({ seasonName }: { seasonName: string }) {
+  return (
+    <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800">
+      העונה טרם החלה. בינתיים מוצגת סטטיסטיקת עונת {seasonName}.{' '}
+      <Link href="/statistics" className="font-bold underline hover:opacity-75">לכל הסטטיסטיקות →</Link>
+    </div>
   );
 }
 
