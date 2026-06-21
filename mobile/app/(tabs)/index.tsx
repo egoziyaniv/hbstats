@@ -94,10 +94,10 @@ export default function HomeScreen() {
                       gap: 8,
                     }}
                   >
-                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: theme.ink[900], textAlign: 'right' }} numberOfLines={1}>
+                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
                       {m.home.name} — {m.away.name}
                     </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: brand.accent }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: brand.accent, writingDirection: 'rtl' }}>
                       {m.home.score ?? '-'}:{m.away.score ?? '-'}
                     </Text>
                     <StatusPill status="live" minute={m.minute} />
@@ -276,11 +276,11 @@ function MatchPreviewRow({ match, onPress, brandAccent }: { match: MatchCard; on
           </Text>
           <View style={{ marginHorizontal: 12, alignItems: 'center' }}>
             {isLive ? (
-              <Text style={{ fontSize: 18, fontWeight: '800', color: brandAccent }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: brandAccent, writingDirection: 'rtl' }}>
                 {match.home.score}:{match.away.score}
               </Text>
             ) : isFinished ? (
-              <Text style={{ fontSize: 18, fontWeight: '800', color: theme.ink[900] }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: theme.ink[900], writingDirection: 'rtl' }}>
                 {match.home.score}–{match.away.score}
               </Text>
             ) : (
@@ -328,7 +328,7 @@ function LiveFeatureHero({
           <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '600' }}>בית</Text>
         </View>
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: 'white', fontSize: 32, fontWeight: '800', lineHeight: 36 }}>
+          <Text style={{ color: 'white', fontSize: 32, fontWeight: '800', lineHeight: 36, writingDirection: 'rtl' }}>
             {match.home.score ?? '-'} – {match.away.score ?? '-'}
           </Text>
           <View
