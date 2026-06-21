@@ -97,9 +97,11 @@ export default function HomeScreen() {
                     <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
                       {m.home.name} — {m.away.name}
                     </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: brand.accent, writingDirection: 'rtl' }}>
-                      {m.home.score ?? '-'}:{m.away.score ?? '-'}
-                    </Text>
+                    <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 2 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: brand.accent }}>{m.home.score ?? '-'}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: brand.accent }}>:</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: brand.accent }}>{m.away.score ?? '-'}</Text>
+                    </View>
                     <StatusPill status="live" minute={m.minute} />
                   </View>
                 </Pressable>
@@ -275,14 +277,15 @@ function MatchPreviewRow({ match, onPress, brandAccent }: { match: MatchCard; on
             {match.home.team.nameHe}
           </Text>
           <View style={{ marginHorizontal: 12, alignItems: 'center' }}>
-            {isLive ? (
-              <Text style={{ fontSize: 18, fontWeight: '800', color: brandAccent, writingDirection: 'rtl' }}>
-                {match.home.score}:{match.away.score}
-              </Text>
-            ) : isFinished ? (
-              <Text style={{ fontSize: 18, fontWeight: '800', color: theme.ink[900], writingDirection: 'rtl' }}>
-                {match.home.score}–{match.away.score}
-              </Text>
+            {isLive || isFinished ? (
+              // Deterministic RTL score: home is the first child, so with rtlRow()
+              // it always renders on the RIGHT (next to the home team) regardless
+              // of bidi / I18nManager.isRTL. Avoids number-string reordering quirks.
+              <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 3 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isLive ? brandAccent : theme.ink[900] }}>{match.home.score ?? '-'}</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isLive ? brandAccent : theme.ink[900] }}>{isLive ? ':' : '–'}</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isLive ? brandAccent : theme.ink[900] }}>{match.away.score ?? '-'}</Text>
+              </View>
             ) : (
               <Text style={{ fontSize: 13, color: theme.ink[500] }}>{time}</Text>
             )}
@@ -328,9 +331,11 @@ function LiveFeatureHero({
           <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '600' }}>בית</Text>
         </View>
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: 'white', fontSize: 32, fontWeight: '800', lineHeight: 36, writingDirection: 'rtl' }}>
-            {match.home.score ?? '-'} – {match.away.score ?? '-'}
-          </Text>
+          <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: 'white', fontSize: 32, fontWeight: '800', lineHeight: 36 }}>{match.home.score ?? '-'}</Text>
+            <Text style={{ color: 'white', fontSize: 32, fontWeight: '800', lineHeight: 36 }}>–</Text>
+            <Text style={{ color: 'white', fontSize: 32, fontWeight: '800', lineHeight: 36 }}>{match.away.score ?? '-'}</Text>
+          </View>
           <View
             style={{
               marginTop: 6,
