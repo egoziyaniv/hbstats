@@ -224,6 +224,17 @@ export default function HomeScreen() {
                         borderBottomColor: theme.ink[100],
                       }}
                     >
+                      {/* Thumbnail leads on the RIGHT (RTL); text flows to its left. */}
+                      {absoluteImage(n.imageUrl) ? (
+                        <CachedImage
+                          source={{ uri: absoluteImage(n.imageUrl) }}
+                          style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: theme.ink[100] }}
+                        />
+                      ) : (
+                        <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: brand.accentGlow, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 22 }}>📰</Text>
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text
                           style={{ color: theme.ink[900], fontSize: 13.5, lineHeight: 19, textAlign: 'right', writingDirection: 'rtl' }}
@@ -240,16 +251,6 @@ export default function HomeScreen() {
                           ) : null}
                         </View>
                       </View>
-                      {absoluteImage(n.imageUrl) ? (
-                        <CachedImage
-                          source={{ uri: absoluteImage(n.imageUrl) }}
-                          style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: theme.ink[100] }}
-                        />
-                      ) : (
-                        <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: brand.accentGlow, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 22 }}>📰</Text>
-                        </View>
-                      )}
                     </View>
                   </Pressable>
                 );
