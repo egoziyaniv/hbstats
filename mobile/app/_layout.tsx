@@ -1,7 +1,9 @@
 import '../global.css';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { I18nManager } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { registerForPushNotifications } from '@/lib/push';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, persister, shouldDehydrateQuery } from '@/lib/queryClient';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -32,6 +34,35 @@ function AuthGate() {
       router.replace('/');
     }
   }, [user, isLoading, segments, router]);
+
+  // Register this device's push token on launch, and again whenever the signed-in
+  // user changes so the token re-binds to them (backend upserts by token).
+  useEffect(() => {
+    registerForPushNotifications();
+  }, [user?.id]);
+
+  // Route notification taps to the relevant screen.
+  const handledInitial = useRef(false);
+  useEffect(() => {
+    function route(data: Record<string, unknown> | undefined) {
+      if (!data) return;
+      if (typeof data.gameId === 'string') router.push(`/games/${data.gameId}` as any);
+      else if (typeof data.teamId === 'string') router.push(`/teams/${data.teamId}` as any);
+      else if (data.type === 'news') router.push('/news' as any);
+    }
+    // Cold start: app opened by tapping a notification.
+    if (!handledInitial.current) {
+      handledInitial.current = true;
+      Notifications.getLastNotificationResponseAsync().then((r) =>
+        route(r?.notification.request.content.data as Record<string, unknown> | undefined)
+      );
+    }
+    // Warm: tapped while the app was running/backgrounded.
+    const sub = Notifications.addNotificationResponseReceivedListener((response) =>
+      route(response.notification.request.content.data as Record<string, unknown> | undefined)
+    );
+    return () => sub.remove();
+  }, [router]);
 
   return null;
 }

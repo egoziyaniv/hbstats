@@ -29,8 +29,23 @@ model User {
   mergeOperations           MergeOperation[]
   sessions                  Session[]
   passwordResetTokens       PasswordResetToken[]
+  pushTokens                PushToken[]
 
   @@map("users")
+}
+
+model PushToken {
+  id         String   @id @default(cuid())
+  token      String   @unique // ExpoPushToken[...]
+  userId     String? // null = guest device (login is optional in the app)
+  platform   String   @default("ios") // ios | android
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("push_tokens")
 }
 
 model PasswordResetToken {
