@@ -172,9 +172,13 @@ export default function MatchScreen() {
                   <Text className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">LIVE</Text>
                 </View>
               ) : null}
-              <Text className="text-4xl font-black text-white">
-                {match.score.home ?? '-'} – {match.score.away ?? '-'}
-              </Text>
+              {/* Deterministic RTL score: home first → renders on the right (matching
+                  the home team column above), independent of bidi / isRTL. */}
+              <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 6 }}>
+                <Text className="text-4xl font-black text-white">{match.score.home ?? '-'}</Text>
+                <Text className="text-4xl font-black text-white">–</Text>
+                <Text className="text-4xl font-black text-white">{match.score.away ?? '-'}</Text>
+              </View>
               <Text className="text-xs text-white/70 mt-1 font-semibold">
                 {isLive ? `דקה ${match.minute ?? '-'}'` : (STATUS_LABEL_HE[match.status] ?? match.status)}
               </Text>

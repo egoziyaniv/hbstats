@@ -387,9 +387,12 @@ function MatchPreviewRow({ match }: { match: {
       </Text>
       <View style={{ marginHorizontal: 12, alignItems: 'center' }}>
         {match.status === 'finished' ? (
-          <Text style={{ fontSize: 16, fontWeight: '800', color: theme.ink[900] }}>
-            {match.home.score}–{match.away.score}
-          </Text>
+          // Deterministic RTL score: home first → renders on the right via rtlRow().
+          <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 3 }}>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: theme.ink[900] }}>{match.home.score}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: theme.ink[900] }}>–</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: theme.ink[900] }}>{match.away.score}</Text>
+          </View>
         ) : (
           <Text style={{ fontSize: 13, color: theme.ink[500] }}>{time}</Text>
         )}
