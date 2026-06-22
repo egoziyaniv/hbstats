@@ -88,23 +88,26 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
               key={item.path}
               onPress={() => go(item.path)}
               style={({ pressed }) => ({
+                // Row reads RTL: icon on the right, label beside it, chevron far left.
                 flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
                 alignItems: 'center',
-                paddingVertical: 12,
-                paddingHorizontal: 6,
+                gap: 14,
+                paddingVertical: 15,
+                paddingHorizontal: 10,
+                borderRadius: 12,
                 borderBottomWidth: 1,
                 borderBottomColor: theme.ink[100],
-                backgroundColor: pressed ? theme.ink[50] : 'transparent',
+                backgroundColor: pressed ? theme.ink[100] : 'transparent',
               })}
             >
-              {/* Icon — pinned to the visual right via row direction */}
-              <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{item.icon}</Text>
-              {/* Label — wrapped in a View so flex:1 has an explicit container */}
-              <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}>
-                  {item.label}
-                </Text>
-              </View>
+              <Text style={{ fontSize: 22, width: 30, textAlign: 'center' }}>{item.icon}</Text>
+              {/* No explicit textAlign — defaults to the start edge (= right in RTL),
+                  so the label sits flush beside the icon (avoids the swap that
+                  pushed textAlign:'right' to the left). */}
+              <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: theme.ink[900] }} numberOfLines={1}>
+                {item.label}
+              </Text>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: theme.ink[300] }}>{I18nManager.isRTL ? '‹' : '›'}</Text>
             </Pressable>
           ))}
 
@@ -112,14 +115,14 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
 
           {user ? (
             <Pressable
-              onPress={async () => { await logout(); onClose(); router.replace('/auth/login' as any); }}
+              onPress={async () => { await logout(); onClose(); router.replace('/login' as any); }}
               style={{ paddingVertical: 12, paddingHorizontal: 6, borderRadius: 12, backgroundColor: theme.ink[100], alignItems: 'center' }}
             >
               <Text style={{ fontSize: 14, fontWeight: '800', color: theme.ink[700] }}>התנתק ({user.email})</Text>
             </Pressable>
           ) : (
             <Pressable
-              onPress={() => go('/auth/login')}
+              onPress={() => go('/login')}
               style={{ paddingVertical: 12, paddingHorizontal: 6, borderRadius: 12, backgroundColor: brand.accent, alignItems: 'center' }}
             >
               <Text style={{ fontSize: 14, fontWeight: '800', color: 'white' }}>התחבר</Text>

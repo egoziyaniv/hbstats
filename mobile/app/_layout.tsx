@@ -18,6 +18,12 @@ if (!I18nManager.isRTL) {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
 }
+// Treat textAlign:'left'/'right' (and physical margins) as VISUAL directions in
+// RTL rather than auto-swapping them. The codebase writes textAlign:'right'
+// meaning visual-right for Hebrew; with the default swap on, RN was rendering
+// all of those visually LEFT. Layout direction still flips via flexDirection /
+// rtlRow() / logical marginStart-End, which this does NOT affect.
+I18nManager.swapLeftAndRightInRTL(false);
 
 function AuthGate() {
   const { user, isLoading } = useAuth();
