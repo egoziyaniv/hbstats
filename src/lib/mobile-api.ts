@@ -188,6 +188,27 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
   }
 
   const now = new Date();
+
+  // Feature the UPCOMING season (table + fixtures + team filter) while player
+  // stats / last result come from the most recently PLAYED season — mirrors the
+  // web home. In the summer gap these differ (e.g. 2026/27 table at 0 points
+  // while the last game is from 2025/26); once the new season kicks off they
+  // converge back on latestSeason.
+  const [upcomingGame, lastCompletedGame] = await Promise.all([
+    prisma.game.findFirst({
+      where: { status: 'SCHEDULED', dateTime: { gte: now } },
+      orderBy: { dateTime: 'asc' },
+      select: { season: { select: { id: true, year: true, name: true } } },
+    }),
+    prisma.game.findFirst({
+      where: { status: 'COMPLETED' },
+      orderBy: { dateTime: 'desc' },
+      select: { season: { select: { id: true, year: true, name: true } } },
+    }),
+  ]);
+  const featuredSeason = upcomingGame?.season ?? latestSeason;
+  const statsSeason = lastCompletedGame?.season ?? latestSeason;
+
   const [storedUser, seasonTeams, rawStandings, effectiveTelegramSources] = await Promise.all([
     viewer
       ? prisma.user.findUnique({
@@ -196,7 +217,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
         })
       : Promise.resolve(null),
     prisma.team.findMany({
-      where: { seasonId: latestSeason.id },
+      where: { seasonId: featuredSeason.id },
       orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }],
       select: { id: true, apiFootballId: true, nameHe: true, nameEn: true, logoUrl: true },
     }),
@@ -205,7 +226,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     // contains standings from every competition in the season (Leumit / cups)
     // and the home screen mixes teams across leagues.
     prisma.standing.findMany({
-      where: { seasonId: latestSeason.id, competitionId: 'comp_liga_haal' },
+      where: { seasonId: featuredSeason.id, competitionId: 'comp_liga_haal' },
       include: {
         team: true,
         competition: {
@@ -241,7 +262,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
   // live web /standings view (championship vs relegation groups, current pts).
   const competitionGamesForStandings = await prisma.game.findMany({
     where: {
-      seasonId: latestSeason.id,
+      seasonId: featuredSeason.id,
       competitionId: 'comp_liga_haal',
       status: { in: ['COMPLETED', 'ONGOING'] },
     },
@@ -312,7 +333,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
   ] = await Promise.all([
     prisma.game.findMany({
       where: {
-        seasonId: latestSeason.id,
+        seasonId: featuredSeason.id,
         status: 'SCHEDULED',
         dateTime: { gte: now },
       },
@@ -327,7 +348,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     }),
     prisma.game.findMany({
       where: {
-        seasonId: latestSeason.id,
+        seasonId: statsSeason.id,
         status: 'COMPLETED',
       },
       include: {
@@ -368,7 +389,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     }),
     prisma.game.findMany({
       where: {
-        seasonId: latestSeason.id,
+        seasonId: featuredSeason.id,
         status: 'SCHEDULED',
         dateTime: { gte: now },
       },
@@ -387,10 +408,15 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     getHomepageLiveSnapshots(null, { limit: 24 }),
   ]);
 
+  // Prefer the favorite team's next game; fall back to the soonest game of any
+  // team so the hero never reverts to an old result (mirrors the web home).
+  const upcomingByCompetition = nextGamesRaw.filter((game) =>
+    gameMatchesPreferredCompetition(game, selectedCompetitionApiIds)
+  );
   const nextGame =
-    nextGamesRaw
-      .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
-      .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
+    upcomingByCompetition.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] ||
+    upcomingByCompetition[0] ||
+    null;
   const lastGame =
     lastGamesRaw
       .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
@@ -456,9 +482,9 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
 
   return {
     season: {
-      id: latestSeason.id,
-      year: latestSeason.year,
-      label: latestSeason.name,
+      id: featuredSeason.id,
+      year: featuredSeason.year,
+      label: featuredSeason.name,
     },
     filters: {
       favoriteTeams: selectedTeams.map((team) => ({
