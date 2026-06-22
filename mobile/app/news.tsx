@@ -133,7 +133,7 @@ function NewsRow({
         )}
         <View style={{ flex: 1 }}>
           <Text
-            style={{ color: theme.ink[900], fontSize: 14, lineHeight: 20, textAlign: 'right', writingDirection: 'rtl' }}
+            style={{ color: theme.ink[900], fontSize: 14, lineHeight: 20 }}
             numberOfLines={3}
           >
             {item.preview}

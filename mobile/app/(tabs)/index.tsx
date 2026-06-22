@@ -237,7 +237,7 @@ export default function HomeScreen() {
                       )}
                       <View style={{ flex: 1 }}>
                         <Text
-                          style={{ color: theme.ink[900], fontSize: 13.5, lineHeight: 19, textAlign: 'right', writingDirection: 'rtl' }}
+                          style={{ color: theme.ink[900], fontSize: 13.5, lineHeight: 19 }}
                           numberOfLines={3}
                         >
                           {n.preview}
