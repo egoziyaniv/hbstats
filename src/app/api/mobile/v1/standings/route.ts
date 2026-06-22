@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
 
+  // Default (no year): the latest STARTED season — has a real table. Avoids
+  // defaulting to a not-yet-played future season (empty, all-zeros). Auto-
+  // advances once the new season kicks off.
   const season = yearParam
     ? await prisma.season.findFirst({ where: { year: parseInt(yearParam, 10) } })
-    : await prisma.season.findFirst({ orderBy: { year: 'desc' } });
+    : await prisma.season.findFirst({
+        where: { year: { lte: getCurrentSeasonStartYear() } },
+        orderBy: { year: 'desc' },
+      });
   if (!season) {
     return NextResponse.json({ season: null, groups: [] });
   }

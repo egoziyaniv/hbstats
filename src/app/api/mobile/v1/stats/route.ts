@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,9 @@ function extractPhotoUrl(additionalInfo: unknown): string | null {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
-  const currentYear = new Date().getFullYear();
+  // Default (no year) to the latest STARTED season — it has real stats. Using
+  // the calendar year landed on the not-yet-played future season (empty).
+  const currentYear = getCurrentSeasonStartYear();
   const targetYear = yearParam ? parseInt(yearParam, 10) : currentYear;
 
   // Find the season by year, or fall back to latest
