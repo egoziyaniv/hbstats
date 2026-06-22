@@ -399,7 +399,7 @@ function UpcomingFeatureHero({
     >
       <View style={{ alignItems: 'center', marginBottom: 16 }}>
         <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 }}>
-          <Text style={{ color: 'white', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>המשחק הבא · ליגת העל</Text>
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>המשחק הבא · {match.leagueName || 'ליגת העל'}</Text>
         </View>
       </View>
       <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
