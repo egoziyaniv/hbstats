@@ -167,7 +167,7 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   {row.form ? (
-                    <View style={{ paddingHorizontal: 14, paddingBottom: 8, flexDirection: rtlRow() }}>
+                    <View style={{ paddingHorizontal: 14, paddingBottom: 8, flexDirection: rtlRow(), justifyContent: 'flex-end' }}>
                       <FormRow form={row.form} size={16} gap={3} />
                     </View>
                   ) : null}

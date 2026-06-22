@@ -207,7 +207,8 @@ function StandingsRowView({
         </View>
       </View>
       {row.form ? (
-        <View style={{ paddingHorizontal: 14, paddingBottom: 8, flexDirection: rtlRow() }}>
+        // Form (last-5) aligned to the visual LEFT, under the points column.
+        <View style={{ paddingHorizontal: 14, paddingBottom: 8, flexDirection: rtlRow(), justifyContent: 'flex-end' }}>
           <FormRow form={row.form} size={16} gap={3} />
         </View>
       ) : null}
