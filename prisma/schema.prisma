@@ -48,6 +48,17 @@ model PushToken {
   @@map("push_tokens")
 }
 
+// Per-game dedupe state for match push notifications (goals + final result).
+model GameNotificationState {
+  gameId        String   @id
+  lastHomeScore Int      @default(0)
+  lastAwayScore Int      @default(0)
+  notifiedFinal Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+
+  @@map("game_notification_state")
+}
+
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
