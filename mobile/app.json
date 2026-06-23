@@ -3,7 +3,7 @@
     "name": "StatsAI",
     "slug": "hbstats",
     "version": "1.0.0",
-    "scheme": "hbstats",
+    "scheme": "statsai",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,11 +14,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "il.hbstats.app",
+      "bundleIdentifier": "il.statsai.app",
       "supportsTablet": false,
       "associatedDomains": [
-        "applinks:hbs.co.il",
-        "applinks:hbs.co.il"
+        "applinks:statsai.co.il"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -129,7 +128,7 @@
       }
     },
     "android": {
-      "package": "il.hbstats.app",
+      "package": "il.statsai.app",
       "usesCleartextTraffic": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

@@ -3,7 +3,7 @@
 מדריך צעד-אחר-צעד להגשת אפליקציית StatsAI ל-App Store. מסומן מה כבר מוכן (✅),
 מה אתה צריך לעשות ידנית (🧑), ומה אני יכול להכין/הכנתי (🤖).
 
-> Bundle ID: `il.hbstats.app` · EAS projectId: `d47a7eca-da88-4598-b14a-49cdc48ea340` · API: `https://statsai.co.il`
+> Bundle ID: `il.statsai.app` · EAS projectId: `d47a7eca-da88-4598-b14a-49cdc48ea340` · API: `https://statsai.co.il`
 
 ---
 
@@ -25,7 +25,7 @@
    - **Platform:** iOS
    - **Name:** StatsAI (אם תפוס — נסה "StatsAI — כדורגל ישראלי")
    - **Primary Language:** Hebrew
-   - **Bundle ID:** `il.hbstats.app` (אם לא מופיע — צור אותו ב-Apple Developer → Identifiers, עם יכולת Push Notifications מסומנת)
+   - **Bundle ID:** `il.statsai.app` (אם לא מופיע — צור אותו ב-Apple Developer → Identifiers, עם יכולת Push Notifications מסומנת)
    - **SKU:** `statsai-ios` (מזהה פנימי חופשי)
 3. שמור.
 
@@ -37,6 +37,14 @@ eas credentials
 ```
 Expo ייצור ויעלה את ה-.p8 אוטומטית לחשבון Apple שלך. זה כל מה שצריך כדי
 שה-push (גולים/תוצאות שכבר בנינו) יעבדו בייצור.
+
+## 2.5 ⚠️ Google Sign-In — לקוח iOS חדש ל-bundle החדש 🧑
+ה-bundle שונה ל-`il.statsai.app`, אז לקוח ה-OAuth של גוגל לאייפון (שהיה רשום ל-bundle הישן) כבר לא תואם — **התחברות גוגל באייפון תיכשל עד שתעשה את זה:**
+1. https://console.cloud.google.com → APIs & Services → **Credentials**.
+2. **+ Create Credentials → OAuth client ID → Application type: iOS**.
+3. **Bundle ID:** `il.statsai.app`. שמור.
+4. העתק את ה-**iOS URL scheme** (ה-"reversed client ID", נראה כמו `com.googleusercontent.apps.XXXX-YYYY`).
+5. שלח לי אותו — אעדכן את `iosUrlScheme` ב-app.json. (בלי זה: מצב אורח + email/סיסמה עובדים, רק כפתור גוגל באייפון לא.)
 
 ## 3. בנייה והעלאה 🧑
 ```bash
@@ -82,7 +90,7 @@ eas submit --platform ios --latest        # מעלה ל-App Store Connect
 ב-ASC → Version → "App Review Information".
 
 ## 9. צ'קליסט לפני "Submit for Review"
-- [ ] אפליקציה נוצרה ב-ASC עם bundle `il.hbstats.app`
+- [ ] אפליקציה נוצרה ב-ASC עם bundle `il.statsai.app`
 - [ ] מפתח APNs הוגדר (`eas credentials`)
 - [ ] build הועלה דרך `eas submit` ונבחר לגרסה
 - [ ] צילומי מסך 6.7" הועלו
