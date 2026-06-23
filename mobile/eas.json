@@ -18,6 +18,11 @@
       "ios": {
         "simulator": false
       },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://statsai.co.il",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "456943739974-hjfdm7jck5aiaadqvdrsuos89rbdcige.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "456943739974-24jtb1mje9jus3j7ordbqlqaoajbojol.apps.googleusercontent.com"
+      },
       "channel": "development-device"
     },
     "preview": {
@@ -29,14 +34,18 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://statsai.co.il"
+        "EXPO_PUBLIC_API_BASE_URL": "https://statsai.co.il",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "456943739974-hjfdm7jck5aiaadqvdrsuos89rbdcige.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "456943739974-24jtb1mje9jus3j7ordbqlqaoajbojol.apps.googleusercontent.com"
       },
       "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://statsai.co.il"
+        "EXPO_PUBLIC_API_BASE_URL": "https://statsai.co.il",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "456943739974-hjfdm7jck5aiaadqvdrsuos89rbdcige.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "456943739974-24jtb1mje9jus3j7ordbqlqaoajbojol.apps.googleusercontent.com"
       },
       "channel": "production"
     }
