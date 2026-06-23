@@ -31,9 +31,17 @@ export function SeasonChip() {
   const [open, setOpen] = useState(false);
 
   const seasons = data?.seasons ?? [];
+  // Default (no explicit pick) to the latest STARTED season — matches what the
+  // data endpoints return, so the chip and the table/stats agree. (month >= 6
+  // => July+, so the previous season shows through the summer gap.)
+  const currentStartYear = (() => {
+    const d = new Date();
+    return d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+  })();
+  const defaultSeason = seasons.find((s) => s.year <= currentStartYear) ?? seasons[0];
   const active = selectedYear == null
-    ? seasons[0]
-    : seasons.find((s) => s.year === selectedYear) ?? seasons[0];
+    ? defaultSeason
+    : seasons.find((s) => s.year === selectedYear) ?? defaultSeason;
   const label = active ? seasonLabel(active.name) : '—';
 
   return (
