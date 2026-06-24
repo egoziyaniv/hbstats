@@ -58,7 +58,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   const token = await getExpoPushToken();
   if (!token) return null;
   try {
-    await apiClient.post('/api/mobile/v1/notifications/register', { token, platform: Platform.OS });
+    await apiClient.post('/notifications/register', { token, platform: Platform.OS });
   } catch {
     // non-fatal — we'll retry next launch
   }
@@ -67,7 +67,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
 export async function unregisterPush(token: string): Promise<void> {
   try {
-    await apiClient.post('/api/mobile/v1/notifications/unregister', { token });
+    await apiClient.post('/notifications/unregister', { token });
   } catch {
     // ignore
   }
