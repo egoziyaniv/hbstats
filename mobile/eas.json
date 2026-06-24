@@ -53,7 +53,6 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "yaniv@goldbond.co.il",
         "ascAppId": "6783523628",
         "appleTeamId": "F2DLQGUP46"
       }
