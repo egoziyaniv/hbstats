@@ -109,27 +109,29 @@ eas submit --platform ios --latest        # מעלה ל-App Store Connect
 ## Subtitle (30 תווים)
 > סטטיסטיקה שמנצחת את המשחק
 
-## תיאור (Description — עברית)
+## תיאור (Description — עברית) — מתוקן ל-4.1(a): ללא שמות קבוצות/ליגה מסחריים + הצהרת אי-שיוך
 ```
-StatsAI — כל הכדורגל הישראלי במקום אחד.
+StatsAI — כל הסטטיסטיקה של הכדורגל הישראלי במקום אחד.
 
-טבלאות ליגת העל לאורך 26 עונות, סטטיסטיקות שחקנים מלאות, מלכי שערים ובישולים,
+טבלאות ליגה לאורך 26 עונות, סטטיסטיקות שחקנים מלאות, מלכי שערים ובישולים,
 תוצאות חיות, חדשות, תחזיות משחק, וקריירות שחקנים — בממשק עברי מהיר ונקי.
 
-• טבלת ליגת העל וליגה לאומית, עם היסטוריה מלאה והחלפת עונה
+• טבלאות הליגות הבכירות בישראל, עם היסטוריה מלאה והחלפת עונה
 • דפי שחקנים: סטטיסטיקה עונתית, קריירה, גרפים והישגים
 • דפי קבוצות: סגל, משחקים, מאמנים ומגמות
 • מלכי שערים, בישולים, כרטיסים — 6 קטגוריות
-• תוצאות חיות והתראות גול לקבוצה האהובה עליך
+• תוצאות חיות והתראות לקבוצה שאתה עוקב אחריה
 • חדשות ועדכונים בזמן אמת
 • תחזיות ואחוזי ניצחון למשחקים הקרובים
 
-המידע נאסף ממקורות רשמיים (ההתאחדות לכדורגל) ומתעדכן באופן שוטף.
+המידע הוא נתונים סטטיסטיים עובדתיים הנאספים ממקורות ציבוריים ומתעדכן באופן שוטף.
+StatsAI היא אפליקציית סטטיסטיקה עצמאית, ואינה מזוהה עם, ממומנת על ידי, או מאושרת
+על ידי אף קבוצה, ליגה או גוף ספורט כלשהו.
 ```
 
-## מילות מפתח (Keywords — עד 100 תווים, מופרד בפסיקים)
+## מילות מפתח (Keywords — עד 100 תווים) — מתוקן: הוסרו מכבי/הפועל/בית"ר/ליגת העל
 ```
-כדורגל,ליגת העל,סטטיסטיקה,טבלה,שחקנים,מלך שערים,תוצאות,ספורט,ישראל,מכבי,הפועל,בית"ר
+כדורגל,סטטיסטיקה,טבלה,ליגה,שחקנים,מלך שערים,בישולים,תוצאות,ספורט,ישראל,עונה,קריירה
 ```
 
 ## שאלון App Privacy — תשובות
@@ -149,11 +151,32 @@ StatsAI — כל הכדורגל הישראלי במקום אחד.
 ```
 The app opens directly to public content — login is OPTIONAL (guest mode), so
 no account is required to review the app. To test the logged-in experience you
-may register a new account in-app (email + password) or use Sign in with Google.
+may use Sign in with Apple, Sign in with Google, or register with email + password.
 Account deletion is available in the Preferences screen.
 
-Data is Israeli football statistics from official sources. Hebrew/RTL UI.
-Push notifications deliver goal/result alerts for a user's favorite team.
+Data is publicly available Israeli football statistics. Hebrew/RTL UI.
+Push notifications deliver goal/result alerts for a team the user follows.
+StatsAI is an independent statistics app, not affiliated with any team or league.
+```
+
+## תשובה ל-App Review (להדביק כ-Reply ב-ASC, מול הדחייה) — מטפל בשני הסעיפים
+```
+Hello, thank you for the review. We have addressed both items in this new build:
+
+Guideline 4.8 (Login Services):
+We added "Sign in with Apple" as an equivalent login option, presented alongside
+Sign in with Google and email/password on the login screen. Sign in with Apple
+limits data collection to name and email, lets the user keep their email private
+(Hide My Email), and we do not track users or collect interactions for advertising.
+
+Guideline 4.1(a) (Copycats):
+StatsAI is an independent app that presents publicly available, factual football
+statistics (standings, player stats, results). We are not affiliated with, endorsed
+by, or sponsored by any team, league, or sports organization. We have removed
+third-party team and league names from the app metadata (keywords and description)
+and added an explicit non-affiliation statement to the description.
+
+Please let us know if any further changes are needed. Thank you!
 ```
 
 ## Age Rating
