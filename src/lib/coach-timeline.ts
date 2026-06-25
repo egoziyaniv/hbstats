@@ -105,9 +105,31 @@ export async function buildCoachTimelineBySeason(teamId: string): Promise<Season
       AND g."awayScore" IS NOT NULL
   `;
 
-  // Group: seasonId → coachKey → tenure
+  // Resolve the admin-merged canonical coach for each raw name via CoachAlias,
+  // so merged variants (e.g. "R. Kozuch" + "R. Kojok") collapse to ONE coach and
+  // display the Hebrew name + curated photo instead of the raw English variant.
+  const rawNames = Array.from(new Set(rows.map((r) => r.coach_raw).filter(Boolean)));
+  const canonicalByRaw = new Map<string, { id: string; name: string; photo: string | null }>();
+  if (rawNames.length > 0) {
+    const aliasRows = await prisma.coachAlias.findMany({
+      where: { alias: { in: rawNames } },
+      select: { alias: true, coach: { select: { id: true, nameEn: true, nameHe: true, photoUrl: true } } },
+    });
+    for (const ar of aliasRows) {
+      canonicalByRaw.set(ar.alias, {
+        id: ar.coach.id,
+        name: ar.coach.nameHe || ar.coach.nameEn,
+        photo: ar.coach.photoUrl ?? null,
+      });
+    }
+  }
+
+  // Group: seasonId → coachKey → tenure. Canonical coaches key by coach id (so
+  // their variants merge); unmatched names fall back to the normalized name key.
   type Bucket = {
     name: string;
+    canonical: boolean;
+    photoUrl: string | null;
     matches: number;
     wins: number;
     draws: number;
@@ -127,13 +149,24 @@ export async function buildCoachTimelineBySeason(teamId: string): Promise<Season
       bySeason = { seasonName: r.season_name, year: r.season_year, coaches: new Map() };
       seasonMap.set(r.season_id, bySeason);
     }
-    const key = normalizeKey(r.coach_raw);
-    let bucket = bySeason.coaches.get(key);
+    const can = canonicalByRaw.get(r.coach_raw);
+    const normKey = normalizeKey(r.coach_raw);
+    const groupKey = can ? `c:${can.id}` : `k:${normKey}`;
+    let bucket = bySeason.coaches.get(groupKey);
     if (!bucket) {
-      bucket = { name: r.coach_raw, matches: 0, wins: 0, draws: 0, losses: 0, firstMatch: r.game_date, lastMatch: r.game_date };
-      bySeason.coaches.set(key, bucket);
-    } else {
+      bucket = {
+        name: can ? can.name : r.coach_raw,
+        canonical: !!can,
+        photoUrl: can ? can.photo : (photoByKey.get(normKey) || null),
+        matches: 0, wins: 0, draws: 0, losses: 0,
+        firstMatch: r.game_date, lastMatch: r.game_date,
+      };
+      bySeason.coaches.set(groupKey, bucket);
+    } else if (!bucket.canonical) {
+      // Only refine the display name/photo for non-canonical buckets; canonical
+      // ones keep their Hebrew name.
       bucket.name = preferLongerName(bucket.name, r.coach_raw);
+      if (!bucket.photoUrl) bucket.photoUrl = photoByKey.get(normKey) || null;
     }
     bucket.matches++;
     if (r.game_date < bucket.firstMatch) bucket.firstMatch = r.game_date;
@@ -151,10 +184,10 @@ export async function buildCoachTimelineBySeason(teamId: string): Promise<Season
     seasonId,
     seasonName,
     year,
-    coaches: Array.from(coaches.entries())
-      .map(([key, b]) => ({
+    coaches: Array.from(coaches.values())
+      .map((b) => ({
         name: b.name,
-        photoUrl: photoByKey.get(key) || null,
+        photoUrl: b.photoUrl,
         firstMatch: b.firstMatch.toISOString().slice(0, 10),
         lastMatch: b.lastMatch.toISOString().slice(0, 10),
         matches: b.matches,
