@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, Alert, Switch } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
@@ -101,6 +101,12 @@ export default function PreferencesScreen() {
     update.mutate(next);
   };
 
+  const notif = data.notifications ?? { goals: true, results: true, reminders: true, news: true };
+  const toggleNotification = (key: keyof typeof notif) => {
+    const next: PreferencesPayload = { ...data, notifications: { ...notif, [key]: !notif[key] } };
+    update.mutate(next);
+  };
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.canvas.start }}
@@ -197,6 +203,18 @@ export default function PreferencesScreen() {
         </Card>
       </Section>
 
+      <Section title="התראות">
+        <Card>
+          <Text style={{ color: theme.ink[500], fontSize: 13, marginBottom: 4, textAlign: 'right', writingDirection: 'rtl' }}>
+            בחר/י אילו התראות לקבל על הקבוצות שאתה עוקב אחריהן.
+          </Text>
+          <NotifRow label="⚽ גולים" desc="התראה על כל גול במשחק חי" value={notif.goals} onChange={() => toggleNotification('goals')} accent={brand.accent} />
+          <NotifRow label="🏁 תוצאות סיום" desc="התוצאה הסופית בתום המשחק" value={notif.results} onChange={() => toggleNotification('results')} accent={brand.accent} />
+          <NotifRow label="⏰ תזכורות משחק" desc="כשעה לפני פתיחת המשחק" value={notif.reminders} onChange={() => toggleNotification('reminders')} accent={brand.accent} />
+          <NotifRow label="📰 חדשות" desc="ידיעות חדשות מהערוצים" value={notif.news} onChange={() => toggleNotification('news')} accent={brand.accent} last />
+        </Card>
+      </Section>
+
       <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
         <Pressable onPress={onLogout}>
           <View style={{ backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
@@ -215,6 +233,40 @@ export default function PreferencesScreen() {
         </Pressable>
       </View>
     </ScrollView>
+  );
+}
+
+function NotifRow({ label, desc, value, onChange, accent, last }: {
+  label: string;
+  desc: string;
+  value: boolean;
+  onChange: () => void;
+  accent: string;
+  last?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: rtlRow(),
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        paddingVertical: 12,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: theme.ink[100],
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' }}>{label}</Text>
+        <Text style={{ color: theme.ink[500], fontSize: 12, marginTop: 2, textAlign: 'right', writingDirection: 'rtl' }}>{desc}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: theme.ink[200], true: accent }}
+        thumbColor="white"
+      />
+    </View>
   );
 }
 

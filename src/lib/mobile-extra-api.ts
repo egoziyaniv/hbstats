@@ -104,6 +104,10 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
     select: {
       favoriteTeamApiIds: true,
       favoriteCompetitionApiIds: true,
+      notifyGoals: true,
+      notifyResults: true,
+      notifyReminders: true,
+      notifyNews: true,
     },
   });
 
@@ -142,6 +146,12 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
   return {
     favoriteTeamApiIds: user?.favoriteTeamApiIds || [],
     favoriteCompetitionApiIds: user?.favoriteCompetitionApiIds || [],
+    notifications: {
+      goals: user?.notifyGoals ?? true,
+      results: user?.notifyResults ?? true,
+      reminders: user?.notifyReminders ?? true,
+      news: user?.notifyNews ?? true,
+    },
     availableTeams: teams.map((team) => ({
       id: team.id,
       apiFootballId: team.apiFootballId,
@@ -161,21 +171,39 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
 
 export async function updateMobilePreferencesPayload(input: {
   userId: string;
-  favoriteTeamApiIds: unknown;
-  favoriteCompetitionApiIds: unknown;
+  favoriteTeamApiIds?: unknown;
+  favoriteCompetitionApiIds?: unknown;
+  notifications?: unknown;
 }) {
-  const favoriteTeamApiIds = normalizeIdArray(input.favoriteTeamApiIds);
-  const favoriteCompetitionApiIds = normalizeIdArray(input.favoriteCompetitionApiIds);
+  const data: Record<string, unknown> = {};
+  if (input.favoriteTeamApiIds !== undefined) data.favoriteTeamApiIds = normalizeIdArray(input.favoriteTeamApiIds);
+  if (input.favoriteCompetitionApiIds !== undefined) data.favoriteCompetitionApiIds = normalizeIdArray(input.favoriteCompetitionApiIds);
+
+  // Per-category notification toggles — only the booleans actually sent.
+  const notif = input.notifications;
+  if (notif && typeof notif === 'object') {
+    const map: Record<string, string> = {
+      goals: 'notifyGoals',
+      results: 'notifyResults',
+      reminders: 'notifyReminders',
+      news: 'notifyNews',
+    };
+    for (const [key, column] of Object.entries(map)) {
+      const v = (notif as Record<string, unknown>)[key];
+      if (typeof v === 'boolean') data[column] = v;
+    }
+  }
 
   const user = await prisma.user.update({
     where: { id: input.userId },
-    data: {
-      favoriteTeamApiIds,
-      favoriteCompetitionApiIds,
-    },
+    data,
     select: {
       favoriteTeamApiIds: true,
       favoriteCompetitionApiIds: true,
+      notifyGoals: true,
+      notifyResults: true,
+      notifyReminders: true,
+      notifyNews: true,
     },
   });
 
@@ -183,5 +211,11 @@ export async function updateMobilePreferencesPayload(input: {
     ok: true,
     favoriteTeamApiIds: user.favoriteTeamApiIds,
     favoriteCompetitionApiIds: user.favoriteCompetitionApiIds,
+    notifications: {
+      goals: user.notifyGoals,
+      results: user.notifyResults,
+      reminders: user.notifyReminders,
+      news: user.notifyNews,
+    },
   };
 }

@@ -556,9 +556,17 @@ export interface PreferenceCompetitionOption {
   country: string | null;
 }
 
+export interface NotificationPreferences {
+  goals: boolean;
+  results: boolean;
+  reminders: boolean;
+  news: boolean;
+}
+
 export interface PreferencesPayload {
   favoriteTeamApiIds: number[];
   favoriteCompetitionApiIds: number[];
+  notifications: NotificationPreferences;
   availableTeams: PreferenceTeamOption[];
   availableCompetitions: PreferenceCompetitionOption[];
 }

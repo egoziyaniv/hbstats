@@ -5,11 +5,13 @@ import AdminLiveCountriesClient from '@/components/AdminLiveCountriesClient';
 import AdminHomepageLiveSettingsClient from '@/components/AdminHomepageLiveSettingsClient';
 import AdminPlayerDisplaySettingsClient from '@/components/AdminPlayerDisplaySettingsClient';
 import AdminTelegramSourcesClient from '@/components/AdminTelegramSourcesClient';
+import AdminPushSettingsClient from '@/components/AdminPushSettingsClient';
 import AdminAiSettingsClient from '@/components/AdminAiSettingsClient';
 import AdminManagerClient from '@/components/AdminManagerClient';
 import { buildAdminCoverageRows } from '@/lib/admin-data-coverage';
 import { getCurrentUser } from '@/lib/auth';
 import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
+import { getPushCategoryFlags } from '@/lib/push-settings';
 import { getAllowedLiveCountryLabels } from '@/lib/live-competition-settings';
 import { getDisplayZeroStatPlayersSetting } from '@/lib/player-zero-stat-settings';
 import prisma from '@/lib/prisma';
@@ -51,7 +53,7 @@ export default async function AdminPage({
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
 
-  const [teams, fetchJobs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason] = await Promise.all([
+  const [teams, fetchJobs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags] = await Promise.all([
     prisma.team.findMany({
       include: { season: true },
       orderBy: [{ updatedAt: 'desc' }],
@@ -236,6 +238,7 @@ export default async function AdminPage({
         },
       },
     }) : Promise.resolve(null),
+    getPushCategoryFlags(),
   ]);
 
   const telegramSourcesRaw = Array.isArray(telegramSourcesSetting?.valueJson)
@@ -561,6 +564,7 @@ export default async function AdminPage({
             <AdminHomepageLiveSettingsClient initialHomepageLiveLimit={homepageLiveLimit} />
             <AdminPlayerDisplaySettingsClient initialDisplayZeroStatPlayers={displayZeroStatPlayers} />
             <AdminTelegramSourcesClient initialSources={telegramSources.length ? telegramSources : DEFAULT_TELEGRAM_SOURCES} />
+            <AdminPushSettingsClient initialFlags={pushFlags} />
             <AdminAiSettingsClient />
           </div>
         ) : null}
