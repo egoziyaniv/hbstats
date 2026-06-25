@@ -1,5 +1,6 @@
 import { OAuth2Client } from 'google-auth-library';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createHash } from 'crypto';
 import type { User } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
@@ -66,7 +67,15 @@ export async function verifyAppleIdToken(
     throw new SocialAuthError('Invalid Apple token');
   }
   if (!payload.sub) throw new SocialAuthError('Invalid Apple token');
-  if (expectedNonce && payload.nonce !== expectedNonce) throw new SocialAuthError('Nonce mismatch');
+  // Replay protection: the token's nonce claim must match the nonce the client
+  // sent — either verbatim or SHA-256-hashed (expo-apple-authentication hashes
+  // the nonce before forwarding it to Apple, so accept both forms).
+  if (expectedNonce) {
+    const sha256 = createHash('sha256').update(expectedNonce).digest('hex');
+    if (payload.nonce !== expectedNonce && payload.nonce !== sha256) {
+      throw new SocialAuthError('Nonce mismatch');
+    }
+  }
   return {
     provider: 'apple',
     sub: payload.sub,

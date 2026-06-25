@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -8,7 +9,7 @@ import { theme } from '@/design-system/theme';
 import { config } from '@/lib/config';
 
 export default function LoginScreen() {
-  const { login, loginWithGoogle, continueAsGuest } = useAuth();
+  const { login, loginWithGoogle, loginWithApple, continueAsGuest } = useAuth();
   const { brand } = useTheme();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -40,6 +41,19 @@ export default function LoginScreen() {
       // On success the user is set and AuthGate redirects automatically.
     } catch {
       setError('ההתחברות עם Google נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitApple = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await loginWithApple();
+      // On success the user is set and AuthGate redirects automatically.
+    } catch {
+      setError('ההתחברות עם Apple נכשלה');
     } finally {
       setBusy(false);
     }
@@ -201,6 +215,16 @@ export default function LoginScreen() {
                 <Text style={{ color: 'white', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 }}>התחבר</Text>
               )}
             </Pressable>
+
+            {Platform.OS === 'ios' ? (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={10}
+                style={{ height: 48, marginTop: 12 }}
+                onPress={() => { if (!busy) void submitApple(); }}
+              />
+            ) : null}
 
             <Pressable
               onPress={submitGoogle}

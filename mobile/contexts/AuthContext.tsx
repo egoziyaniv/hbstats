@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { apiClient } from '@/lib/apiClient';
 import { queryClient, persister, clearUserQueries } from '@/lib/queryClient';
 import { getGoogleIdToken } from '@/lib/googleAuth';
+import { signInWithApple } from '@/lib/appleAuth';
 import {
   setAccessToken,
   storeRefreshToken,
@@ -22,6 +23,7 @@ interface AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<boolean>;
+  loginWithApple: () => Promise<boolean>;
   continueAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -90,6 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const loginWithApple = async (): Promise<boolean> => {
+    const result = await signInWithApple();
+    if (!result) return false; // user cancelled
+    const res = await apiClient.post<LoginResponse>('/auth/apple', {
+      idToken: result.idToken,
+      nonce: result.nonce,
+      name: result.name,
+    });
+    await adoptSession(res);
+    return true;
+  };
+
   const continueAsGuest = async () => {
     await storeGuest(true);
     setIsGuest(true);
@@ -119,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isGuest, isLoading, login, loginWithGoogle, continueAsGuest, logout, deleteAccount }}>
+    <AuthContext.Provider value={{ user, isGuest, isLoading, login, loginWithGoogle, loginWithApple, continueAsGuest, logout, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

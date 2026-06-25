@@ -16,6 +16,7 @@
     "ios": {
       "bundleIdentifier": "il.statsai.app",
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "associatedDomains": [
         "applinks:statsai.co.il"
       ],
