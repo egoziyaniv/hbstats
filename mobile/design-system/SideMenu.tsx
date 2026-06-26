@@ -101,12 +101,24 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
               })}
             >
               <Text style={{ fontSize: 22, width: 30, textAlign: 'center' }}>{item.icon}</Text>
-              {/* No explicit textAlign — defaults to the start edge (= right in RTL),
-                  so the label sits flush beside the icon (avoids the swap that
-                  pushed textAlign:'right' to the left). */}
-              <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: theme.ink[900] }} numberOfLines={1}>
-                {item.label}
-              </Text>
+              {/* The label MUST be wrapped in a flex:1 View — a <Text> with flex:1
+                  directly inside an RTL flex row collapses to zero width and the
+                  text disappears (regression of commit a1e56a6). The View owns the
+                  flex; the Text fills it and aligns toward the icon (right in RTL). */}
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '700',
+                    color: theme.ink[900],
+                    textAlign: I18nManager.isRTL ? 'right' : 'left',
+                    writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr',
+                  }}
+                  numberOfLines={1}
+                >
+                  {item.label}
+                </Text>
+              </View>
               <Text style={{ fontSize: 20, fontWeight: '700', color: theme.ink[300] }}>{I18nManager.isRTL ? '‹' : '›'}</Text>
             </Pressable>
           ))}
