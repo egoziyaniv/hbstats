@@ -47,12 +47,16 @@ export const toolDefinitions = [
   },
   {
     name: 'getStandings',
-    description: 'Get league standings table for a season. Returns position, team, played, wins, draws, losses, goals for/against, points.',
+    description: 'Get the league standings table for a season. Position 1 is the champion. Defaults to ליגת העל (Israeli Premier League) — its winner holds the "אלופת המדינה" title. Pass league="NATIONAL" for ליגה לאומית (the second tier). Returns the competition name plus position, team, played, wins, draws, losses, goals for/against, diff, points.',
     parameters: {
       type: 'object' as const,
       properties: {
         seasonYear: { type: 'number', description: 'Season year (e.g. 2025)' },
-        competitionId: { type: 'string', description: 'Optional competition ID (defaults to Israeli Premier League)' },
+        league: {
+          type: 'string',
+          enum: ['PREMIER', 'NATIONAL'],
+          description: 'PREMIER = ליגת העל (top tier, "אלופת המדינה"; default). NATIONAL = ליגה לאומית (second tier).',
+        },
       },
       required: ['seasonYear'],
     },
