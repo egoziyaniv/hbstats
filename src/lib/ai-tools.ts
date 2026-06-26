@@ -258,31 +258,38 @@ export async function searchGames(args: { teamName?: string; seasonYear?: number
   }));
 }
 
-export async function getStandings(args: { seasonYear: number; competitionId?: string }) {
-  const where: any = { season: { year: args.seasonYear } };
-  if (args.competitionId) {
-    where.competitionId = args.competitionId;
-  }
+// Stable API-Football competition ids for the two Israeli league tiers.
+// Standings carry a competition relation, and @@unique([seasonId, teamId])
+// guarantees a team sits in exactly one league per season — so position 1 of a
+// single tier is unambiguously that tier's champion ("אלופת המדינה" = ליגת העל).
+const LEAGUE_API_IDS: Record<'PREMIER' | 'NATIONAL', number> = { PREMIER: 383, NATIONAL: 382 };
+
+export async function getStandings(args: { seasonYear: number; league?: 'PREMIER' | 'NATIONAL' }) {
+  const leagueApiId = LEAGUE_API_IDS[args.league ?? 'PREMIER'] ?? LEAGUE_API_IDS.PREMIER;
 
   const standings = await prisma.standing.findMany({
-    where,
-    include: { team: { select: { nameHe: true } } },
+    where: { season: { year: args.seasonYear }, competition: { apiFootballId: leagueApiId } },
+    include: { team: { select: { nameHe: true } }, competition: { select: { nameHe: true } } },
     orderBy: { position: 'asc' },
     take: 30,
   });
 
-  return standings.map((s) => ({
-    position: s.position,
-    team: s.team.nameHe,
-    played: s.played,
-    wins: s.wins,
-    draws: s.draws,
-    losses: s.losses,
-    goalsFor: s.goalsFor,
-    goalsAgainst: s.goalsAgainst,
-    goalsDiff: s.goalsDiff,
-    points: s.points,
-  }));
+  return {
+    competition: standings[0]?.competition?.nameHe ?? (args.league === 'NATIONAL' ? 'ליגה לאומית' : 'ליגת העל'),
+    seasonYear: args.seasonYear,
+    standings: standings.map((s) => ({
+      position: s.position,
+      team: s.team.nameHe,
+      played: s.played,
+      wins: s.wins,
+      draws: s.draws,
+      losses: s.losses,
+      goalsFor: s.goalsFor,
+      goalsAgainst: s.goalsAgainst,
+      goalsDiff: s.goalsDiff,
+      points: s.points,
+    })),
+  };
 }
 
 export async function getLeaderboard(args: { category: string; seasonYear?: number }) {
