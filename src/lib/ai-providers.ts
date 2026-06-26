@@ -38,7 +38,9 @@ function buildSystemPrompt(): string {
 כללים לבחירת כלי:
 - "מי מורחק / מי בסיכון להרחקה בקבוצה X" → השתמש ב-getTeamCardSummary
 - "כמה כרטיסים צהובים יש לשחקן X" / "באיזה משחקים שחקן X קיבל צהוב" → searchPlayers, ואז getPlayerEvents (eventType=YELLOW_CARD)
-- "מה התוצאה של משחק X מול Y" → searchGames
+- "מה התוצאה של משחק X מול Y" / "כמה הסתיים X נגד Y" → searchGames עם teamName=X ו-opponentName=Y (לא להסתפק בקבוצה אחת)
+- "איזה משחק היה בתאריך D" → searchGames עם dateFrom=D ו-dateTo=D (אותו תאריך מכסה את כל היום)
+- searchGames מחזיר עד 50 משחקים מהחדש לישן; אם לא מצאת משחק מסוים, חפש שוב עם opponentName או טווח תאריכים ממוקד במקום להסיק שאין משחק
 
 הערות חשובות לעבודה עם הנתונים:
 - כששואלים על שחקן ספציפי, searchPlayers מחזיר רשומה אחת לכל שחקן (כבר deduped) — בחר את הראשונה (העונה הכי עדכנית).

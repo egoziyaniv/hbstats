@@ -34,14 +34,15 @@ export const toolDefinitions = [
   },
   {
     name: 'searchGames',
-    description: 'Search for games by team name, season, or date range. Returns match date, teams, scores, competition.',
+    description: 'Search for games by team name, an optional opponent (for head-to-head), season, or date range. Returns match date, teams, scores, competition. For "team X vs team Y" pass teamName=X and opponentName=Y. A single date (dateFrom=dateTo) covers the whole day.',
     parameters: {
       type: 'object' as const,
       properties: {
         teamName: { type: 'string', description: 'Team name (Hebrew or English)' },
+        opponentName: { type: 'string', description: 'Optional second team — returns only games between teamName and this team (either side home/away)' },
         seasonYear: { type: 'number', description: 'Season year' },
         dateFrom: { type: 'string', description: 'Start date (ISO format, e.g. 2025-08-01)' },
-        dateTo: { type: 'string', description: 'End date (ISO format)' },
+        dateTo: { type: 'string', description: 'End date (ISO format). For a single day, pass the same value as dateFrom.' },
       },
     },
   },
@@ -220,14 +221,22 @@ export async function getPlayerEvents(args: { playerId: string; seasonYear?: num
   }));
 }
 
-export async function searchGames(args: { teamName?: string; seasonYear?: number; dateFrom?: string; dateTo?: string }) {
+// Match a team by Hebrew or English name (case-insensitive substring).
+function teamNameMatch(name: string) {
+  return { OR: [{ nameHe: { contains: name, mode: 'insensitive' as const } }, { nameEn: { contains: name, mode: 'insensitive' as const } }] };
+}
+
+export async function searchGames(args: { teamName?: string; opponentName?: string; seasonYear?: number; dateFrom?: string; dateTo?: string }) {
   const where: any = {};
 
-  if (args.teamName) {
+  if (args.teamName && args.opponentName) {
+    // Head-to-head: match games between the two teams regardless of who is home.
     where.OR = [
-      { homeTeam: { OR: [{ nameHe: { contains: args.teamName, mode: 'insensitive' } }, { nameEn: { contains: args.teamName, mode: 'insensitive' } }] } },
-      { awayTeam: { OR: [{ nameHe: { contains: args.teamName, mode: 'insensitive' } }, { nameEn: { contains: args.teamName, mode: 'insensitive' } }] } },
+      { AND: [{ homeTeam: teamNameMatch(args.teamName) }, { awayTeam: teamNameMatch(args.opponentName) }] },
+      { AND: [{ homeTeam: teamNameMatch(args.opponentName) }, { awayTeam: teamNameMatch(args.teamName) }] },
     ];
+  } else if (args.teamName) {
+    where.OR = [{ homeTeam: teamNameMatch(args.teamName) }, { awayTeam: teamNameMatch(args.teamName) }];
   }
   if (args.seasonYear) {
     where.season = { year: args.seasonYear };
@@ -235,7 +244,13 @@ export async function searchGames(args: { teamName?: string; seasonYear?: number
   if (args.dateFrom || args.dateTo) {
     where.dateTime = {};
     if (args.dateFrom) where.dateTime.gte = new Date(args.dateFrom);
-    if (args.dateTo) where.dateTime.lte = new Date(args.dateTo);
+    if (args.dateTo) {
+      // A date-only string (YYYY-MM-DD) parses to midnight UTC, which would
+      // exclude same-day games kicking off later. Extend it to end of day.
+      const to = new Date(args.dateTo);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(args.dateTo)) to.setUTCHours(23, 59, 59, 999);
+      where.dateTime.lte = to;
+    }
   }
 
   const games = await prisma.game.findMany({
@@ -247,7 +262,7 @@ export async function searchGames(args: { teamName?: string; seasonYear?: number
       season: { select: { year: true } },
     },
     orderBy: { dateTime: 'desc' },
-    take: 20,
+    take: 50,
   });
 
   return games.map((g) => ({
