@@ -88,10 +88,12 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
               key={item.path}
               onPress={() => go(item.path)}
               style={({ pressed }) => ({
-                // Row reads RTL: icon on the right, label beside it, chevron far left.
+                // Icon+label group on the start edge (= right in RTL), chevron on
+                // the far end. space-between spreads them; the group holds the icon
+                // and label together so the label keeps its natural width.
                 flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
                 alignItems: 'center',
-                gap: 14,
+                justifyContent: 'space-between',
                 paddingVertical: 15,
                 paddingHorizontal: 10,
                 borderRadius: 12,
@@ -100,22 +102,18 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
                 backgroundColor: pressed ? theme.ink[100] : 'transparent',
               })}
             >
-              <Text style={{ fontSize: 22, width: 30, textAlign: 'center' }}>{item.icon}</Text>
-              {/* The label MUST be wrapped in a flex:1 View — a <Text> with flex:1
-                  directly inside an RTL flex row collapses to zero width and the
-                  text disappears (regression of commit a1e56a6). The View owns the
-                  flex; the Text fills it and aligns toward the icon (right in RTL). */}
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: '700',
-                    color: theme.ink[900],
-                    textAlign: I18nManager.isRTL ? 'right' : 'left',
-                    writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr',
-                  }}
-                  numberOfLines={1}
-                >
+              <View
+                style={{
+                  flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse',
+                  alignItems: 'center',
+                  gap: 14,
+                  flexShrink: 1,
+                }}
+              >
+                <Text style={{ fontSize: 22, width: 30, textAlign: 'center' }}>{item.icon}</Text>
+                {/* Natural-width label — NOT flex:1, which in this RTL row takes
+                    width but renders nothing (the bug behind the blank menu). */}
+                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.ink[900] }} numberOfLines={1}>
                   {item.label}
                 </Text>
               </View>
