@@ -42,6 +42,11 @@ export async function GET(request: NextRequest) {
   const groupsMap = new Map<string, LiveLeagueGroup>();
 
   for (const snapshot of snapshots) {
+    // Mobile only surfaces Israeli matches — foreign global-feed games (e.g. the
+    // World Cup) must never appear, both for relevance and to avoid showing
+    // third-party leagues/teams we have no rights to in the App Store build.
+    if (snapshot.countryLabel !== 'Israel') continue;
+
     const groupKey = `${snapshot.countryLabel}__${snapshot.leagueLabel}`;
     const leagueId = snapshot.leagueApiFootballId
       ? String(snapshot.leagueApiFootballId)
