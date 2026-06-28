@@ -2,7 +2,7 @@ import { ScrollView, View, Text, Pressable, ActivityIndicator, Alert, Switch } f
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
-import { CachedImage } from '@/design-system/CachedImage';
+import { TeamCrest } from '@/design-system/TeamCrest';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePreferences, useUpdatePreferences } from '@/hooks/usePreferences';
@@ -292,11 +292,7 @@ function TeamChip({ team, selected, onPress, brandAccent, brandGlow }: {
         backgroundColor: selected ? brandGlow : 'white',
       }}
     >
-      {absoluteImage(team.logoUrl) ? (
-        <CachedImage source={{ uri: absoluteImage(team.logoUrl) }} style={{ width: 18, height: 18, borderRadius: 4 }} />
-      ) : (
-        <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: theme.ink[200] }} />
-      )}
+      <TeamCrest name={team.name} logoUrl={team.logoUrl} size={18} radius={4} />
       <Text style={{ fontSize: 13, fontWeight: selected ? '800' : '600', color: selected ? theme.ink[900] : theme.ink[700], writingDirection: 'rtl' }}>
         {team.name}
       </Text>

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { rtlRow } from '@/lib/rtl';
-import { CachedImage } from '@/design-system/CachedImage';
+import { TeamCrest } from '@/design-system/TeamCrest';
 import { absoluteImage } from '@/lib/config';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -191,22 +191,7 @@ function PredictionCard({
 function TeamSide({ team }: { team: PredictionItem['homeTeam'] }) {
   return (
     <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: 4 }}>
-      {absoluteImage(team.logoUrl) ? (
-        <CachedImage source={{ uri: absoluteImage(team.logoUrl) }} style={{ width: 44, height: 44, borderRadius: 6 }} />
-      ) : (
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 6,
-            backgroundColor: theme.ink[100],
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: '900', color: theme.ink[500] }}>{team.nameHe.slice(0, 1)}</Text>
-        </View>
-      )}
+      <TeamCrest name={team.nameHe} logoUrl={team.logoUrl} size={44} radius={6} />
       <Text
         style={{ fontSize: 12, fontWeight: '700', color: theme.ink[900], marginTop: 4, textAlign: 'center', writingDirection: 'rtl' }}
         numberOfLines={2}

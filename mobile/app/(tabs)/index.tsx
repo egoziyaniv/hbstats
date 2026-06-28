@@ -65,7 +65,7 @@ export default function HomeScreen() {
             <Pressable onPress={() => router.push(`/teams/${fav.id}` as any)}>
               <Card>
                 <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 12 }}>
-                  <TeamCrest mono={fav.nameHe.slice(0, 2)} bg={brand.accent} fg="white" size={36} logoUrl={fav.logoUrl} />
+                  <TeamCrest name={fav.nameHe} bg={brand.accent} fg="white" size={36} logoUrl={fav.logoUrl} />
                   <Text style={{ flex: 1, color: theme.ink[900], fontSize: 16, fontWeight: '800', textAlign: 'right' }}>
                     {fav.nameHe}
                   </Text>
@@ -148,11 +148,7 @@ export default function HomeScreen() {
                     <Text style={{ width: 24, fontSize: 13, fontWeight: '800', color: theme.ink[500], textAlign: 'center' }}>
                       {row.rank}
                     </Text>
-                    {absoluteImage(row.logoUrl) ? (
-                      <CachedImage source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
-                    ) : (
-                      <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
-                    )}
+                    <TeamCrest name={row.teamName} logoUrl={row.logoUrl} size={22} radius={4} style={{ marginStart: 10, marginEnd: 8 }} />
                     <Text style={{ flexShrink: 1, fontSize: 13.5, fontWeight: '600', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
                       {row.teamName}
                     </Text>
@@ -325,7 +321,7 @@ function LiveFeatureHero({
       </View>
       <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
         <View style={{ flex: 1, alignItems: 'center', gap: 8 }}>
-          <TeamCrest mono={match.home.name.slice(0, 2)} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} />
+          <TeamCrest name={match.home.name} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} />
           <Text style={{ color: 'white', fontSize: 13, fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>
             {match.home.name}
           </Text>
@@ -354,7 +350,7 @@ function LiveFeatureHero({
           </View>
         </View>
         <View style={{ flex: 1, alignItems: 'center', gap: 8 }}>
-          <TeamCrest mono={match.away.name.slice(0, 2)} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} />
+          <TeamCrest name={match.away.name} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} />
           <Text style={{ color: 'white', fontSize: 13, fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>
             {match.away.name}
           </Text>
@@ -405,7 +401,7 @@ function UpcomingFeatureHero({
       </View>
       <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
         <View style={{ flex: 1, alignItems: 'center', gap: 8 }}>
-          <TeamCrest mono={match.home.team.nameHe.slice(0, 2)} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} logoUrl={match.home.team.logoUrl} />
+          <TeamCrest name={match.home.team.nameHe} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} logoUrl={match.home.team.logoUrl} />
           <Text style={{ color: 'white', fontSize: 13, fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>
             {match.home.team.nameHe}
           </Text>
@@ -418,7 +414,7 @@ function UpcomingFeatureHero({
           </Text>
         </View>
         <View style={{ flex: 1, alignItems: 'center', gap: 8 }}>
-          <TeamCrest mono={match.away.team.nameHe.slice(0, 2)} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} logoUrl={match.away.team.logoUrl} />
+          <TeamCrest name={match.away.team.nameHe} bg="rgba(255,255,255,0.2)" fg="white" size={52} radius={14} logoUrl={match.away.team.logoUrl} />
           <Text style={{ color: 'white', fontSize: 13, fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>
             {match.away.team.nameHe}
           </Text>

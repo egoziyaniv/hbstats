@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
+import { TeamCrest } from '@/design-system/TeamCrest';
 import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -156,13 +157,7 @@ export default function MatchScreen() {
               not auto-flip flex-row). */}
           <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
             <View className="items-center flex-1">
-              {absoluteImage(homeTeam.logoUrl) ? (
-                <CachedImage source={{ uri: absoluteImage(homeTeam.logoUrl) }} className="w-16 h-16 rounded-md bg-white/10" />
-              ) : (
-                <View className="w-16 h-16 rounded-md bg-white/15 items-center justify-center">
-                  <Text className="text-2xl font-black text-white">{homeTeam.nameHe.slice(0, 1)}</Text>
-                </View>
-              )}
+              <TeamCrest name={homeTeam.nameHe} logoUrl={homeTeam.logoUrl} size={64} radius={8} bg="rgba(255,255,255,0.15)" fg="white" />
               <Text className="text-sm mt-2 text-center text-white font-bold" numberOfLines={2}>{homeTeam.nameHe}</Text>
             </View>
             <View className="items-center px-4">
@@ -189,13 +184,7 @@ export default function MatchScreen() {
               ) : null}
             </View>
             <View className="items-center flex-1">
-              {absoluteImage(awayTeam.logoUrl) ? (
-                <CachedImage source={{ uri: absoluteImage(awayTeam.logoUrl) }} className="w-16 h-16 rounded-md bg-white/10" />
-              ) : (
-                <View className="w-16 h-16 rounded-md bg-white/15 items-center justify-center">
-                  <Text className="text-2xl font-black text-white">{awayTeam.nameHe.slice(0, 1)}</Text>
-                </View>
-              )}
+              <TeamCrest name={awayTeam.nameHe} logoUrl={awayTeam.logoUrl} size={64} radius={8} bg="rgba(255,255,255,0.15)" fg="white" />
               <Text className="text-sm mt-2 text-center text-white font-bold" numberOfLines={2}>{awayTeam.nameHe}</Text>
             </View>
           </View>

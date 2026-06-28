@@ -1,6 +1,7 @@
 import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
+import { TeamCrest } from '@/design-system/TeamCrest';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -60,13 +61,7 @@ export default function TeamScreen() {
         </View>
 
         <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 16 }}>
-          {absoluteImage(data.team.logoUrl) ? (
-            <CachedImage source={{ uri: absoluteImage(data.team.logoUrl) }} style={{ width: 72, height: 72, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          ) : (
-            <View style={{ width: 72, height: 72, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: 'white', fontSize: 28, fontWeight: '900' }}>{data.team.nameHe.slice(0, 1)}</Text>
-            </View>
-          )}
+          <TeamCrest name={data.team.nameHe} logoUrl={data.team.logoUrl} size={72} radius={12} bg="rgba(255,255,255,0.15)" fg="white" />
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <Text style={{ color: 'white', fontSize: 24, fontWeight: '800', textAlign: 'right' }}>{data.team.nameHe}</Text>
             {data.team.city ? (

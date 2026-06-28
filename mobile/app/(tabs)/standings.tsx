@@ -1,6 +1,6 @@
 import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
-import { CachedImage } from '@/design-system/CachedImage';
+import { TeamCrest } from '@/design-system/TeamCrest';
 import { useRouter } from 'expo-router';
 import { useStandings } from '@/hooks/useStandings';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -166,11 +166,7 @@ function StandingsRowView({
           {row.position}
         </Text>
 
-        {absoluteImage(row.logoUrl) ? (
-          <CachedImage source={{ uri: absoluteImage(row.logoUrl) }} style={{ width: 22, height: 22, borderRadius: 4, marginStart: 10, marginEnd: 8 }} />
-        ) : (
-          <View style={{ width: 22, height: 22, borderRadius: 4, backgroundColor: theme.ink[200], marginStart: 10, marginEnd: 8 }} />
-        )}
+        <TeamCrest name={row.teamNameHe} logoUrl={row.logoUrl} size={22} radius={4} style={{ marginStart: 10, marginEnd: 8 }} />
         {/* Team name attached to the logo (auto width). The numeric columns
             after this get pushed to the opposite (visual left) edge via
             marginStart on the first stat. */}
