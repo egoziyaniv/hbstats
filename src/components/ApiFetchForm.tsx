@@ -121,7 +121,10 @@ export default function ApiFetchForm({ teams }: { teams: TeamOption[] }) {
   const seasons = useMemo(() => {
     const defaultSeasonYear = getDefaultSeasonYear();
     const minimumSeasonYear = getMinimumSeasonYearForCompetition(leagueId) || defaultSeasonYear - 10;
-    return Array.from({ length: 11 }, (_, index) => String(defaultSeasonYear - index)).filter(
+    // Include the UPCOMING season (defaultSeasonYear + 1) so a new season's
+    // schedule + teams can be imported before it kicks off (e.g. importing
+    // 2026/27 during summer, while the calendar still reads the prior season).
+    return Array.from({ length: 12 }, (_, index) => String(defaultSeasonYear + 1 - index)).filter(
       (value) => Number(value) >= minimumSeasonYear
     );
   }, [leagueId]);
