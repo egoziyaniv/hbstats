@@ -1,16 +1,18 @@
 /**
  * Team badge helper — renders a colored initials badge instead of the club
- * crest while real logos are disabled.
+ * crest when real logos are disabled.
  *
- * WHY: App Store guideline 4.1(a) flagged the trademarked club crests in our
- * screenshots/app as unauthorized third-party content. Until we have rights (or
- * a clearance plan), we hide the crests behind SHOW_TEAM_LOGOS and show a neutral
- * initials monogram on a deterministic (non-official) color. Flip the flag back
- * to true to restore real logos in a future build.
+ * WHY (platform-specific): App Store guideline 4.1(a) flagged trademarked club
+ * crests as unauthorized third-party content, so **iOS ships initials badges**
+ * to stay approved (any future iOS update is re-reviewed — flipping this on for
+ * iOS would re-trigger the rejection). **Android ships the real club logos**
+ * (Google Play's impersonation policy is more lenient). Hence the flag is gated
+ * on Platform.OS rather than a single global boolean.
  */
+import { Platform } from 'react-native';
 
-/** Master switch for real club crests. false = initials badge everywhere. */
-export const SHOW_TEAM_LOGOS = false;
+/** Real club crests: ON for Android, OFF (initials badge) for iOS. */
+export const SHOW_TEAM_LOGOS = Platform.OS === 'android';
 
 // Common club-name prefixes (Hebrew + Latin) we drop so the initials reflect the
 // distinctive CITY part — e.g. "הפועל באר שבע" → "בש", "Maccabi Tel Aviv" → "TA".

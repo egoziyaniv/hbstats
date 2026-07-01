@@ -130,6 +130,7 @@
     },
     "android": {
       "package": "il.statsai.app",
+      "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
