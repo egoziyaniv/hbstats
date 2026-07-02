@@ -66,8 +66,13 @@ export default async function GamesPage({
       ])
     : [[], []];
 
-  const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
-  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
+  // Default to the newest season that actually HAS games — skips empty future
+  // seasons (e.g. a premature "2027-2028" API artifact) that would otherwise
+  // become the default and show an empty list.
+  const seasonIdsWithGames = new Set(allFilterGames.map((game) => game.seasonId));
+  const defaultSeason = seasons.find((season) => seasonIdsWithGames.has(season.id)) || seasons[0] || null;
+  const selectedSeasonId = searchParams?.season || defaultSeason?.id || null;
+  const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || defaultSeason || null;
 
   const competitions = selectedSeason
     ? await prisma.competition.findMany({
