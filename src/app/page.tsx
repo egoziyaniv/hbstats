@@ -91,6 +91,10 @@ function gameMatchesPreferredCompetition(
 ) {
   if (!selectedCompetitionApiIds.length || !game) return true;
   const competitionApiFootballId = game.game?.competition?.apiFootballId ?? game.competition?.apiFootballId ?? null;
+  // Always surface pre-season CLUB FRIENDLIES (667): they're the only content in
+  // the summer gap and aren't a "favorite competition" anyone selects, so the
+  // preference filter would otherwise hide them.
+  if (competitionApiFootballId === 667) return true;
   return competitionApiFootballId !== null && selectedCompetitionApiIds.includes(competitionApiFootballId);
 }
 
