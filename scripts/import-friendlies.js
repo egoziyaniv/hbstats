@@ -34,6 +34,35 @@ function mapGameStatus(s) {
   if (['CANC', 'ABD', 'AWD', 'WO'].includes(s)) return 'CANCELLED';
   return 'SCHEDULED';
 }
+const isFinished = (s) => ['FT', 'AET', 'PEN'].includes(s);
+function mapEventType(type, detail) {
+  if (type === 'Goal') {
+    if (detail === 'Own Goal') return 'OWN_GOAL';
+    if (detail === 'Penalty') return 'PENALTY_GOAL';
+    if (detail === 'Missed Penalty') return 'PENALTY_MISSED';
+    return 'GOAL';
+  }
+  if (type === 'Card') {
+    if (detail === 'Yellow Card') return 'YELLOW_CARD';
+    if (detail === 'Red Card' || detail === 'Second Yellow card') return 'RED_CARD';
+  }
+  if (type === 'subst') return 'SUBSTITUTION_OUT';
+  return null; // skip VAR/unknown
+}
+function buildEventApiFootballId(fixtureId, i) {
+  const c = fixtureId * 1000 + i;
+  return Number.isSafeInteger(c) && c <= 2147483647 ? c : null;
+}
+// Best-effort player link by API id (any season, since the upcoming season has
+// no squads yet), then by exact English name.
+async function findPlayer(prisma, apiId, name) {
+  if (apiId) {
+    const p = await prisma.player.findFirst({ where: { apiFootballId: apiId }, orderBy: { createdAt: 'asc' } });
+    if (p) return p;
+  }
+  if (name) return prisma.player.findFirst({ where: { nameEn: name }, orderBy: { createdAt: 'asc' } });
+  return null;
+}
 const arg = (f) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : undefined; };
 async function api(p) {
   const b = (process.env.API_FOOTBALL_BASE_URL || 'https://v3.football.api-sports.io').replace(/\/$/, '');
@@ -103,7 +132,7 @@ async function main() {
     });
   }
 
-  let created = 0, updated = 0;
+  let created = 0, updated = 0, eventsSaved = 0;
   for (const f of fixtures) {
     const home = await ensureTeam(f.teams.home);
     const away = await ensureTeam(f.teams.away);
@@ -118,10 +147,50 @@ async function main() {
       refereeEn: f.fixture.referee || null,
     };
     const existing = await prisma.game.findUnique({ where: { apiFootballId: f.fixture.id } });
-    if (existing) { await prisma.game.update({ where: { id: existing.id }, data }); updated++; }
-    else { await prisma.game.create({ data: { ...data, apiFootballId: f.fixture.id } }); created++; }
+    let gameRow;
+    if (existing) { gameRow = await prisma.game.update({ where: { id: existing.id }, data }); updated++; }
+    else { gameRow = await prisma.game.create({ data: { ...data, apiFootballId: f.fixture.id } }); created++; }
+
+    // Completed friendlies: import the event timeline (goals/cards/subs).
+    // Note: API-Football usually has events for friendlies but rarely lineups/stats.
+    if (isFinished(f.fixture.status.short)) {
+      const ev = await api(`/fixtures/events?fixture=${f.fixture.id}`).catch(() => null);
+      const rows = ev?.response || [];
+      if (rows.length) {
+        await prisma.gameEvent.deleteMany({ where: { gameId: gameRow.id } });
+        let idx = 0;
+        for (const e of rows) {
+          const mapped = mapEventType(e?.type, e?.detail);
+          if (mapped) {
+            const player = await findPlayer(prisma, e?.player?.id || null, e?.player?.name || null);
+            const related = await findPlayer(prisma, e?.assist?.id || null, e?.assist?.name || null);
+            const evTeamId = e?.team?.name === f.teams.home.name ? home.id : e?.team?.name === f.teams.away.name ? away.id : null;
+            await prisma.gameEvent.create({
+              data: {
+                apiFootballId: buildEventApiFootballId(f.fixture.id, idx + 1),
+                minute: e?.time?.elapsed || 0,
+                extraMinute: e?.time?.extra || null,
+                type: mapped,
+                team: e?.team?.name || '',
+                notesEn: e?.detail || null,
+                icon: e?.type || null,
+                playerId: player?.id || null,
+                participantName: e?.player?.name || null,
+                relatedPlayerId: related?.id || null,
+                relatedParticipantName: e?.assist?.name || null,
+                gameId: gameRow.id,
+                teamId: evTeamId,
+                sortOrder: idx,
+              },
+            });
+            eventsSaved += 1;
+          }
+          idx += 1;
+        }
+      }
+    }
   }
-  console.log(`\nDone. games created: ${created}, updated: ${updated}.`);
+  console.log(`\nDone. games created: ${created}, updated: ${updated}, events: ${eventsSaved}.`);
   await prisma.$disconnect();
 }
 
