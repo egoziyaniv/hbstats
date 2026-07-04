@@ -6,6 +6,7 @@
  */
 
 import { View, Text } from 'react-native';
+import { rtlRow } from '@/lib/rtl';
 import type { SofascoreMatchStat } from '@shared/types/mobile-api';
 import { theme } from './theme';
 
@@ -69,20 +70,23 @@ function StatRow({ stat }: { stat: SofascoreMatchStat }) {
         marginBottom: 4,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ alignItems: 'flex-start' }}>
-          <Text style={{ fontSize: 13, fontWeight: '900', color: theme.ink[900] }}>{stat.away}</Text>
-          {stat.awayExtra ? (
-            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[500] }}>{stat.awayExtra}</Text>
+      {/* HOME first + rtlRow() → home renders on the visual RIGHT under RTL,
+          matching the legend and the rest of the app (games/[id] StatRow). The
+          old hardcoded 'row' with away-first flipped every metric to the wrong side. */}
+      <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 13, fontWeight: '900', color: theme.ink[900] }}>{stat.home}</Text>
+          {stat.homeExtra ? (
+            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[500] }}>{stat.homeExtra}</Text>
           ) : null}
         </View>
         <Text style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: theme.ink[700] }}>
           {labelHe}
         </Text>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 13, fontWeight: '900', color: theme.ink[900] }}>{stat.home}</Text>
-          {stat.homeExtra ? (
-            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[500] }}>{stat.homeExtra}</Text>
+        <View style={{ alignItems: 'flex-start' }}>
+          <Text style={{ fontSize: 13, fontWeight: '900', color: theme.ink[900] }}>{stat.away}</Text>
+          {stat.awayExtra ? (
+            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[500] }}>{stat.awayExtra}</Text>
           ) : null}
         </View>
       </View>

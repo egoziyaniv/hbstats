@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppleIdToken, resolveSocialUser, SocialAuthError } from '@/lib/social-auth';
 import { createSession, toSafeUser } from '@/lib/auth';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  if (!checkRateLimit(`social:ip:${getClientIp(request)}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'יותר מדי ניסיונות. נסה שוב בעוד רגע.' }, { status: 429 });
+  }
   let body: { idToken?: string; nonce?: string; name?: string };
   try {
     body = await request.json();

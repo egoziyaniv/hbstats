@@ -62,7 +62,9 @@ export default function TeamScreen() {
 
         <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 16 }}>
           <TeamCrest name={data.team.nameHe} logoUrl={data.team.logoUrl} size={72} radius={12} bg="rgba(255,255,255,0.15)" fg="white" />
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          {/* flex-start = visual RIGHT under RTL (swapLeftAndRightInRTL off), so the
+              name hugs the crest — matching the player header. flex-end anchored left. */}
+          <View style={{ flex: 1, alignItems: 'flex-start' }}>
             <Text style={{ color: 'white', fontSize: 24, fontWeight: '800', textAlign: 'right' }}>{data.team.nameHe}</Text>
             {data.team.city ? (
               <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4, textAlign: 'right' }}>{data.team.city}</Text>

@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 
 // ─── Tool Definitions (for AI provider) ───
 
@@ -207,7 +208,10 @@ export async function getPlayerEvents(args: { playerId: string; seasonYear?: num
       },
     },
     orderBy: { game: { dateTime: 'desc' } },
-    take: 50,
+    // Career queries need the full history — the system prompt promises "all
+    // events across the career". 500 comfortably covers even 20-year veterans;
+    // 50 silently truncated goal/appearance counts and produced wrong answers.
+    take: 500,
   });
 
   return events.map((e) => ({
@@ -289,15 +293,14 @@ export async function getStandings(args: { seasonYear: number; league?: 'PREMIER
   const standings = await prisma.standing.findMany({
     where: { season: { year: args.seasonYear }, competition: { apiFootballId: leagueApiId } },
     include: { team: { select: { nameHe: true } }, competition: { select: { nameHe: true } } },
-    orderBy: { position: 'asc' },
-    take: 30,
+    take: 40,
   });
 
-  return {
-    competition: standings[0]?.competition?.nameHe ?? (args.league === 'NATIONAL' ? 'ליגה לאומית' : 'ליגת העל'),
-    seasonYear: args.seasonYear,
-    standings: standings.map((s) => ({
-      position: s.position,
+  // Report ADJUSTED points (base + pointsAdjustment, e.g. −8 deductions) and
+  // re-rank by them, so the tool never quotes points that contradict the order
+  // or names a pre-deduction leader as champion.
+  const rows = standings
+    .map((s) => ({
       team: s.team.nameHe,
       played: s.played,
       wins: s.wins,
@@ -306,8 +309,16 @@ export async function getStandings(args: { seasonYear: number; league?: 'PREMIER
       goalsFor: s.goalsFor,
       goalsAgainst: s.goalsAgainst,
       goalsDiff: s.goalsDiff,
-      points: s.points,
-    })),
+      points: s.points + s.pointsAdjustment,
+      pointsAdjustment: s.pointsAdjustment,
+    }))
+    .sort((a, b) => b.points - a.points || b.goalsDiff - a.goalsDiff || b.goalsFor - a.goalsFor)
+    .map((r, i) => ({ position: i + 1, ...r }));
+
+  return {
+    competition: standings[0]?.competition?.nameHe ?? (args.league === 'NATIONAL' ? 'ליגה לאומית' : 'ליגת העל'),
+    seasonYear: args.seasonYear,
+    standings: rows,
   };
 }
 
@@ -337,10 +348,11 @@ export async function getLeaderboard(args: { category: string; seasonYear?: numb
 }
 
 export async function getTeamCardSummary(args: { teamName: string; seasonYear?: number }) {
-  // Resolve season
+  // Resolve season. Default (no year) to the current season START year — NOT the
+  // absolute newest row, which can be a not-yet-started/empty artifact season.
   const seasonRow = args.seasonYear
     ? await prisma.season.findFirst({ where: { year: args.seasonYear } })
-    : await prisma.season.findFirst({ orderBy: { year: 'desc' } });
+    : await prisma.season.findFirst({ where: { year: { lte: getCurrentSeasonStartYear() } }, orderBy: { year: 'desc' } });
   if (!seasonRow) return { error: 'Season not found' };
 
   // Resolve team(s) by name in that season

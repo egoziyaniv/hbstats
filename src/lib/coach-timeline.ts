@@ -15,6 +15,10 @@
 import prisma from '@/lib/prisma';
 
 export interface CoachTenure {
+  /** Stable grouping key ("c:<coachId>" canonical, else "k:<normalizedName>").
+   *  Downstream (win chart) MUST group on this — re-normalizing the display name
+   *  merges distinct coaches that share initial+surname. */
+  coachKey: string;
   name: string;
   photoUrl: string | null;
   firstMatch: string;
@@ -184,8 +188,9 @@ export async function buildCoachTimelineBySeason(teamId: string): Promise<Season
     seasonId,
     seasonName,
     year,
-    coaches: Array.from(coaches.values())
-      .map((b) => ({
+    coaches: Array.from(coaches.entries())
+      .map(([coachKey, b]) => ({
+        coachKey,
         name: b.name,
         photoUrl: b.photoUrl,
         firstMatch: b.firstMatch.toISOString().slice(0, 10),
@@ -237,47 +242,27 @@ export interface CoachChartEntry {
 export async function buildCoachWinChart(teamId: string): Promise<CoachChartEntry[]> {
   const groups = await buildCoachTimelineBySeason(teamId);
 
-  // First pass: pick the canonical (longest) display name + first photo we see
-  // for each normalized key across ALL seasons.
-  const canonicalName = new Map<string, string>();
-  const canonicalPhoto = new Map<string, string | null>();
+  // Group by the STABLE coachKey from the timeline (canonical coaches already
+  // carry their Hebrew name + curated photo via CoachAlias). Re-normalizing the
+  // display name here would merge distinct coaches sharing initial+surname.
+  const nameByKey = new Map<string, string>();
+  const photoByKey = new Map<string, string | null>();
   for (const g of groups) {
     for (const c of g.coaches) {
-      const key = normalizeKey(c.name);
-      const existing = canonicalName.get(key);
-      canonicalName.set(key, existing ? preferLongerName(existing, c.name) : c.name);
-      if (c.photoUrl && !canonicalPhoto.get(key)) canonicalPhoto.set(key, c.photoUrl);
+      const existing = nameByKey.get(c.coachKey);
+      nameByKey.set(c.coachKey, existing ? preferLongerName(existing, c.name) : c.name);
+      if (c.photoUrl && !photoByKey.get(c.coachKey)) photoByKey.set(c.coachKey, c.photoUrl);
     }
   }
 
-  // Overlay admin-curated Coach data (Hebrew name + manual photo) — when a
-  // CoachAlias matches one of our variants, prefer the canonical Coach.nameHe
-  // and photoUrl for display.
-  const allRawNames = new Set<string>();
-  for (const g of groups) for (const c of g.coaches) allRawNames.add(c.name);
-  if (allRawNames.size > 0) {
-    const aliasRows = await prisma.coachAlias.findMany({
-      where: { alias: { in: Array.from(allRawNames) } },
-      select: { alias: true, coach: { select: { nameEn: true, nameHe: true, photoUrl: true } } },
-    });
-    for (const ar of aliasRows) {
-      const key = normalizeKey(ar.alias);
-      const displayName = ar.coach.nameHe || ar.coach.nameEn;
-      canonicalName.set(key, displayName);
-      if (ar.coach.photoUrl) canonicalPhoto.set(key, ar.coach.photoUrl);
-    }
-  }
-
-  // Second pass: flatten to (coach, season) rows using the canonical display name.
   const rows: CoachChartEntry[] = [];
   for (const g of groups) {
     for (const c of g.coaches) {
-      const key = normalizeKey(c.name);
       const points = c.wins * 3 + c.draws;
       rows.push({
-        coachKey: key,
-        displayName: canonicalName.get(key) || c.name,
-        photoUrl: canonicalPhoto.get(key) || c.photoUrl,
+        coachKey: c.coachKey,
+        displayName: nameByKey.get(c.coachKey) || c.name,
+        photoUrl: photoByKey.get(c.coachKey) || c.photoUrl,
         seasonName: g.seasonName,
         year: g.year,
         matches: c.matches,

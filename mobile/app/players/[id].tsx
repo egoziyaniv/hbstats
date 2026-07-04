@@ -167,7 +167,7 @@ export default function PlayerScreen() {
               <MetricCell value={stats.assists} label="בישולים" tone="accent" />
               <MetricCell value={stats.yellowCards} label="צהובים" />
               <MetricCell value={stats.redCards} label="אדומים" />
-              <MetricCell value={`${Math.round(stats.minutes / 60)}h`} label="דקות" />
+              <MetricCell value={stats.minutes.toLocaleString('he-IL')} label="דקות" />
             </View>
           </Section>
         </Card>

@@ -78,7 +78,13 @@ function extractMessageText(chunk: string) {
     chunk.match(/<div class="tgme_widget_message_caption[^"]*"[\s\S]*?>([\s\S]*?)<\/div>\s*<\/div>/i);
 
   if (!textMatch) return '';
-  return stripHtml(textMatch[1]);
+  // The lazy `</div></div>` can over-capture into the footer/reactions/meta that
+  // follow the text (views, edit time, reaction counts). Cut at the first such
+  // marker so the message body doesn't end with "…76 views edited 12:28 ❤ 2".
+  const raw = textMatch[1].split(
+    /<(?:div|span)[^>]*class="tgme_widget_message_(?:footer|reactions|meta|views|date)/i
+  )[0];
+  return stripHtml(raw);
 }
 
 function extractMessageUrl(chunk: string) {

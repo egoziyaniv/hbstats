@@ -1,12 +1,11 @@
 /**
  * Email sending — provider-agnostic.
  *
- * No delivery provider is wired yet (decision pending). Until one is connected,
- * sendEmail() LOGS the message (including any reset link) to the server console
- * so the flow is fully functional end-to-end and ops can recover the link.
- *
- * To go live, implement one branch below (e.g. Resend/SES/SMTP) gated on its
- * env var — the call sites do not change.
+ * No delivery provider is wired yet (decision pending). We deliberately do NOT
+ * log the message body — it can contain a password-reset link/token, and logging
+ * it is an account-takeover-via-logs vector. Until a provider is connected the
+ * reset email simply isn't delivered (delivered:false); wire a branch below to
+ * go live. Call sites do not change.
  */
 export interface OutgoingEmail {
   to: string;
@@ -19,10 +18,9 @@ export async function sendEmail(email: OutgoingEmail): Promise<{ delivered: bool
   // --- Wire a real provider here, e.g.:
   // if (process.env.RESEND_API_KEY) { ...; return { delivered: true }; }
 
-  // Fallback: log so the link/content is recoverable while no provider is set.
-  console.log(
-    `[email:stub] (no provider configured)\n  to: ${email.to}\n  subject: ${email.subject}\n  ${email.text}`
-  );
+  // No provider configured. Log ONLY non-sensitive metadata — never the body,
+  // which may carry a reset token/link.
+  console.warn(`[email] no provider configured — not delivered. to=${email.to} subject="${email.subject}"`);
   return { delivered: false };
 }
 

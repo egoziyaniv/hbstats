@@ -360,7 +360,9 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
       take: 24,
     }),
     prisma.gamePrediction.findMany({
-      where: { seasonId: latestSeason.id },
+      // Only UPCOMING fixtures — without this the section surfaced the season's
+      // oldest, already-played games.
+      where: { seasonId: latestSeason.id, game: { status: 'SCHEDULED', dateTime: { gte: now } } },
       include: {
         game: {
           include: {
@@ -374,7 +376,8 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
       take: 12,
     }),
     prisma.gameHeadToHeadEntry.findMany({
-      where: { seasonId: latestSeason.id },
+      // Tie H2H to upcoming fixtures (not arbitrary cuid order over the whole season).
+      where: { seasonId: latestSeason.id, game: { status: 'SCHEDULED', dateTime: { gte: now } } },
       include: {
         game: {
           include: {
@@ -384,7 +387,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
           },
         },
       },
-      orderBy: [{ gameId: 'asc' }, { relatedDate: 'desc' }],
+      orderBy: [{ game: { dateTime: 'asc' } }, { relatedDate: 'desc' }],
       take: 60,
     }),
     prisma.game.findMany({

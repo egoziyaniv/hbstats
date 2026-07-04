@@ -10,8 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-
-interface RatingInput { playerId: string; rating: number | null }
+import { submitMatchRatings } from '@/lib/match-ratings';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
@@ -49,47 +48,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!user) return NextResponse.json({ error: 'התחבר כדי לנקד שחקנים' }, { status: 401 });
   try {
     const body = await req.json();
-    const ratings = Array.isArray(body.ratings) ? (body.ratings as RatingInput[]) : null;
-    if (!ratings) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
-
-    const game = await prisma.game.findUnique({ where: { id: params.id }, select: { id: true, status: true } });
-    if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
-    // Only games that have actually been played can be rated (not SCHEDULED/CANCELLED).
-    if (game.status !== 'COMPLETED' && game.status !== 'ONGOING') {
-      return NextResponse.json({ error: 'אפשר לנקד רק משחקים ששוחקו.' }, { status: 400 });
-    }
-
-    let saved = 0;
-    let cleared = 0;
-    for (const r of ratings) {
-      const playerId = String(r.playerId || '').trim();
-      if (!playerId) continue;
-      const raw = r.rating;
-      if (raw == null || raw === 0) {
-        const existing = await prisma.playerMatchRating.findFirst({
-          where: { gameId: params.id, playerId, source: 'user', sourceUserId: user.id },
-          select: { id: true },
-        });
-        if (existing) { await prisma.playerMatchRating.delete({ where: { id: existing.id } }); cleared++; }
-        continue;
-      }
-      // Reject out-of-range / non-numeric instead of silently clamping.
-      const value = Number(raw);
-      if (!Number.isFinite(value) || value < 1 || value > 10) continue;
-      const existing = await prisma.playerMatchRating.findFirst({
-        where: { gameId: params.id, playerId, source: 'user', sourceUserId: user.id },
-        select: { id: true },
-      });
-      if (existing) {
-        await prisma.playerMatchRating.update({ where: { id: existing.id }, data: { rating: value } });
-      } else {
-        await prisma.playerMatchRating.create({
-          data: { gameId: params.id, playerId, source: 'user', sourceUserId: user.id, rating: value },
-        });
-      }
-      saved++;
-    }
-    return NextResponse.json({ saved, cleared });
+    const result = await submitMatchRatings(params.id, user.id, body?.ratings);
+    if (result.error) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json({ saved: result.saved, cleared: result.cleared });
   } catch (e: any) {
     console.error('[rate] failed:', e?.message || e);
     return NextResponse.json({ error: 'שמירת הניקוד נכשלה.' }, { status: 400 });

@@ -19,6 +19,20 @@ function parseOptionalString(value: unknown) {
   return normalized || null;
 }
 
+// Event types a client may create/update. Anything else is rejected before it
+// reaches Prisma's enum column or applyStatDelta.
+const ALLOWED_EVENT_TYPES = new Set<EventType>([
+  'GOAL',
+  'ASSIST',
+  'YELLOW_CARD',
+  'RED_CARD',
+  'SUBSTITUTION_IN',
+  'SUBSTITUTION_OUT',
+  'OWN_GOAL',
+  'PENALTY_GOAL',
+  'PENALTY_MISSED',
+]);
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const gameId = searchParams.get('gameId');
@@ -56,22 +70,11 @@ export async function POST(request: NextRequest) {
   const team = parseOptionalString(body?.team);
   const teamId = parseOptionalString(body?.teamId);
   const type = parseOptionalString(body?.type);
-  const allowedTypes = new Set<EventType>([
-    'GOAL',
-    'ASSIST',
-    'YELLOW_CARD',
-    'RED_CARD',
-    'SUBSTITUTION_IN',
-    'SUBSTITUTION_OUT',
-    'OWN_GOAL',
-    'PENALTY_GOAL',
-    'PENALTY_MISSED',
-  ]);
 
   if (!gameId || !type || !team || body?.minute === undefined) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
-  if (!allowedTypes.has(type as EventType)) {
+  if (!ALLOWED_EVENT_TYPES.has(type as EventType)) {
     return NextResponse.json({ error: 'Invalid event type' }, { status: 400 });
   }
 
@@ -133,6 +136,14 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
   }
 
+  // A supplied type must be one of the allowed enum values — mirror POST so a
+  // bad type is a clean 400 rather than a Prisma enum error, and never reaches
+  // applyStatDelta. (undefined = field omitted = leave existing type untouched.)
+  const typeRaw = parseOptionalString(body?.type);
+  if (typeRaw !== undefined && (typeRaw === null || !ALLOWED_EVENT_TYPES.has(typeRaw as EventType))) {
+    return NextResponse.json({ error: 'Invalid event type' }, { status: 400 });
+  }
+
   const minute = parseOptionalInteger(body?.minute);
   const extraMinute = parseOptionalInteger(body?.extraMinute);
   const sortOrder = parseOptionalInteger(body?.sortOrder);
@@ -143,7 +154,7 @@ export async function PUT(request: NextRequest) {
   const assistPlayerId = parseOptionalString(body?.assistPlayerId);
   const team = parseOptionalString(body?.team);
   const teamId = parseOptionalString(body?.teamId);
-  const type = parseOptionalString(body?.type);
+  const type = typeRaw;
   const notesEn = parseOptionalString(body?.notesEn);
   const notesHe = parseOptionalString(body?.notesHe);
 

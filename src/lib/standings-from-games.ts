@@ -125,10 +125,20 @@ export function buildStandingsFromGames(
   const relRows = allRows.filter((r) => teamPlayoffGroup.get(r.teamId) === 'relegation');
 
   if (champRows.length > 0 && relRows.length > 0) {
+    // Teams not yet assigned a playoff group (e.g. their first split game is
+    // postponed) must NOT vanish from the table — append them after the groups.
+    const groupedIds = new Set([...champRows, ...relRows].map((r) => r.teamId));
+    const ungroupedRows = allRows.filter((r) => !groupedIds.has(r.teamId));
+    // Each group is sorted separately, so sortStandings' displayPosition restarts
+    // at 1 per group. Overwrite BOTH position and displayPosition with the
+    // continuous rank so consumers keyed on either (mobile uses displayPosition)
+    // don't show duplicate position numbers across groups.
     let pos = 1;
+    const renumber = (r: any) => { const p = pos++; return { ...r, position: p, displayPosition: p }; };
     return [
-      ...sortStandings(champRows.map((r) => ({ ...r, groupNameEn: 'Championship Group' }))).map((r) => ({ ...r, position: pos++ })),
-      ...sortStandings(relRows.map((r) => ({ ...r, groupNameEn: 'Relegation Group' }))).map((r) => ({ ...r, position: pos++ })),
+      ...sortStandings(champRows.map((r) => ({ ...r, groupNameEn: 'Championship Group' }))).map(renumber),
+      ...sortStandings(relRows.map((r) => ({ ...r, groupNameEn: 'Relegation Group' }))).map(renumber),
+      ...sortStandings(ungroupedRows).map(renumber),
     ];
   }
 

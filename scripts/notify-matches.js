@@ -42,7 +42,9 @@ function mapStatus(s) {
   return 'SCHEDULED';
 }
 async function af(p) {
-  const r = await fetch(AF_BASE + p, { headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY } });
+  // 20s timeout so a hung API call can't keep this */3-min cron running past the
+  // next tick — overlapping runs share GameNotificationState and double-send.
+  const r = await fetch(AF_BASE + p, { headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY }, signal: AbortSignal.timeout(20000) });
   if (!r.ok) throw new Error(`API ${p} → ${r.status}`);
   return r.json();
 }
@@ -60,7 +62,7 @@ async function sendExpoPush(tokens, title, body, data) {
   let sent = 0; const dead = [];
   for (const batch of chunk(valid, 100)) {
     const payload = batch.map((to) => ({ to, sound: 'default', title, body, data: data || {} }));
-    const res = await fetch(EXPO_PUSH_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) });
+    const res = await fetch(EXPO_PUSH_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(20000) });
     const json = await res.json().catch(() => null);
     (json?.data || []).forEach((t, i) => { if (t?.status === 'ok') sent++; else if (t?.details?.error === 'DeviceNotRegistered') dead.push(batch[i]); });
   }

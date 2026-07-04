@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyGoogleIdToken, resolveSocialUser, SocialAuthError } from '@/lib/social-auth';
 import { issueMobileSession } from '@/lib/auth';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  if (!checkRateLimit(`social:ip:${getClientIp(request)}`, 20, 60_000)) {
+    return NextResponse.json({ error: 'Too many attempts. Try again shortly.' }, { status: 429 });
+  }
   let body: { idToken?: string };
   try {
     body = await request.json();

@@ -16,7 +16,9 @@ export const dynamic = 'force-dynamic';
  * we never backfill its history. Obeys the admin 'news' master switch and each
  * user's notifyNews toggle (both enforced inside tokensForNews).
  *
- * Guarded by the CRON_SECRET env (header `x-cron-secret` or `?secret=`).
+ * Guarded by the CRON_SECRET env via the `x-cron-secret` HEADER only — a query
+ * string secret leaks into access logs. The server crontab MUST call this with
+ * `curl -H "x-cron-secret: $CRON_SECRET"` (not `?secret=`).
  * Add `?dry=1` to detect without sending. Called by the server crontab via curl.
  */
 async function getConfiguredSources() {
@@ -48,7 +50,8 @@ function isNewer(id: string, lastId: string): boolean {
 
 async function run(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  const provided = req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret');
+  // Header only — a `?secret=` query string leaks the secret into access logs.
+  const provided = req.headers.get('x-cron-secret');
   if (!secret || provided !== secret) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }

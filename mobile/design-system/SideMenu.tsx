@@ -18,7 +18,6 @@ interface MenuItem {
 
 const ITEMS: MenuItem[] = [
   { label: 'בית', path: '/', icon: '🏠' },
-  { label: 'משחקים', path: '/games' as any, icon: '⚽' },
   { label: 'טבלה', path: '/standings', icon: '📊' },
   { label: 'שחקנים', path: '/players', icon: '👥' },
   { label: 'משחקים חיים', path: '/live', icon: '🔴' },
@@ -34,9 +33,10 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
   const { brand } = useTheme();
   const { user, logout } = useAuth();
   const width = Dimensions.get('window').width * 0.82;
-  // In RTL, positive translateX moves LEFT, so the off-screen position is
-  // -width (drawer hides past the right edge). In LTR it's +width.
-  const closedX = I18nManager.isRTL ? -width : width;
+  // The drawer docks on the visual-right (RTL start) edge. transform:translateX is
+  // physical (unaffected by RTL / swapLeftAndRightInRTL), so the off-screen closed
+  // position is +width (hidden past the right edge). In LTR it docks left → -width.
+  const closedX = I18nManager.isRTL ? width : -width;
   const slide = useRef(new Animated.Value(closedX)).current;
 
   useEffect(() => {
@@ -60,9 +60,10 @@ export function SideMenu({ visible, onClose }: { visible: boolean; onClose: () =
             position: 'absolute',
             top: 0,
             bottom: 0,
-            // Use the logical "start" edge (= right in RTL, left in LTR) so
-            // the drawer always docks on the visual right side of the screen.
-            ...(I18nManager.isRTL ? { left: 0 } : { right: 0 }),
+            // Dock on the visual-right (RTL start) edge. With swapLeftAndRightInRTL
+            // OFF, `right`/`left` are PHYSICAL — so RTL must use right:0 (matching
+            // standings.tsx). The old left:0 docked the drawer on the wrong side.
+            ...(I18nManager.isRTL ? { right: 0 } : { left: 0 }),
             width,
             backgroundColor: 'white',
             transform: [{ translateX: slide }],

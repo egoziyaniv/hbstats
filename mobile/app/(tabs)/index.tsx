@@ -64,11 +64,16 @@ export default function HomeScreen() {
           <Section title="המועדפת שלך">
             <Pressable onPress={() => router.push(`/teams/${fav.id}` as any)}>
               <Card>
-                <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 12 }}>
-                  <TeamCrest name={fav.nameHe} bg={brand.accent} fg="white" size={36} logoUrl={fav.logoUrl} />
-                  <Text style={{ flex: 1, color: theme.ink[900], fontSize: 16, fontWeight: '800', textAlign: 'right' }}>
-                    {fav.nameHe}
-                  </Text>
+                {/* crest+name grouped (natural width, flexShrink so a long name
+                    truncates) with the link pushed to the far end via space-between.
+                    flex:1 on the Text collapses to blank in this RTL row — see SideMenu. */}
+                <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 12, flexShrink: 1 }}>
+                    <TeamCrest name={fav.nameHe} bg={brand.accent} fg="white" size={36} logoUrl={fav.logoUrl} />
+                    <Text style={{ flexShrink: 1, color: theme.ink[900], fontSize: 16, fontWeight: '800', textAlign: 'right' }} numberOfLines={1}>
+                      {fav.nameHe}
+                    </Text>
+                  </View>
                   <Text style={{ color: brand.accent, fontSize: 12, fontWeight: '700' }}>← לדף הקבוצה</Text>
                 </View>
               </Card>
