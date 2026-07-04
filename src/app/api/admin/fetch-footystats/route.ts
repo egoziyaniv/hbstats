@@ -684,7 +684,7 @@ async function syncStandings(
     const points = wins * 3 + draws;
 
     await prisma.standing.upsert({
-      where: { seasonId_teamId: { seasonId, teamId: dbTeamId } },
+      where: { seasonId_teamId_competitionId: { seasonId, teamId: dbTeamId, competitionId } },
       update: {
         position,
         played,

@@ -7,7 +7,7 @@ export default async function TeamChartsPage({ params }: { params: { id: string 
   const team = await prisma.team.findUnique({
     where: { id: params.id },
     include: {
-      standings: true,
+      standings: { include: { competition: { select: { apiFootballId: true } } } },
       homeGames: true,
       awayGames: true,
       players: {
@@ -57,7 +57,11 @@ export default async function TeamChartsPage({ params }: { params: { id: string 
     };
   });
 
-  const standing = team.standings[0];
+  // A team may hold several standing rows in a season (league + cup group).
+  // Chart the LEAGUE table; fall back to the most-played row.
+  const standing =
+    team.standings.find((s) => [383, 382].includes(s.competition?.apiFootballId ?? -1)) ??
+    [...team.standings].sort((a, b) => b.played - a.played)[0];
   const resultBreakdown = [
     { name: 'ניצחונות', value: standing?.wins ?? 0 },
     { name: 'תיקו', value: standing?.draws ?? 0 },

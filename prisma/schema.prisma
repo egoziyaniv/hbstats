@@ -585,7 +585,7 @@ model Standing {
   teamId                 String
   seasonId               String
   cleanSheets            Int          @default(0)
-  competitionId          String?
+  competitionId          String
   form                   String?
   pointsAdjustment       Int          @default(0)
   pointsAdjustmentNoteHe String?
@@ -597,12 +597,15 @@ model Standing {
   groupNameHe            String?
   statusEn               String?
   statusHe               String?
-  competition            Competition? @relation(fields: [competitionId], references: [id])
+  competition            Competition  @relation(fields: [competitionId], references: [id])
   season                 Season       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   team                   Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@unique([seasonId, teamId])
+  // Unique per competition: a team can hold a league row AND a cup group row in
+  // the same season without one clobbering the other (code-review H7).
+  @@unique([seasonId, teamId, competitionId])
   @@index([competitionId, position])
+  @@index([seasonId, teamId])
   @@map("standings")
 }
 

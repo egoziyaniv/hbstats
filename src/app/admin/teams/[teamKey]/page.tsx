@@ -62,7 +62,7 @@ export default async function AdminTeamEditorPage({ params, searchParams }: Page
       uploads: {
         orderBy: [{ createdAt: 'asc' }],
       },
-      standings: true,
+      standings: { include: { competition: { select: { apiFootballId: true } } } },
       players: {
         orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }],
         include: {
@@ -110,13 +110,20 @@ export default async function AdminTeamEditorPage({ params, searchParams }: Page
   const selectedSeasonId = searchParams?.season || teamFamily[0].seasonId;
   const selectedTeam = teamFamily.find((team) => team.seasonId === selectedSeasonId) || teamFamily[0];
 
+  // A team may hold several standing rows in a season (league + cup group). The
+  // points-adjustment editor targets the LEAGUE row; fall back to most-played.
+  const currentStanding =
+    selectedTeam.standings.find((s) => [383, 382].includes(s.competition?.apiFootballId ?? -1)) ??
+    [...selectedTeam.standings].sort((a, b) => b.played - a.played)[0] ??
+    null;
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
       <div className="mx-auto max-w-7xl">
         <AdminTeamEditorClient
           teamKey={params.teamKey}
           selectedTeam={selectedTeam}
-          currentStanding={selectedTeam.standings[0] || null}
+          currentStanding={currentStanding}
           venues={venues}
           seasonOptions={teamFamily.map((team) => ({
             id: team.season.id,

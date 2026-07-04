@@ -35,15 +35,22 @@ async function main() {
   const haal = comps.find((c) => c.apiFootballId === 383);
 
   const total = await prisma.standing.count();
-  const nulls = await prisma.standing.findMany({
-    where: { competitionId: null },
-    select: {
-      id: true, seasonId: true, teamId: true,
-      team: { select: { nameHe: true, nameEn: true } },
-      season: { select: { year: true, name: true } },
-    },
-    orderBy: [{ season: { year: 'asc' } }],
-  });
+  // Detect null rows via raw SQL so this tool runs both BEFORE the migration
+  // (competitionId nullable) and AFTER (required) — a Prisma `where` filtering a
+  // required column by null is rejected by the client.
+  const nullIdRows = await prisma.$queryRawUnsafe('SELECT id FROM standings WHERE "competitionId" IS NULL');
+  const nullIds = nullIdRows.map((r) => r.id);
+  const nulls = nullIds.length
+    ? await prisma.standing.findMany({
+        where: { id: { in: nullIds } },
+        select: {
+          id: true, seasonId: true, teamId: true,
+          team: { select: { nameHe: true, nameEn: true } },
+          season: { select: { year: true, name: true } },
+        },
+        orderBy: [{ season: { year: 'asc' } }],
+      })
+    : [];
   console.log(`Standing rows: ${total} total, ${nulls.length} with null competitionId\n`);
   if (!nulls.length) { await prisma.$disconnect(); return; }
 

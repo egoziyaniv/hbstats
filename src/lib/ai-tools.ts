@@ -282,8 +282,7 @@ export async function searchGames(args: { teamName?: string; opponentName?: stri
 }
 
 // Stable API-Football competition ids for the two Israeli league tiers.
-// Standings carry a competition relation, and @@unique([seasonId, teamId])
-// guarantees a team sits in exactly one league per season — so position 1 of a
+// This query is explicitly scoped to one league competition, so position 1 of a
 // single tier is unambiguously that tier's champion ("אלופת המדינה" = ליגת העל).
 const LEAGUE_API_IDS: Record<'PREMIER' | 'NATIONAL', number> = { PREMIER: 383, NATIONAL: 382 };
 

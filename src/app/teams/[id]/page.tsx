@@ -120,7 +120,7 @@ export default async function TeamPage({
   const [seasonStandings, teamGames] = await Promise.all([
     prisma.standing.findMany({
       where: { seasonId: team.seasonId },
-      include: { team: true },
+      include: { team: true, competition: { select: { apiFootballId: true } } },
       orderBy: [{ position: 'asc' }, { points: 'desc' }],
     }),
     prisma.game.findMany({
@@ -320,8 +320,12 @@ export default async function TeamPage({
   const sortedStandings = sortStandings(seasonStandings);
   // Standings for one season include multiple competitions (e.g. ליגת העל,
   // ליגה לאומית, גביעים). Filter to the competition this team actually plays in
-  // so the compact table on the team page shows the right league.
-  const teamStandingRow = sortedStandings.find((row) => row.teamId === team.id) || null;
+  // so the compact table on the team page shows the right league. Prefer the
+  // team's LEAGUE row (383/382) over a cup group row it may also hold.
+  const teamStandingRow =
+    sortedStandings.find((row) => row.teamId === team.id && [383, 382].includes(row.competition?.apiFootballId ?? -1)) ||
+    sortedStandings.find((row) => row.teamId === team.id) ||
+    null;
   const teamCompetitionId = teamStandingRow?.competitionId ?? null;
   const leagueStandings = teamCompetitionId
     ? sortStandings(sortedStandings.filter((row) => row.competitionId === teamCompetitionId))

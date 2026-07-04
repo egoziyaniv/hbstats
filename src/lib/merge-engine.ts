@@ -14,6 +14,19 @@
 import prisma from '@/lib/prisma';
 import { playerNamesMatch } from '@/lib/name-match';
 
+// A team can now hold several standing rows in one season (league + cup group).
+// Prefer the LEAGUE row (Premier 383 / National 382), then the most-played row,
+// when we need "the team's standing" for a season.
+const LEAGUE_API_IDS = [383, 382];
+async function findLeagueStanding(seasonId: string, teamId: string) {
+  const rows = await prisma.standing.findMany({
+    where: { seasonId, teamId },
+    include: { competition: { select: { apiFootballId: true } } },
+    orderBy: { played: 'desc' },
+  });
+  return rows.find((r) => LEAGUE_API_IDS.includes(r.competition?.apiFootballId ?? -1)) || rows[0] || null;
+}
+
 // ──────────────────────────────────────────────
 // Name matching utilities
 // ──────────────────────────────────────────────
@@ -393,8 +406,8 @@ export async function previewStandingsMerge(
       : null;
 
     if (matchedTeam) {
-      // Team exists — check standings
-      const existing = await prisma.standing.findFirst({ where: { seasonId, teamId: matchedTeam.id } });
+      // Team exists — check its league standing (a scraped IFA table is a league table)
+      const existing = await findLeagueStanding(seasonId, matchedTeam.id);
       if (existing) {
         const fields: Record<string, { old: any; new: any }> = {};
         if (existing.played === 0 && scraped.played > 0) fields.played = { old: 0, new: scraped.played };
@@ -550,8 +563,8 @@ export async function previewGamesMerge(
     } else if (fw === 'toto_cup' || ln.includes('טוטו')) {
       resolvedCompetitionId = (await prisma.competition.findFirst({ where: { apiFootballId: 385 } }))?.id || matchCompetitionId;
     } else if (homeTeam && awayTeam) {
-      const homeComp = (await prisma.standing.findFirst({ where: { teamId: homeTeam.id, seasonId }, select: { competitionId: true } }))?.competitionId;
-      const awayComp = (await prisma.standing.findFirst({ where: { teamId: awayTeam.id, seasonId }, select: { competitionId: true } }))?.competitionId;
+      const homeComp = (await findLeagueStanding(seasonId, homeTeam.id))?.competitionId;
+      const awayComp = (await findLeagueStanding(seasonId, awayTeam.id))?.competitionId;
       if (homeComp && awayComp && homeComp !== awayComp) {
         // Cross-competition league match — determine cup type from league name
         resolvedCompetitionId = (await prisma.competition.findFirst({ where: { apiFootballId: 384 } }))?.id || matchCompetitionId;

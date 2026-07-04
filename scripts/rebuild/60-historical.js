@@ -130,7 +130,7 @@ async function main() {
 
     try {
       await prisma.standing.upsert({
-        where: { seasonId_teamId: { seasonId: seasonByYear.get(year), teamId } },
+        where: { seasonId_teamId_competitionId: { seasonId: seasonByYear.get(year), teamId, competitionId: 'comp_liga_haal' } },
         update: {
           position: r.position, points: r.points, played: r.played,
           wins: r.wins, draws: r.draws, losses: r.losses,

@@ -45,31 +45,68 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'pointsAdjustment must be numeric' }, { status: 400 });
   }
 
+  const LEAGUE_API_IDS = [383, 382];
   try {
-    const standing = await prisma.standing.upsert({
-      where: {
-        seasonId_teamId: {
+    // A team may now hold several standing rows in one season (league + cup group).
+    // A points adjustment belongs to the LEAGUE table, so target the league row;
+    // fall back to whatever single row exists.
+    const existingRows = await prisma.standing.findMany({
+      where: { seasonId, teamId },
+      select: { id: true, competition: { select: { apiFootballId: true } } },
+    });
+    const target =
+      existingRows.find((r) => LEAGUE_API_IDS.includes(r.competition?.apiFootballId ?? -1)) ||
+      existingRows[0];
+
+    let standing;
+    if (target) {
+      standing = await prisma.standing.update({
+        where: { id: target.id },
+        data: {
+          pointsAdjustment: adjustmentValue,
+          pointsAdjustmentNoteHe: pointsAdjustmentNoteHe?.trim() || null,
+        },
+        include: { team: true, season: true },
+      });
+    } else {
+      // No standing row yet — competitionId is required, so resolve the team's
+      // league for this season from its league games before creating one.
+      const leagueComps = await prisma.competition.findMany({
+        where: { apiFootballId: { in: LEAGUE_API_IDS } },
+        select: { id: true },
+      });
+      const games = await prisma.game.findMany({
+        where: {
+          seasonId,
+          competitionId: { in: leagueComps.map((c) => c.id) },
+          OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
+        },
+        select: { competitionId: true },
+      });
+      const tally = new Map<string, number>();
+      for (const g of games) if (g.competitionId) tally.set(g.competitionId, (tally.get(g.competitionId) || 0) + 1);
+      let competitionId: string | null = null;
+      let bestN = 0;
+      for (const [cid, n] of tally) if (n > bestN) { competitionId = cid; bestN = n; }
+      if (!competitionId) {
+        return NextResponse.json(
+          { error: 'No standing row exists for this team/season and its league could not be determined.' },
+          { status: 400 },
+        );
+      }
+      standing = await prisma.standing.create({
+        data: {
           seasonId,
           teamId,
+          competitionId,
+          position: 0,
+          points: 0,
+          pointsAdjustment: adjustmentValue,
+          pointsAdjustmentNoteHe: pointsAdjustmentNoteHe?.trim() || null,
         },
-      },
-      update: {
-        pointsAdjustment: adjustmentValue,
-        pointsAdjustmentNoteHe: pointsAdjustmentNoteHe?.trim() || null,
-      },
-      create: {
-        seasonId,
-        teamId,
-        position: 0,
-        points: 0,
-        pointsAdjustment: adjustmentValue,
-        pointsAdjustmentNoteHe: pointsAdjustmentNoteHe?.trim() || null,
-      },
-      include: {
-        team: true,
-        season: true,
-      },
-    });
+        include: { team: true, season: true },
+      });
+    }
 
     await prisma.activityLog.create({
       data: {

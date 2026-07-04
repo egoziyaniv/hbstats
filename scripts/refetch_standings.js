@@ -125,9 +125,10 @@ async function main() {
 
           await prisma.standing.upsert({
             where: {
-              seasonId_teamId: {
+              seasonId_teamId_competitionId: {
                 seasonId: season.id,
                 teamId: dbTeam.id,
+                competitionId: competition.id,
               },
             },
             update: {

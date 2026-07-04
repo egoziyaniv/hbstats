@@ -162,14 +162,13 @@ async function main() {
         unmatchedList.push(`${seasonStr} #${row.position} "${row.teamNameHe}"`);
         continue;
       }
-      // Standing is unique per (seasonId, teamId) — a team can hold only one
-      // standing per season regardless of competition. So look up by that pair;
-      // if a row exists under a different competition (e.g. a stray cup/European
-      // group table), the domestic-league standing is canonical and wins.
+      // Standing is unique per (seasonId, teamId, competitionId). Look up THIS
+      // competition's row for the team; a row under a different competition (a
+      // cup/European group table) is a separate table and left alone.
       const existing = await prisma.standing.findFirst({
-        where: { seasonId: season.id, teamId: team.id },
+        where: { seasonId: season.id, teamId: team.id, competitionId: competition.id },
       });
-      if (existing && existing.competitionId === competition.id && existing.played > 0) {
+      if (existing && existing.played > 0) {
         skipped++;
         continue;
       }
@@ -179,9 +178,7 @@ async function main() {
         position: row.position, played: row.played, wins: row.wins, draws: row.draws,
         losses: row.losses, goalsFor: row.goalsFor, goalsAgainst: row.goalsAgainst, points: row.points,
       };
-      const verb = existing
-        ? (existing.competitionId === competition.id ? 'fill' : `retag(${existing.competitionId})→`)
-        : 'create';
+      const verb = existing ? 'fill' : 'create';
       console.log(`    ${execute ? '+' : '~'} ${verb}  #${row.position} ${row.teamNameHe} → ${team.nameHe} (${row.points} pts)`);
       if (execute) {
         if (existing) {

@@ -1,12 +1,15 @@
 # StatsAI — Code Review & Fix Guide
 
-> **✅ RESOLUTION (2026-07-04):** All 8 HIGH (v0.16.14) and all MEDIUM + LOW (v0.16.15)
-> findings have been fixed, typechecked (web + mobile), committed, and deployed.
-> **One exception — H7** (Standing composite-unique) shipped as a safe single-file
-> guard; the proper schema migration + backfill is deliberately deferred (see H7).
-> **Deploy follow-ups:** (1) the server crontab for `notify-news` must switch to
-> `curl -H "x-cron-secret: $CRON_SECRET"` (L5 removed the `?secret=` query fallback);
-> (2) mobile-only fixes (H2, H8, M2, L1–L4) ship via OTA.
+> **✅ RESOLUTION (2026-07-04):** ALL findings resolved — 8 HIGH (v0.16.14),
+> MEDIUM + LOW (v0.16.15), and **H7 proper schema fix (v0.16.16)**. H7 now uses
+> `@@unique([seasonId, teamId, competitionId])` with `competitionId` required
+> (prod had 0 null rows, so the migration applied with no backfill needed); all
+> Standing write call sites moved to the 3-part key and every team-scoped read
+> now prefers the LEAGUE row so cup group tables can't be mistaken for the league.
+> Typechecked (web + mobile), committed, deployed.
+> **Deploy follow-up:** the server crontab for `notify-news` must switch to
+> `curl -H "x-cron-secret: $CRON_SECRET"` (L5 removed the `?secret=` query fallback).
+> Mobile-only fixes (H2, H8, M2, L1–L4) shipped via OTA.
 
 **Date:** 2026-07-04
 **Scope:** Web (Next.js 14 App Router) + Prisma/PostgreSQL backend, cron scripts, and the Expo/React Native mobile app.
