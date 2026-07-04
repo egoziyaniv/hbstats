@@ -20,7 +20,14 @@ export async function POST(request: NextRequest) {
 
   await prisma.pushToken.upsert({
     where: { token },
-    update: { userId: user?.id ?? null, platform, enabled: true },
+    update: {
+      platform,
+      enabled: true,
+      // Only (re)bind to a user when authenticated. NEVER downgrade an existing
+      // binding to null: unauthenticated cold-start re-registers must not unbind
+      // a token that a logged-in launch already tied to its user.
+      ...(user ? { userId: user.id } : {}),
+    },
     create: { token, userId: user?.id ?? null, platform, enabled: true },
   });
 

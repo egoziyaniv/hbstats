@@ -110,7 +110,11 @@ async function main() {
   const states = new Map();
   for (const g of games) states.set(g.id, await prisma.gameNotificationState.findUnique({ where: { gameId: g.id } }));
   const droppedIds = games
-    .filter((g) => !live.has(g.apiFootballId) && states.get(g.id) && !states.get(g.id).notifiedFinal && g.status !== 'COMPLETED')
+    .filter((g) => !live.has(g.apiFootballId) && states.get(g.id) && !states.get(g.id).notifiedFinal
+      // Only finalize games that plausibly kicked off. Without this, a scheduled
+      // game whose GameNotificationState was created by the reminder cron (~1h
+      // pre-kickoff) gets "finalized" to a fake 0-0 an hour before it starts.
+      && g.status !== 'COMPLETED' && new Date(g.dateTime).getTime() <= Date.now())
     .map((g) => g.apiFootballId);
   for (const batch of chunk(droppedIds, 20)) {
     const d = await af(`/fixtures?ids=${batch.join('-')}`).catch(() => null);
@@ -152,10 +156,14 @@ async function main() {
     // Persist baseline + refreshed score so the app shows the live score too.
     await prisma.gameNotificationState.upsert({
       where: { gameId: g.id },
-      update: { lastHomeScore: cur.home, lastAwayScore: cur.away, notifiedFinal: cur.status === 'COMPLETED' },
+      // notifiedFinal must never regress true→false (an FT→ONGOING API flap would
+      // otherwise re-arm a duplicate final push).
+      update: { lastHomeScore: cur.home, lastAwayScore: cur.away, notifiedFinal: (state?.notifiedFinal ?? false) || cur.status === 'COMPLETED' },
       create: { gameId: g.id, lastHomeScore: cur.home, lastAwayScore: cur.away, notifiedFinal: cur.status === 'COMPLETED' },
     });
-    if (g.homeScore !== cur.home || g.awayScore !== cur.away || g.status !== cur.status) {
+    // Never write scores onto a still-SCHEDULED fixture (that produced the fake
+    // 0-0 pre-kickoff). Only mirror the score once the game is live/finished.
+    if (cur.status !== 'SCHEDULED' && (g.homeScore !== cur.home || g.awayScore !== cur.away || g.status !== cur.status)) {
       await prisma.game.update({ where: { id: g.id }, data: { homeScore: cur.home, awayScore: cur.away, status: cur.status } }).catch(() => null);
     }
   }

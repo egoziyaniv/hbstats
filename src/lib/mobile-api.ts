@@ -608,11 +608,10 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
         awayTeamName: getTeamLabel(game.awayTeam),
         dateTime: game.dateTime.toISOString(),
       })),
-      // Mobile only surfaces Israeli matches. Filter by countryLabel so foreign
-      // global-feed snapshots (which leak through when admin hasn't configured
-      // live_countries) don't appear on the mobile home screen.
+      // Mobile only surfaces Israeli matches. Filter on the RAW country ("Israel")
+      // — NOT countryLabel, which is translated to "ישראל" and would match nothing.
       live: liveItems
-        .filter((snapshot) => snapshot.countryLabel === 'Israel')
+        .filter((snapshot) => snapshot.country === 'Israel')
         .slice(0, 6)
         .map(mapHomepageLiveSnapshot),
       news: telegramMessages.slice(0, 5).map((message) => ({

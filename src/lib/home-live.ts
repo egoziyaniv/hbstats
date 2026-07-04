@@ -21,7 +21,8 @@ export type HomepageLiveSnapshot = {
   leagueApiFootballId: number | null;
   homeTeamApiFootballId: number | null;
   awayTeamApiFootballId: number | null;
-  countryLabel: string;
+  country: string | null; // raw API country (e.g. "Israel") for filtering — NOT translated
+  countryLabel: string; // translated display label (e.g. "ישראל")
   countryFlagUrl: string | null;
   leagueLabel: string;
   roundLabel: string;
@@ -370,6 +371,25 @@ export function getCurrentSeasonStartYear(referenceDate = new Date()) {
   return referenceDate.getMonth() >= 6 ? referenceDate.getFullYear() : referenceDate.getFullYear() - 1;
 }
 
+/**
+ * The season a public view should DEFAULT to: the newest season that has real
+ * league play (a COMPLETED Ligat Ha'al / Liga Leumit game). This deliberately
+ * skips a not-yet-started upcoming season that only holds fixtures/friendlies —
+ * `getCurrentSeasonStartYear()` flips to the new year in July, but the league
+ * doesn't kick off until late August, so standings/stats must not default there.
+ * Returns null only if the DB has no completed league game at all.
+ */
+export async function getDefaultDisplaySeasonId(): Promise<string | null> {
+  const season = await prisma.season.findFirst({
+    where: {
+      games: { some: { status: 'COMPLETED', competition: { apiFootballId: { in: [383, 382] } } } },
+    },
+    orderBy: { year: 'desc' },
+    select: { id: true },
+  });
+  return season?.id ?? null;
+}
+
 export async function cleanupFutureSeasons() {
   const currentSeasonStartYear = getCurrentSeasonStartYear();
   // Keep the immediately-upcoming season: its fixtures (and a standings
@@ -580,12 +600,14 @@ export async function refreshGlobalHomepageLiveSnapshots() {
 function mapSnapshotToHomepage(snapshot: any): HomepageLiveSnapshot {
   const rawLeague = snapshot.rawJson?.league || {};
   const countryLabel = translateLiveText(rawLeague.country || '') || 'בינלאומי';
+  const country = rawLeague.country || null;
   return {
     id: snapshot.id,
     fixtureId: snapshot.apiFootballFixtureId ?? null,
     leagueApiFootballId: snapshot.leagueApiFootballId ?? null,
     homeTeamApiFootballId: snapshot.homeTeamApiFootballId ?? null,
     awayTeamApiFootballId: snapshot.awayTeamApiFootballId ?? null,
+    country,
     countryLabel,
     countryFlagUrl: rawLeague.flag || null,
     leagueLabel: translateLiveText(snapshot.leagueNameHe || snapshot.leagueNameEn) || 'ליגה',
@@ -1006,6 +1028,7 @@ export async function getFootyStatsLiveSnapshots(limit = 10): Promise<HomepageLi
     leagueApiFootballId: null,
     homeTeamApiFootballId: null,
     awayTeamApiFootballId: null,
+    country: 'Israel', // FootyStats feed is Israel-only
     countryLabel: 'ישראל',
     countryFlagUrl: null,
     leagueLabel: snap.leagueNameHe || 'ליגת העל',

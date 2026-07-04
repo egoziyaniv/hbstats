@@ -1971,6 +1971,27 @@ export async function POST(request: NextRequest) {
                 ? `פער נקודות מיובא מה-API: ${inferredPointsAdjustment > 0 ? `+${inferredPointsAdjustment}` : inferredPointsAdjustment}`
                 : null;
 
+            // Standing has @@unique([seasonId, teamId]) — one row per team/season.
+            // Never let a non-league competition's standings (e.g. Toto Cup groups,
+            // a UEFA table) clobber an existing LEAGUE row and make the team vanish
+            // from the league table. (Proper fix: composite unique incl. competitionId.)
+            {
+              const LEAGUE_API_IDS = [383, 382];
+              const existingStanding = await prisma.standing.findUnique({
+                where: { seasonId_teamId: { seasonId: season.id, teamId: dbTeam.id } },
+                select: { competitionId: true },
+              });
+              if (existingStanding?.competitionId && existingStanding.competitionId !== competition.id) {
+                const existingComp = await prisma.competition.findUnique({
+                  where: { id: existingStanding.competitionId },
+                  select: { apiFootballId: true },
+                });
+                const existingIsLeague = LEAGUE_API_IDS.includes(existingComp?.apiFootballId ?? -1);
+                const incomingIsLeague = LEAGUE_API_IDS.includes(Number(leagueId));
+                if (existingIsLeague && !incomingIsLeague) continue; // keep the league row
+              }
+            }
+
             standingsUpdated += 1;
                     await prisma.standing.upsert({
               where: {

@@ -97,7 +97,10 @@ export async function getCurrentUser() {
     return null;
   }
 
-  if (session.expiresAt < new Date() || !session.user.isActive) {
+  // Reject rotated-out sessions: a mobile refresh token that has been replaced
+  // must NOT authenticate as a web cookie (else refresh reuse-detection, which
+  // only runs on /refresh, is bypassed for the token's full 60-day lifetime).
+  if (session.replacedAt || session.expiresAt < new Date() || !session.user.isActive) {
     return null;
   }
 
@@ -112,7 +115,7 @@ export async function getRequestUser(request: NextRequest) {
       where: { tokenHash: sha256(rawToken) },
       include: { user: true },
     });
-    if (session && session.expiresAt >= new Date() && session.user.isActive) {
+    if (session && !session.replacedAt && session.expiresAt >= new Date() && session.user.isActive) {
       return toSafeUser(session.user);
     }
   }

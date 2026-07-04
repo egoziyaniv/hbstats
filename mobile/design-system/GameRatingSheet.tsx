@@ -8,7 +8,7 @@
  * are bumped to the login screen if they try to save.
  */
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
 import { apiClient } from '@/lib/apiClient';
@@ -57,7 +57,7 @@ export function GameRatingSheet({
     if (!visible) return;
     setLoading(true);
     apiClient
-      .get<{ ratings: Record<string, number>; averages: AverageMap }>(`/api/games/${gameId}/rate`)
+      .get<{ ratings: Record<string, number>; averages: AverageMap }>(`/games/${gameId}/rate`)
       .then((data: { ratings?: Record<string, number>; averages?: AverageMap }) => {
         setRatings(data.ratings || {});
         setAverages(data.averages || {});
@@ -69,17 +69,18 @@ export function GameRatingSheet({
   const save = async () => {
     if (!user) {
       onClose();
-      router.push('/auth/login' as any);
+      router.push('/login' as any);
       return;
     }
     setSaving(true);
     try {
       const payload = Object.entries(ratings).map(([playerId, rating]) => ({ playerId, rating }));
-      await apiClient.post(`/api/games/${gameId}/rate`, { ratings: payload });
-      const refreshed = await apiClient.get<{ averages: AverageMap }>(`/api/games/${gameId}/rate`);
+      await apiClient.post(`/games/${gameId}/rate`, { ratings: payload });
+      const refreshed = await apiClient.get<{ averages: AverageMap }>(`/games/${gameId}/rate`);
       setAverages(refreshed.averages || {});
-    } catch (e) { /* ignore */ }
-    finally { setSaving(false); }
+    } catch (e) {
+      Alert.alert('שגיאה', 'שמירת הניקוד נכשלה. נסה שוב.');
+    } finally { setSaving(false); }
   };
 
   const renderPlayer = (p: Player) => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
-import { getCurrentSeasonStartYear } from '@/lib/home-live';
+import { getCurrentSeasonStartYear, getDefaultDisplaySeasonId } from '@/lib/home-live';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,15 +12,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
 
-  // Default (no year): the latest STARTED season — has a real table. Avoids
-  // defaulting to a not-yet-played future season (empty, all-zeros). Auto-
-  // advances once the new season kicks off.
-  const season = yearParam
-    ? await prisma.season.findFirst({ where: { year: parseInt(yearParam, 10) } })
-    : await prisma.season.findFirst({
-        where: { year: { lte: getCurrentSeasonStartYear() } },
-        orderBy: { year: 'desc' },
-      });
+  // Default (no year): newest season with real league play (skips a pre-season
+  // upcoming year that only holds fixtures/friendlies). Auto-advances at kickoff.
+  let season = null;
+  if (yearParam) {
+    const y = parseInt(yearParam, 10);
+    if (Number.isFinite(y)) season = await prisma.season.findFirst({ where: { year: y } });
+  } else {
+    const id = await getDefaultDisplaySeasonId();
+    season = id
+      ? await prisma.season.findUnique({ where: { id } })
+      : await prisma.season.findFirst({ where: { year: { lte: getCurrentSeasonStartYear() } }, orderBy: { year: 'desc' } });
+  }
   if (!season) {
     return NextResponse.json({ season: null, groups: [] });
   }

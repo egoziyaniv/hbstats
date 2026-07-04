@@ -37,7 +37,10 @@ async function performRefresh(): Promise<string | null> {
   });
 
   if (!res.ok) {
-    await clearRefreshToken();
+    // Only a genuine auth failure means the token is dead. A transient 5xx
+    // (e.g. the 502 during `pm2 restart`) or a rate-limit must NOT wipe the
+    // keychain — that would silently log the user out on every deploy.
+    if (res.status === 401 || res.status === 403) await clearRefreshToken();
     return null;
   }
 

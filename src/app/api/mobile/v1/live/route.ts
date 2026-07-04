@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     // Mobile only surfaces Israeli matches — foreign global-feed games (e.g. the
     // World Cup) must never appear, both for relevance and to avoid showing
     // third-party leagues/teams we have no rights to in the App Store build.
-    if (snapshot.countryLabel !== 'Israel') continue;
+    if (snapshot.country !== 'Israel') continue;
 
     const groupKey = `${snapshot.countryLabel}__${snapshot.leagueLabel}`;
     const leagueId = snapshot.leagueApiFootballId
