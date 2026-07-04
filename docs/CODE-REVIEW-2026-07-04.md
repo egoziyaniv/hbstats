@@ -1,5 +1,13 @@
 # StatsAI — Code Review & Fix Guide
 
+> **✅ RESOLUTION (2026-07-04):** All 8 HIGH (v0.16.14) and all MEDIUM + LOW (v0.16.15)
+> findings have been fixed, typechecked (web + mobile), committed, and deployed.
+> **One exception — H7** (Standing composite-unique) shipped as a safe single-file
+> guard; the proper schema migration + backfill is deliberately deferred (see H7).
+> **Deploy follow-ups:** (1) the server crontab for `notify-news` must switch to
+> `curl -H "x-cron-secret: $CRON_SECRET"` (L5 removed the `?secret=` query fallback);
+> (2) mobile-only fixes (H2, H8, M2, L1–L4) ship via OTA.
+
 **Date:** 2026-07-04
 **Scope:** Web (Next.js 14 App Router) + Prisma/PostgreSQL backend, cron scripts, and the Expo/React Native mobile app.
 **Method:** Five parallel reviewers (auth/security, cron & push pipeline, core data libs, web API routes & pages, mobile app). Every HIGH finding below was re-verified against the actual code before inclusion; low-confidence or style-only items were dropped.
