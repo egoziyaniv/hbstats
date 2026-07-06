@@ -1,5 +1,11 @@
 import { getCompetitionDisplayName, getRoundDisplayName } from '@/lib/competition-display';
-import { getCurrentSeasonStartYear, getHomepageLiveSnapshots, type HomepageLiveSnapshot } from '@/lib/home-live';
+import {
+  getCurrentSeasonStartYear,
+  getHomepageLiveSnapshots,
+  getIsraeliTeamApiFootballIds,
+  snapshotInvolvesIsraeliTeam,
+  type HomepageLiveSnapshot,
+} from '@/lib/home-live';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
@@ -330,6 +336,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     nextRoundGamesRaw,
     telegramMessages,
     liveItems,
+    israeliTeamApiIds,
   ] = await Promise.all([
     prisma.game.findMany({
       where: {
@@ -409,6 +416,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     // Fetch a bigger pool, then trim to Israel below — the global feed returns
     // worldwide matches and the live-countries admin setting isn't always set.
     getHomepageLiveSnapshots(null, { limit: 24 }),
+    getIsraeliTeamApiFootballIds(),
   ]);
 
   // Prefer the favorite team's next game; fall back to the soonest game of any
@@ -613,8 +621,10 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
       })),
       // Mobile only surfaces Israeli matches. Filter on the RAW country ("Israel")
       // — NOT countryLabel, which is translated to "ישראל" and would match nothing.
+      // Israeli teams' friendlies are tagged country="World", so also keep a game
+      // where one side is an Israeli team we track.
       live: liveItems
-        .filter((snapshot) => snapshot.country === 'Israel')
+        .filter((snapshot) => snapshot.country === 'Israel' || snapshotInvolvesIsraeliTeam(snapshot, israeliTeamApiIds))
         .slice(0, 6)
         .map(mapHomepageLiveSnapshot),
       news: telegramMessages.slice(0, 5).map((message) => ({

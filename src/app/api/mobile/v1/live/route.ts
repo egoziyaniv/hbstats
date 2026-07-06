@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHomepageLiveSnapshots, type HomepageLiveEvent } from '@/lib/home-live';
+import {
+  getHomepageLiveSnapshots,
+  getIsraeliTeamApiFootballIds,
+  snapshotInvolvesIsraeliTeam,
+  type HomepageLiveEvent,
+} from '@/lib/home-live';
 import type { LivePayload, LiveLeagueGroup, LiveMatchExpanded, LiveMatchEvent } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
@@ -33,8 +38,12 @@ export async function GET(request: NextRequest) {
   // Service may try to refresh from API-Football and throw if the key is missing
   // (e.g. CI without API_FOOTBALL_KEY). Treat any failure here as "no live data".
   let snapshots: Awaited<ReturnType<typeof getHomepageLiveSnapshots>>;
+  let israeliTeamApiIds = new Set<number>();
   try {
-    snapshots = await getHomepageLiveSnapshots(null, { limit });
+    [snapshots, israeliTeamApiIds] = await Promise.all([
+      getHomepageLiveSnapshots(null, { limit }),
+      getIsraeliTeamApiFootballIds(),
+    ]);
   } catch {
     snapshots = [];
   }
@@ -45,7 +54,9 @@ export async function GET(request: NextRequest) {
     // Mobile only surfaces Israeli matches — foreign global-feed games (e.g. the
     // World Cup) must never appear, both for relevance and to avoid showing
     // third-party leagues/teams we have no rights to in the App Store build.
-    if (snapshot.country !== 'Israel') continue;
+    // Israeli teams' friendlies are tagged country="World" by API-Football, so
+    // also let a snapshot through when one side is an Israeli team we track.
+    if (snapshot.country !== 'Israel' && !snapshotInvolvesIsraeliTeam(snapshot, israeliTeamApiIds)) continue;
 
     const groupKey = `${snapshot.countryLabel}__${snapshot.leagueLabel}`;
     const leagueId = snapshot.leagueApiFootballId

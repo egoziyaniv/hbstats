@@ -730,6 +730,34 @@ function sortLiveSnapshots<
   });
 }
 
+// Distinct API-Football team ids for every team in our DB — i.e. the Israeli
+// teams we track. Used to keep an Israeli team's live game (notably a pre-season
+// friendly, which API-Football tags country="World") from being dropped by the
+// country allowlist.
+export async function getIsraeliTeamApiFootballIds(): Promise<Set<number>> {
+  const rows = await prisma.team.findMany({
+    where: { apiFootballId: { not: null } },
+    select: { apiFootballId: true },
+    distinct: ['apiFootballId'],
+  });
+  const ids = new Set<number>();
+  for (const r of rows) if (typeof r.apiFootballId === 'number') ids.add(r.apiFootballId);
+  return ids;
+}
+
+// True when either side of a live snapshot is an Israeli team we track. Works on
+// both raw LiveGameSnapshot rows and mapped HomepageLiveSnapshots (both carry the
+// two team api ids).
+export function snapshotInvolvesIsraeliTeam(
+  snapshot: { homeTeamApiFootballId: number | null; awayTeamApiFootballId: number | null },
+  israeliTeamApiIds: Set<number>,
+): boolean {
+  return (
+    (snapshot.homeTeamApiFootballId != null && israeliTeamApiIds.has(snapshot.homeTeamApiFootballId)) ||
+    (snapshot.awayTeamApiFootballId != null && israeliTeamApiIds.has(snapshot.awayTeamApiFootballId))
+  );
+}
+
 export async function getHomepageLiveSnapshots(
   selectedTeamId?: string | null,
   options?: {
@@ -737,7 +765,7 @@ export async function getHomepageLiveSnapshots(
   }
 ) {
   const limit = options?.limit ?? 4;
-  const [latestSeason, allowedCountryLabels] = await Promise.all([
+  const [latestSeason, allowedCountryLabels, israeliTeamApiIds] = await Promise.all([
     prisma.season.findFirst({
       where: {
         year: {
@@ -747,6 +775,7 @@ export async function getHomepageLiveSnapshots(
       orderBy: { year: 'desc' },
     }),
     getAllowedLiveCountryLabels(),
+    getIsraeliTeamApiFootballIds(),
   ]);
 
   const latestGlobalSnapshot = await prisma.liveGameSnapshot.findFirst({
@@ -794,7 +823,14 @@ export async function getHomepageLiveSnapshots(
   const filteredGlobalSnapshots = globalSnapshots.filter((snapshot) => {
     const snapshotCountry =
       snapshot.rawJson && typeof snapshot.rawJson === 'object' ? String((snapshot.rawJson as any)?.league?.country || '').trim() : '';
-    if (Array.isArray(allowedCountryLabels) && !allowedCountryLabels.includes(snapshotCountry)) {
+    // Country allowlist, but never drop an Israeli team's game (e.g. a pre-season
+    // friendly tagged country="World") — those stay regardless of the allowlist.
+    if (
+      Array.isArray(allowedCountryLabels) &&
+      !allowedCountryLabels.includes(snapshotCountry) &&
+      !snapshotInvolvesIsraeliTeam(snapshot, israeliTeamApiIds) &&
+      !snapshot.game
+    ) {
       return false;
     }
     if (!selectedTeam) return true;
@@ -831,7 +867,11 @@ export async function getHomepageLiveSnapshots(
     ? sourceSnapshots.filter((snapshot) => {
         const snapshotCountry =
           snapshot.rawJson && typeof snapshot.rawJson === 'object' ? String((snapshot.rawJson as any)?.league?.country || '').trim() : '';
-        return allowedCountryLabels.includes(snapshotCountry);
+        return (
+          allowedCountryLabels.includes(snapshotCountry) ||
+          snapshotInvolvesIsraeliTeam(snapshot, israeliTeamApiIds) ||
+          !!snapshot.game
+        );
       })
     : sourceSnapshots;
 
