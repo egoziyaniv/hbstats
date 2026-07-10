@@ -129,9 +129,12 @@ export interface StandingsGroup {
   rows: StandingsRow[];
 }
 
+// Scope of the standings table: overall, home legs only, or away legs only.
+export type StandingsScope = 'all' | 'home' | 'away';
+
 export interface StandingsPayload {
   season: { id: string; year: number; name: string } | null;
-  scope?: 'all' | 'home' | 'away'; // optional: older clients ignore it
+  scope?: StandingsScope; // optional: older clients ignore it
   groups: StandingsGroup[];
 }
 

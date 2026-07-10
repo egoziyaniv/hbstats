@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings, buildScopedTable } from '@/lib/standings-from-games';
 import { getCurrentSeasonStartYear, getDefaultDisplaySeasonId } from '@/lib/home-live';
+import type { StandingsScope } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
   const scopeParam = searchParams.get('scope');
-  const scope: 'all' | 'home' | 'away' =
+  const scope: StandingsScope =
     scopeParam === 'home' || scopeParam === 'away' ? scopeParam : 'all';
 
   // Default (no year): newest season with real league play (skips a pre-season
@@ -36,6 +37,8 @@ export async function GET(request: NextRequest) {
       where: { seasonId: season.id, competitionId: LIGAT_HAAL_ID },
       include: { team: { select: { id: true, nameHe: true, nameEn: true, logoUrl: true } } },
     }),
+    // ONGOING is intentional: live games count into the table as they stand —
+    // same convention as the playoff derivation (and the scoped בית/חוץ tables).
     prisma.game.findMany({
       where: {
         seasonId: season.id,
@@ -66,11 +69,20 @@ export async function GET(request: NextRequest) {
     pointsAdjustmentNoteHe: r.pointsAdjustmentNoteHe,
   }));
 
+  // The season's Team rows include Liga Leumit + cup opponents (~62 teams),
+  // but buildScopedTable seeds a row for every team it's given — restrict the
+  // scoped table to actual league teams (Standing rows, or the league games'
+  // participants when no snapshot exists yet).
+  const leagueTeamIds = rawStandings.length
+    ? new Set(rawStandings.map((r) => r.teamId))
+    : new Set(games.flatMap((g) => [g.homeTeamId, g.awayTeamId]));
+  const leagueTeams = teams.filter((t) => leagueTeamIds.has(t.id));
+
   // Derive playoff-aware standings when the league is in the playoff phase;
   // otherwise sort the snapshot rows stored from API-Football.
   const sorted =
     scope !== 'all'
-      ? buildScopedTable(teams.map((t) => ({ ...t })), games, scope)
+      ? buildScopedTable(leagueTeams.map((t) => ({ ...t })), games, scope)
       : shouldDeriveStandings(
           rawStandings.map((r) => ({ played: r.played, groupNameEn: r.groupNameEn ?? null })),
           games,

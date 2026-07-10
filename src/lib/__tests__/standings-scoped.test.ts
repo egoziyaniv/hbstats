@@ -47,4 +47,26 @@ describe('buildScopedTable', () => {
     const rows = buildScopedTable(teams, [{ homeTeamId: 'a', awayTeamId: 'b', homeScore: null, awayScore: null, roundNameEn: null }], 'home');
     expect(rows.find((r) => r.teamId === 'a')!.played).toBe(0);
   });
+
+  it('seeds a played-0 row for every provided team, even without games in the list', () => {
+    // Documents the seed behavior: the CALLER must pass league teams only —
+    // any team passed in appears in the table (the route filters to
+    // Standing/game participants for this reason).
+    const rows = buildScopedTable([...teams, team('d', 'עירוני')], games, 'home');
+    expect(rows).toHaveLength(4);
+    const d = rows.find((r) => r.teamId === 'd')!;
+    expect(d.played).toBe(0);
+    expect(d.points).toBe(0);
+    expect(d.position).toBe(4); // sorted to the bottom, still numbered
+  });
+
+  it('ignores games whose scoped team is not in teams', () => {
+    // 'x' is a cup opponent outside the league — its home game must neither
+    // crash nor add a row; 'a' as the away side is untouched in home scope.
+    const rows = buildScopedTable(teams, [...games, game('x', 'a', 5, 0)], 'home');
+    expect(rows).toHaveLength(3);
+    expect(rows.find((r) => r.teamId === 'x')).toBeUndefined();
+    const a = rows.find((r) => r.teamId === 'a')!;
+    expect(a.played).toBe(1); // still only its own home leg
+  });
 });

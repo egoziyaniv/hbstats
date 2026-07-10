@@ -146,7 +146,10 @@ export function buildStandingsFromGames(
   return sortStandings(allRows.map((row) => ({ ...row, position: fallbackPosition++ })));
 }
 
-export type StandingsScope = 'home' | 'away';
+// The two single-leg views. Distinct from the API-level StandingsScope
+// ('all' | 'home' | 'away' in shared/types/mobile-api) — 'all' never reaches
+// this builder, the route serves it from the overall table instead.
+export type ScopedLeg = 'home' | 'away';
 
 /**
  * Build a single flat table counting only each team's home legs (scope='home')
@@ -157,7 +160,7 @@ export type StandingsScope = 'home' | 'away';
 export function buildScopedTable(
   teams: TeamName[],
   games: GameForStandings[],
-  scope: StandingsScope,
+  scope: ScopedLeg,
 ) {
   const rows = new Map<string, DerivedStandingRow>();
   for (const team of teams) {

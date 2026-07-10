@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/apiClient';
-import type { StandingsPayload } from '@shared/types/mobile-api';
+import type { StandingsPayload, StandingsScope } from '@shared/types/mobile-api';
 
-export type StandingsScope = 'all' | 'home' | 'away';
+export type { StandingsScope };
 
 export function useStandings(year?: number | null, scope: StandingsScope = 'all') {
   const params = new URLSearchParams();
@@ -13,5 +13,8 @@ export function useStandings(year?: number | null, scope: StandingsScope = 'all'
     queryKey: ['standings', year ?? 'latest', scope],
     queryFn: () => apiClient.get<StandingsPayload>(`/standings${qs ? `?${qs}` : ''}`),
     staleTime: 60_000,
+    // Keep showing the previous scope/season's table while the new one loads,
+    // so the toggle doesn't unmount into the loading spinner mid-switch.
+    placeholderData: keepPreviousData,
   });
 }
