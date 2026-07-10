@@ -131,6 +131,7 @@ export interface StandingsGroup {
 
 export interface StandingsPayload {
   season: { id: string; year: number; name: string } | null;
+  scope?: 'all' | 'home' | 'away'; // optional: older clients ignore it
   groups: StandingsGroup[];
 }
 

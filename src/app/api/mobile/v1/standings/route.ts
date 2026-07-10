@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
-import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
+import { buildStandingsFromGames, shouldDeriveStandings, buildScopedTable } from '@/lib/standings-from-games';
 import { getCurrentSeasonStartYear, getDefaultDisplaySeasonId } from '@/lib/home-live';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,9 @@ const LIGAT_HAAL_ID = 'comp_liga_haal';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
+  const scopeParam = searchParams.get('scope');
+  const scope: 'all' | 'home' | 'away' =
+    scopeParam === 'home' || scopeParam === 'away' ? scopeParam : 'all';
 
   // Default (no year): newest season with real league play (skips a pre-season
   // upcoming year that only holds fixtures/friendlies). Auto-advances at kickoff.
@@ -65,17 +68,25 @@ export async function GET(request: NextRequest) {
 
   // Derive playoff-aware standings when the league is in the playoff phase;
   // otherwise sort the snapshot rows stored from API-Football.
-  const sorted = shouldDeriveStandings(
-    rawStandings.map((r) => ({ played: r.played, groupNameEn: r.groupNameEn ?? null })),
-    games,
-  )
-    ? buildStandingsFromGames(teams.map((t) => ({ ...t })), games, adjustments)
-    : sortStandings(rawStandings);
+  const sorted =
+    scope !== 'all'
+      ? buildScopedTable(teams.map((t) => ({ ...t })), games, scope)
+      : shouldDeriveStandings(
+          rawStandings.map((r) => ({ played: r.played, groupNameEn: r.groupNameEn ?? null })),
+          games,
+        )
+        ? buildStandingsFromGames(teams.map((t) => ({ ...t })), games, adjustments)
+        : sortStandings(rawStandings);
 
   // Per-team last-5 results (newest first) — used by the mobile FormPill row.
   function lastFiveFor(teamId: string): string {
     return games
-      .filter((g) => (g.homeTeamId === teamId || g.awayTeamId === teamId) && g.homeScore != null && g.awayScore != null)
+      .filter((g) => {
+        if (g.homeScore == null || g.awayScore == null) return false;
+        if (scope === 'home') return g.homeTeamId === teamId;
+        if (scope === 'away') return g.awayTeamId === teamId;
+        return g.homeTeamId === teamId || g.awayTeamId === teamId;
+      })
       .sort((a, b) => (b.dateTime?.getTime() ?? 0) - (a.dateTime?.getTime() ?? 0))
       .slice(0, 5)
       .map((g) => {
@@ -122,15 +133,18 @@ export async function GET(request: NextRequest) {
   const relegation = rows.filter((r) => /relegation/i.test(r.groupNameEn ?? ''));
 
   const groups =
-    championship.length > 0 && relegation.length > 0
-      ? [
-          { label: 'פלייאוף עליון', rows: championship },
-          { label: 'פלייאוף תחתון', rows: relegation },
-        ]
-      : [{ label: 'ליגת העל', rows }];
+    scope !== 'all'
+      ? [{ label: scope === 'home' ? 'טבלת בית' : 'טבלת חוץ', rows }]
+      : championship.length > 0 && relegation.length > 0
+        ? [
+            { label: 'פלייאוף עליון', rows: championship },
+            { label: 'פלייאוף תחתון', rows: relegation },
+          ]
+        : [{ label: 'ליגת העל', rows }];
 
   return NextResponse.json({
     season: { id: season.id, year: season.year, name: season.name },
+    scope,
     groups,
   });
 }
