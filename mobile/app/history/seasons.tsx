@@ -1,40 +1,39 @@
 import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { rtlRow } from '@/lib/rtl';
-import { apiClient } from '@/lib/apiClient';
+import { useSeasonsSpine } from '@/hooks/useSeasonsSpine';
 import { Header } from '@/design-system/Header';
 import { Card } from '@/design-system/Card';
 import { TeamCrest } from '@/design-system/TeamCrest';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { SeasonsSpinePayload } from '@shared/types/mobile-api';
 
 export default function SeasonsSpineScreen() {
   const router = useRouter();
   const { brand } = useTheme();
-  const { data, isLoading, refetch, isRefetching } = useQuery<SeasonsSpinePayload>({
-    queryKey: ['history', 'seasons'],
-    queryFn: () => apiClient.get<SeasonsSpinePayload>('/history/seasons'),
-    staleTime: 60 * 60_000,
-  });
+  const { data, isLoading, refetch, isRefetching } = useSeasonsSpine();
+  const rows = data?.rows ?? [];
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
       {/* Header supports onBack (Header.tsx:17), but only renders the back
           chevron instead of the hamburger when showBack is also set. */}
-      <Header title="כל העונות" subtitle="ליגת העל · 2000 עד היום" onBack={() => router.back()} showBack />
+      <Header title="כל העונות" subtitle="ליגת העל" onBack={() => router.back()} showBack />
       {isLoading && !data ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={brand.accent} />
+        </View>
+      ) : rows.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ color: theme.ink[700], fontSize: 14 }}>אין נתונים להצגה.</Text>
         </View>
       ) : (
         <ScrollView
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
         >
-          {(data?.rows ?? []).map((row) => (
+          {rows.map((row) => (
             <Card key={row.seasonId}>
               <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: theme.ink[900] }}>{row.name}</Text>

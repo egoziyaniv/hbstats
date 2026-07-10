@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getRequestUser } from '@/lib/auth';
+import { clearSpineCache } from '@/lib/history/seasons-spine';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -107,6 +108,10 @@ export async function PUT(request: NextRequest) {
         include: { team: true, season: true },
       });
     }
+
+    // A points adjustment can change a historical champion/relegation — drop
+    // the "כל העונות" spine cache so the change shows without waiting an hour.
+    clearSpineCache();
 
     await prisma.activityLog.create({
       data: {

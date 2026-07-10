@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { sortStandings } from '@/lib/standings';
 
 /**
  * "כל העונות" — one row per season: champion, runner-up, top scorer, relegated.
@@ -21,25 +22,37 @@ export interface SeasonSpineRow {
 }
 
 let cache: { at: number; rows: SeasonSpineRow[] } | null = null;
-export function _clearSpineCacheForTests() { cache = null; }
+/** Invalidate the spine cache — call after admin edits that change standings. */
+export function clearSpineCache() { cache = null; }
+export const _clearSpineCacheForTests = clearSpineCache;
 
 export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.rows;
 
-  const [seasons, standings, scorers] = await Promise.all([
+  const [seasons, standings, scorers, unfinishedGames] = await Promise.all([
     prisma.season.findMany({ orderBy: { year: 'desc' }, select: { id: true, year: true, name: true } }),
     prisma.standing.findMany({
       where: { competitionId: LIGAT_HAAL_ID },
       select: {
-        seasonId: true, position: true, teamId: true, statusHe: true, descriptionHe: true,
+        id: true, seasonId: true, position: true, teamId: true, statusHe: true, descriptionHe: true,
+        played: true, points: true, goalsFor: true, goalsAgainst: true, wins: true, draws: true, losses: true,
+        pointsAdjustment: true, pointsAdjustmentNoteHe: true, groupNameEn: true,
         team: { select: { id: true, nameHe: true, logoUrl: true } },
       },
     }),
     prisma.competitionLeaderboardEntry.findMany({
       where: { competitionId: LIGAT_HAAL_ID, category: 'TOP_SCORERS', rank: 1 },
-      select: { seasonId: true, rank: true, playerId: true, playerNameHe: true, value: true },
+      select: { seasonId: true, rank: true, playerId: true, playerNameHe: true, playerNameEn: true, value: true },
+    }),
+    prisma.game.findMany({
+      where: { competitionId: LIGAT_HAAL_ID, status: { in: ['SCHEDULED', 'ONGOING'] } },
+      select: { seasonId: true },
+      distinct: ['seasonId'],
     }),
   ]);
+
+  // a season with unplayed league games isn't history yet — no false champions
+  const unfinishedSeasonIds = new Set(unfinishedGames.map((g) => g.seasonId));
 
   const standingsBySeason = new Map<string, typeof standings>();
   for (const s of standings) {
@@ -49,28 +62,59 @@ export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
   }
   const scorerBySeason = new Map(scorers.map((s) => [s.seasonId, s]));
 
-  const ref = (s: (typeof standings)[number] | undefined): SpineTeamRef | null =>
-    s ? { teamId: s.team.id, nameHe: s.team.nameHe, logoUrl: s.team.logoUrl } : null;
+  const ref = (s: (typeof standings)[number]): SpineTeamRef =>
+    ({ teamId: s.team.id, nameHe: s.team.nameHe, logoUrl: s.team.logoUrl });
 
   const rows: SeasonSpineRow[] = [];
   for (const season of seasons) {
-    const rowsForSeason = (standingsBySeason.get(season.id) || []).sort((a, b) => a.position - b.position);
+    const rowsForSeason = standingsBySeason.get(season.id) || [];
     if (!rowsForSeason.length) continue; // pre-import or empty upcoming season
+    if (unfinishedSeasonIds.has(season.id)) continue; // still being played — not history yet
 
-    // Relegated: rows explicitly marked ירידה; fallback bottom-2 by position.
+    // Playoff-era seasons (2019/20+) store TWO rows per position — one per
+    // playoff group (groupNameEn "…Championship…" / "…Relegation…"). The
+    // championship group fills the top of the overall table and the relegation
+    // group its bottom (same convention as buildStandingsFromGames), so the
+    // champion must come from the championship group and the relegated teams
+    // from the relegation group — raw `position` is ambiguous across groups.
+    const champGroup = rowsForSeason.filter((r) => /championship/i.test(r.groupNameEn || ''));
+    const relGroup = rowsForSeason.filter((r) => /relegation/i.test(r.groupNameEn || ''));
+
+    // Relegated: rows explicitly marked ירידה override positional inference
+    // when present (current data has no markers, kept defensively).
     const marked = rowsForSeason.filter(
       (r) => (r.statusHe || '').includes('ירידה') || (r.descriptionHe || '').includes('ירידה'),
     );
-    const relegated = (marked.length ? marked : rowsForSeason.slice(-2)).map((r) => ref(r)!) as SpineTeamRef[];
+
+    let champion: SpineTeamRef | null;
+    let runnerUp: SpineTeamRef | null;
+    let relegated: SpineTeamRef[];
+
+    if (champGroup.length && relGroup.length) {
+      const champOrdered = sortStandings(champGroup);
+      const relOrdered = sortStandings(relGroup);
+      champion = champOrdered[0] ? ref(champOrdered[0]) : null;
+      runnerUp = champOrdered[1] ? ref(champOrdered[1]) : null;
+      relegated = (marked.length ? marked : relOrdered.slice(-2)).map(ref);
+    } else {
+      // Single-table season: order by real standing rules (adjusted points,
+      // goal difference, …) rather than the raw stored position.
+      const ordered = sortStandings(rowsForSeason);
+      champion = ordered[0] ? ref(ordered[0]) : null;
+      runnerUp = ordered[1] ? ref(ordered[1]) : null;
+      relegated = (marked.length ? marked : ordered.slice(-2)).map(ref);
+    }
 
     const scorer = scorerBySeason.get(season.id);
     rows.push({
       seasonId: season.id,
       year: season.year,
       name: season.name,
-      champion: ref(rowsForSeason.find((r) => r.position === 1)),
-      runnerUp: ref(rowsForSeason.find((r) => r.position === 2)),
-      topScorer: scorer ? { playerId: scorer.playerId, nameHe: scorer.playerNameHe || '', goals: scorer.value } : null,
+      champion,
+      runnerUp,
+      topScorer: scorer
+        ? { playerId: scorer.playerId, nameHe: scorer.playerNameHe || scorer.playerNameEn || '', goals: scorer.value }
+        : null,
       relegated,
     });
   }

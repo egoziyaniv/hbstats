@@ -15,6 +15,9 @@ export default async function SeasonsSpinePage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="border-r-[4px] border-[var(--accent)] pr-3 text-3xl font-black text-stone-900">כל העונות</h1>
       <p className="mt-2 text-sm text-stone-500">ליגת העל · {rows.length} עונות · כל שם הוא קישור</p>
+      {rows.length === 0 ? (
+        <p className="mt-6 text-sm text-stone-500">אין נתונים להצגה.</p>
+      ) : (
       <div className="mt-6 overflow-x-auto rounded-[24px] border border-stone-200 bg-white shadow-sm">
         <table className="w-full text-right text-sm">
           <thead>
@@ -66,6 +69,7 @@ export default async function SeasonsSpinePage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
