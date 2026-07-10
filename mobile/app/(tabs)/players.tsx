@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
-import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
+import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useStats } from '@/hooks/useStats';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
+import { apiClient } from '@/lib/apiClient';
 import { Header } from '@/design-system/Header';
 import { Card } from '@/design-system/Card';
 import { TabBar } from '@/design-system/TabBar';
 import { SeasonChip } from '@/design-system/SeasonChip';
 import { theme } from '@/design-system/theme';
 import { useSeasonStore } from '@/lib/seasonStore';
-import type { StatsLeaderEntry } from '@shared/types/mobile-api';
+import type { StatsLeaderEntry, SearchPayload } from '@shared/types/mobile-api';
 
 type StatTab = 'scorers' | 'assists' | 'yellow' | 'red';
 
@@ -40,6 +42,16 @@ export default function PlayersTab() {
   const headerSubtitle = data?.season?.name ? `עונת ${data.season.name}` : undefined;
   const headerRight = <SeasonChip />;
 
+  const [search, setSearch] = useState('');
+  const isSearching = search.trim().length >= 2;
+  const { data: searchData, isFetching: searching } = useQuery<SearchPayload>({
+    queryKey: ['search', search],
+    queryFn: () => apiClient.get<SearchPayload>(`/search?q=${encodeURIComponent(search.trim())}`),
+    enabled: isSearching,
+    staleTime: 30_000,
+  });
+  const searchResults = (searchData?.results ?? []).filter((r) => r.type === 'player' || r.type === 'team');
+
   const rows = (() => {
     if (!data) return [];
     switch (tab) {
@@ -64,41 +76,89 @@ export default function PlayersTab() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
       <Header />
-      <TabBar items={TAB_ITEMS} value={tab} onChange={(id) => setTab(id as StatTab)} />
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', justifyContent: 'flex-end' }}>
-        <Pressable
-          onPress={() => router.push('/advanced-stats' as any)}
-          style={{ backgroundColor: theme.ink[100], paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.ink[900] }}>סטטיסטיקה מתקדמת ›</Text>
-        </Pressable>
+      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="חיפוש שחקן או קבוצה…"
+          placeholderTextColor={theme.ink[500]}
+          style={{
+            backgroundColor: 'white',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: theme.ink[100],
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            fontSize: 14,
+            textAlign: 'right',
+            writingDirection: 'rtl',
+            color: theme.ink[900],
+          }}
+        />
       </View>
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
-        contentContainerStyle={{ paddingVertical: 16, gap: 12, paddingBottom: 32 }}
-      >
-        {rows.length === 0 ? (
-          <Card>
-            <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>
-              אין נתונים זמינים בקטגוריה זו.
-            </Text>
-          </Card>
-        ) : (
-          <Card pad={false}>
-            {rows.map((entry, i) => (
-              <LeaderRow
-                key={entry.playerId ? `${entry.playerId}-${i}` : `${entry.rank}-${entry.playerNameHe}`}
-                entry={entry}
-                valueLabel={TAB_VALUE_LABEL[tab]}
-                isLast={i === rows.length - 1}
-                onPress={entry.playerId ? () => router.push(`/players/${entry.playerId}` as any) : undefined}
-                brandAccent={brand.accent}
-                brandGlow={brand.accentGlow}
-              />
-            ))}
-          </Card>
-        )}
-      </ScrollView>
+      {isSearching ? (
+        <ScrollView contentContainerStyle={{ paddingVertical: 16, gap: 8, paddingBottom: 32 }}>
+          {searching ? <ActivityIndicator color={brand.accent} /> : null}
+          {searchResults.map((r) => (
+            <Pressable key={`${r.type}-${r.id}`} onPress={() => router.push(r.href as any)}>
+              <Card>
+                <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexShrink: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: theme.ink[900], textAlign: 'right' }} numberOfLines={1}>
+                      {r.type === 'team' ? '🛡️ ' : '👤 '}{r.label}
+                    </Text>
+                    {r.subtitle ? (
+                      <Text style={{ fontSize: 11, color: theme.ink[500], textAlign: 'right' }} numberOfLines={1}>{r.subtitle}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={{ fontSize: 16, color: theme.ink[300] }}>‹</Text>
+                </View>
+              </Card>
+            </Pressable>
+          ))}
+          {!searching && searchResults.length === 0 ? (
+            <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>לא נמצאו תוצאות.</Text>
+          ) : null}
+        </ScrollView>
+      ) : (
+        <>
+          <TabBar items={TAB_ITEMS} value={tab} onChange={(id) => setTab(id as StatTab)} />
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <Pressable
+              onPress={() => router.push('/advanced-stats' as any)}
+              style={{ backgroundColor: theme.ink[100], paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.ink[900] }}>סטטיסטיקה מתקדמת ›</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
+            contentContainerStyle={{ paddingVertical: 16, gap: 12, paddingBottom: 32 }}
+          >
+            {rows.length === 0 ? (
+              <Card>
+                <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>
+                  אין נתונים זמינים בקטגוריה זו.
+                </Text>
+              </Card>
+            ) : (
+              <Card pad={false}>
+                {rows.map((entry, i) => (
+                  <LeaderRow
+                    key={entry.playerId ? `${entry.playerId}-${i}` : `${entry.rank}-${entry.playerNameHe}`}
+                    entry={entry}
+                    valueLabel={TAB_VALUE_LABEL[tab]}
+                    isLast={i === rows.length - 1}
+                    onPress={entry.playerId ? () => router.push(`/players/${entry.playerId}` as any) : undefined}
+                    brandAccent={brand.accent}
+                    brandGlow={brand.accentGlow}
+                  />
+                ))}
+              </Card>
+            )}
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 }

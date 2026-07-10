@@ -597,3 +597,17 @@ export interface SeasonSpineApiRow {
 export interface SeasonsSpinePayload {
   rows: SeasonSpineApiRow[];
 }
+
+// ---------- Search ----------
+
+export interface SearchResultApiItem {
+  id: string;
+  type: 'team' | 'player' | 'game' | 'venue';
+  label: string;
+  subtitle?: string;
+  href: string;
+}
+
+export interface SearchPayload {
+  results: SearchResultApiItem[];
+}
