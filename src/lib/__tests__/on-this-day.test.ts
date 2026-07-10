@@ -47,6 +47,14 @@ describe('pickAnniversaryMatch scoring', () => {
     expect(pickAnniversaryMatch([plain, derby], now)!.id).toBe('derby');
   });
 
+  it('does NOT give the final bonus to semi-finals', () => {
+    // Strict /^finals?$/ regex: a 1-0 semi-final (5 pts) must lose to a 3-3
+    // league goalfest (30 pts). A loose /final/i would score the semi 105.
+    const semi = mkGame({ id: 'semi', roundNameEn: 'Semi-finals', homeScore: 1, awayScore: 0 });
+    const goalfest = mkGame({ id: 'goals', homeScore: 3, awayScore: 3 });
+    expect(pickAnniversaryMatch([semi, goalfest], now)!.id).toBe('goals');
+  });
+
   it('falls back to the highest-scoring game', () => {
     const g1 = mkGame({ id: 'g1', homeScore: 2, awayScore: 1 });
     const g2 = mkGame({ id: 'g2', homeScore: 3, awayScore: 3 });

@@ -419,7 +419,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     // worldwide matches and the live-countries admin setting isn't always set.
     getHomepageLiveSnapshots(null, { limit: 24 }),
     getIsraeliTeamApiFootballIds(),
-    getOnThisDay().catch(() => null),
+    getOnThisDay().catch((e) => { console.error('[on-this-day]', e); return null; }),
   ]);
 
   // Prefer the favorite team's next game; fall back to the soonest game of any
@@ -642,15 +642,22 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
         fullText: message.text,
       })),
     },
-    onThisDay: onThisDayData?.match
-      ? {
-          gameId: onThisDayData.match.gameId,
-          yearsAgo: onThisDayData.match.yearsAgo,
-          headline: onThisDayData.match.headline,
-          competitionName: onThisDayData.match.competitionName,
-          birthdays: onThisDayData.birthdays.map((b) => ({ playerId: b.playerId, nameHe: b.nameHe, age: b.age })),
-        }
-      : null,
+    // Null only when there is nothing at all — birthdays alone still render
+    // (off-season days often have zero anniversary matches).
+    onThisDay:
+      onThisDayData && (onThisDayData.match || onThisDayData.birthdays.length)
+        ? {
+            match: onThisDayData.match
+              ? {
+                  gameId: onThisDayData.match.gameId,
+                  yearsAgo: onThisDayData.match.yearsAgo,
+                  headline: onThisDayData.match.headline,
+                  competitionName: onThisDayData.match.competitionName,
+                }
+              : null,
+            birthdays: onThisDayData.birthdays.map((b) => ({ playerId: b.playerId, nameHe: b.nameHe, age: b.age })),
+          }
+        : null,
   };
 }
 

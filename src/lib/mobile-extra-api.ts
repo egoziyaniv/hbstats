@@ -108,6 +108,7 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
       notifyResults: true,
       notifyReminders: true,
       notifyNews: true,
+      notifyOnThisDay: true,
     },
   });
 
@@ -151,6 +152,7 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
       results: user?.notifyResults ?? true,
       reminders: user?.notifyReminders ?? true,
       news: user?.notifyNews ?? true,
+      onThisDay: user?.notifyOnThisDay ?? true,
     },
     availableTeams: teams.map((team) => ({
       id: team.id,
@@ -187,6 +189,7 @@ export async function updateMobilePreferencesPayload(input: {
       results: 'notifyResults',
       reminders: 'notifyReminders',
       news: 'notifyNews',
+      onThisDay: 'notifyOnThisDay',
     };
     for (const [key, column] of Object.entries(map)) {
       const v = (notif as Record<string, unknown>)[key];
@@ -204,6 +207,7 @@ export async function updateMobilePreferencesPayload(input: {
       notifyResults: true,
       notifyReminders: true,
       notifyNews: true,
+      notifyOnThisDay: true,
     },
   });
 
@@ -216,6 +220,7 @@ export async function updateMobilePreferencesPayload(input: {
       results: user.notifyResults,
       reminders: user.notifyReminders,
       news: user.notifyNews,
+      onThisDay: user.notifyOnThisDay,
     },
   };
 }

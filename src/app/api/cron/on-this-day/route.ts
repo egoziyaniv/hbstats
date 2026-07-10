@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getOnThisDay } from '@/lib/on-this-day';
-import { tokensForOnThisDay, sendIfAny } from '@/lib/push-notify';
+import { isCategoryEnabled, tokensForOnThisDay, sendIfAny } from '@/lib/push-notify';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +20,11 @@ async function run(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const dry = req.nextUrl.searchParams.get('dry') === '1';
+
+  // Before any state write — otherwise a disabled day still gets marked as sent.
+  if (!(await isCategoryEnabled('onThisDay'))) {
+    return NextResponse.json({ ok: true, skipped: 'onThisDay disabled by admin' });
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const lastSent = await prisma.siteSetting.findUnique({ where: { key: LAST_SENT_KEY } });

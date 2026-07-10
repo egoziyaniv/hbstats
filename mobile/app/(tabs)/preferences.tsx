@@ -101,7 +101,7 @@ export default function PreferencesScreen() {
     update.mutate(next);
   };
 
-  const notif = data.notifications ?? { goals: true, results: true, reminders: true, news: true };
+  const notif = data.notifications ?? { goals: true, results: true, reminders: true, news: true, onThisDay: true };
   const toggleNotification = (key: keyof typeof notif) => {
     const next: PreferencesPayload = { ...data, notifications: { ...notif, [key]: !notif[key] } };
     update.mutate(next);
@@ -211,7 +211,8 @@ export default function PreferencesScreen() {
           <NotifRow label="⚽ גולים" desc="התראה על כל גול במשחק חי" value={notif.goals} onChange={() => toggleNotification('goals')} accent={brand.accent} />
           <NotifRow label="🏁 תוצאות סיום" desc="התוצאה הסופית בתום המשחק" value={notif.results} onChange={() => toggleNotification('results')} accent={brand.accent} />
           <NotifRow label="⏰ תזכורות משחק" desc="כשעה לפני פתיחת המשחק" value={notif.reminders} onChange={() => toggleNotification('reminders')} accent={brand.accent} />
-          <NotifRow label="📰 חדשות" desc="ידיעות חדשות מהערוצים" value={notif.news} onChange={() => toggleNotification('news')} accent={brand.accent} last />
+          <NotifRow label="📰 חדשות" desc="ידיעות חדשות מהערוצים" value={notif.news} onChange={() => toggleNotification('news')} accent={brand.accent} />
+          <NotifRow label="📅 היום לפני X שנים" desc="התראה יומית עם משחק היסטורי מאותו תאריך." value={notif.onThisDay} onChange={() => toggleNotification('onThisDay')} accent={brand.accent} last />
         </Card>
       </Section>
 

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getOnThisDay } from '@/lib/on-this-day';
 
 export default async function OnThisDayCard() {
-  const data = await getOnThisDay().catch(() => null);
+  const data = await getOnThisDay().catch((e) => { console.error('[on-this-day]', e); return null; });
   if (!data || (!data.match && data.birthdays.length === 0)) return null;
   return (
     <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">

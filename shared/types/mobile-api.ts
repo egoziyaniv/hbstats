@@ -188,10 +188,7 @@ export interface PredictionsPayload {
 }
 
 export interface OnThisDayHome {
-  gameId: string;
-  yearsAgo: number;
-  headline: string;
-  competitionName: string | null;
+  match: { gameId: string; yearsAgo: number; headline: string; competitionName: string | null } | null;
   birthdays: Array<{ playerId: string; nameHe: string; age: number }>;
 }
 
@@ -574,6 +571,7 @@ export interface NotificationPreferences {
   results: boolean;
   reminders: boolean;
   news: boolean;
+  onThisDay: boolean;
 }
 
 export interface PreferencesPayload {

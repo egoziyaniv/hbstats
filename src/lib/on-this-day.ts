@@ -65,7 +65,9 @@ export function pickAnniversaryMatch(games: CandidateGame[], now: Date): Candida
     const yearsAgo = now.getFullYear() - g.dateTime.getFullYear();
     if (yearsAgo < 1) continue;
     let score = goals * 5;
-    if (/final/i.test(g.roundNameEn || '')) score += 100;
+    // Strict match — "Final"/"Finals" only. A bare /final/i would also hit
+    // "Quarter-finals", "Semi-finals", "8th Finals", "5th Place Final" etc.
+    if (/^finals?$/i.test((g.roundNameEn || '').trim())) score += 100;
     if (isDerby(g.homeTeam.nameHe, g.awayTeam.nameHe)) score += 50;
     if (yearsAgo % 10 === 0 || yearsAgo === 25) score += 20;
     if (score > bestScore) { bestScore = score; best = g; }
@@ -89,7 +91,7 @@ export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> 
   `;
   let match: OnThisDayMatch | null = null;
   if (idRows.length) {
-    const candidates = (await prisma.game.findMany({
+    const candidates: CandidateGame[] = await prisma.game.findMany({
       where: { id: { in: idRows.map((r) => r.id) } },
       select: {
         id: true, dateTime: true, homeScore: true, awayScore: true, roundNameEn: true,
@@ -97,7 +99,7 @@ export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> 
         awayTeam: { select: { id: true, nameHe: true } },
         competition: { select: { nameHe: true } },
       },
-    })) as CandidateGame[];
+    });
     const picked = pickAnniversaryMatch(candidates, now);
     if (picked) {
       const yearsAgo = now.getFullYear() - picked.dateTime.getFullYear();

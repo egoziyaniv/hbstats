@@ -83,18 +83,20 @@ export default function HomeScreen() {
 
         {data.onThisDay ? (
           <Section title="היום לפני X שנים">
-            <Pressable onPress={() => router.push(`/games/${data.onThisDay!.gameId}` as any)}>
-              <Card>
-                <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' }}>
-                  {data.onThisDay.headline}
-                </Text>
-                {data.onThisDay.birthdays.length ? (
-                  <Text style={{ color: theme.ink[500], fontSize: 12, marginTop: 6, textAlign: 'right', writingDirection: 'rtl' }}>
-                    🎂 {data.onThisDay.birthdays.map((b) => `${b.nameHe} (${b.age})`).join(' · ')}
+            <Card>
+              {data.onThisDay.match ? (
+                <Pressable onPress={() => router.push(`/games/${data.onThisDay!.match!.gameId}` as any)}>
+                  <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' }}>
+                    {data.onThisDay.match.headline}
                   </Text>
-                ) : null}
-              </Card>
-            </Pressable>
+                </Pressable>
+              ) : null}
+              {data.onThisDay.birthdays.length ? (
+                <Text style={{ color: theme.ink[500], fontSize: 12, marginTop: data.onThisDay.match ? 6 : 0, textAlign: 'right', writingDirection: 'rtl' }}>
+                  🎂 {data.onThisDay.birthdays.map((b) => `${b.nameHe} (${b.age})`).join(' · ')}
+                </Text>
+              ) : null}
+            </Card>
           </Section>
         ) : null}
 
