@@ -146,6 +146,53 @@ export function buildStandingsFromGames(
   return sortStandings(allRows.map((row) => ({ ...row, position: fallbackPosition++ })));
 }
 
+export type StandingsScope = 'home' | 'away';
+
+/**
+ * Build a single flat table counting only each team's home legs (scope='home')
+ * or away legs (scope='away'). Used by the mobile standings בית/חוץ toggle.
+ * Point deductions deliberately NOT applied — they belong to the overall table
+ * (Transfermarkt convention). No playoff-group splitting in scoped views.
+ */
+export function buildScopedTable(
+  teams: TeamName[],
+  games: GameForStandings[],
+  scope: StandingsScope,
+) {
+  const rows = new Map<string, DerivedStandingRow>();
+  for (const team of teams) {
+    rows.set(team.id, {
+      id: `scoped-${team.id}`,
+      position: 999,
+      played: 0, wins: 0, draws: 0, losses: 0,
+      goalsFor: 0, goalsAgainst: 0, points: 0,
+      pointsAdjustment: 0, pointsAdjustmentNoteHe: null,
+      teamId: team.id, team,
+    });
+  }
+
+  for (const game of games) {
+    if (game.homeScore === null || game.awayScore === null) continue;
+    const teamId = scope === 'home' ? game.homeTeamId : game.awayTeamId;
+    const row = rows.get(teamId);
+    if (!row) continue;
+    const gf = scope === 'home' ? game.homeScore : game.awayScore;
+    const ga = scope === 'home' ? game.awayScore : game.homeScore;
+    row.played += 1;
+    row.goalsFor += gf;
+    row.goalsAgainst += ga;
+    if (gf > ga) { row.wins += 1; row.points += 3; }
+    else if (gf < ga) { row.losses += 1; }
+    else { row.draws += 1; row.points += 1; }
+  }
+
+  let pos = 1;
+  return sortStandings([...rows.values()]).map((r) => {
+    const p = pos++;
+    return { ...r, position: p, displayPosition: p };
+  });
+}
+
 /**
  * Returns true if the stored Standing.played values are behind the highest
  * round number visible in completed games — indicating playoff games have
