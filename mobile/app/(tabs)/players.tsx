@@ -131,7 +131,9 @@ export default function PlayersTab() {
           ))}
           {searchError ? (
             <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>החיפוש נכשל, נסו שוב.</Text>
-          ) : !searching && searchResults.length === 0 ? (
+          ) : !searching && debounced === search.trim() && searchResults.length === 0 ? (
+            // debounce settled + fetch idle + empty → genuinely no results (the
+            // debounce-pending window must not flash a false "no results")
             <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>לא נמצאו תוצאות.</Text>
           ) : null}
         </ScrollView>
