@@ -61,3 +61,6 @@ mobile/ios
 mobile/android
 mobile/.env.local
 mobile/docs/apple-credentials.md
+
+# brainstorming visual companion sessions
+.superpowers/
