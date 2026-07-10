@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
 import { rtlRow } from '@/lib/rtl';
 import { TeamCrest } from '@/design-system/TeamCrest';
 import { useRouter } from 'expo-router';
-import { useStandings } from '@/hooks/useStandings';
+import { TabBar } from '@/design-system/TabBar';
+import { useStandings, type StandingsScope } from '@/hooks/useStandings';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
 import { Header } from '@/design-system/Header';
@@ -41,7 +43,8 @@ export default function StandingsScreen() {
   const router = useRouter();
   const { brand } = useTheme();
   const { selectedYear } = useSeasonStore();
-  const { data, isLoading, refetch, isRefetching } = useStandings(selectedYear);
+  const [scope, setScope] = useState<StandingsScope>('all');
+  const { data, isLoading, refetch, isRefetching } = useStandings(selectedYear, scope);
   const headerTitle = 'טבלת ליגה';
   const headerSubtitle = data?.season?.name ? `עונת ${data.season.name}` : undefined;
   const headerRight = <SeasonChip />;
@@ -73,6 +76,17 @@ export default function StandingsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
       <Header title={headerTitle} subtitle={headerSubtitle} rightSlot={headerRight} />
+      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+        <TabBar
+          items={[
+            { id: 'all', label: 'הכל' },
+            { id: 'home', label: 'בית' },
+            { id: 'away', label: 'חוץ' },
+          ]}
+          value={scope}
+          onChange={(id) => setScope(id as StandingsScope)}
+        />
+      </View>
       <ScrollView
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
         contentContainerStyle={{ paddingVertical: 16, gap: 16, paddingBottom: 32 }}
@@ -102,14 +116,17 @@ export default function StandingsScreen() {
                 <Text style={{ width: 32, fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'center' }}>נק'</Text>
               </View>
               {group.rows.map((row, i) => (
-                <StandingsRowView key={row.teamId} row={row} index={i} totalGroup={group.rows.length} totalTable={totalTable} onPress={() => router.push(`/teams/${row.teamId}` as any)} brand={brand} />
+                <StandingsRowView key={row.teamId} row={row} index={i} totalGroup={group.rows.length} totalTable={totalTable} onPress={() => router.push(`/teams/${row.teamId}` as any)} brand={brand} scoped={scope !== 'all'} />
               ))}
             </Card>
             {/* Zone-strip legend — explains the coloured vertical strip at
-                the row's start edge. */}
-            <View style={{ paddingHorizontal: 16, marginTop: 6, gap: 4 }}>
-              <ZoneLegend brand={brand} />
-            </View>
+                the row's start edge. Zones describe the OVERALL table only,
+                so hide the legend in the בית/חוץ scoped views. */}
+            {scope === 'all' ? (
+              <View style={{ paddingHorizontal: 16, marginTop: 6, gap: 4 }}>
+                <ZoneLegend brand={brand} />
+              </View>
+            ) : null}
           </Section>
         ));
         })()}
@@ -125,6 +142,7 @@ function StandingsRowView({
   totalTable,
   onPress,
   brand,
+  scoped,
 }: {
   row: StandingsRow;
   index: number;
@@ -132,8 +150,9 @@ function StandingsRowView({
   totalTable: number;
   onPress: () => void;
   brand: { accent: string; accentGlow: string };
+  scoped: boolean;
 }) {
-  const zc = zoneColor(row.position, totalTable, brand.accent);
+  const zc = scoped ? null : zoneColor(row.position, totalTable, brand.accent);
   return (
     <Pressable onPress={onPress}>
       <View
