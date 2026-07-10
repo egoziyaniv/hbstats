@@ -9,7 +9,8 @@ import { getClubFamilies, getClubTeamIndex, type ClubFamily } from '@/lib/histor
  * scope='home'/'away' → aggregates completed GAMES one leg per club (game rows
  *                exist 2000+ only — callers should show a coverage note).
  * Filters: fromYear/toYear (season start year), scope. League (comp_liga_haal) only.
- * Points are as stored (3-pt era throughout the games range).
+ * Points: stored points + pointsAdjustment (deductions) on the standings path;
+ * 3-pt rule on the games path (which spans the 3-pt era only).
  */
 
 const LIGAT_HAAL_ID = 'comp_liga_haal';
@@ -37,9 +38,22 @@ export interface AllTimeFilters {
   scope?: 'all' | 'home' | 'away';
 }
 
+// Filter combos are user-controlled (query params) — cap the cache with FIFO
+// eviction so junk year values can't grow the Map without bound.
+const CACHE_MAX_ENTRIES = 32;
 const cache = new Map<string, { at: number; rows: AllTimeRow[] }>();
 export function clearAllTimeCache() { cache.clear(); }
 export const _clearAllTimeCacheForTests = clearAllTimeCache;
+export const _cacheSizeForTests = () => cache.size;
+
+// Canonicalize a year filter: integers within the league's era only — anything
+// else (NaN, 1e300, year 9999) behaves as "no filter" so absurd params neither
+// distort results nor mint distinct cache keys.
+function normYear(y?: number): number | undefined {
+  if (y == null || !Number.isFinite(y)) return undefined;
+  const t = Math.trunc(y);
+  return t < 1949 || t > new Date().getFullYear() + 1 ? undefined : t;
+}
 
 function blank(f: ClubFamily): AllTimeRow {
   return {
@@ -50,7 +64,11 @@ function blank(f: ClubFamily): AllTimeRow {
 
 export async function buildAllTimeTable(filters: AllTimeFilters): Promise<AllTimeRow[]> {
   const scope = filters.scope ?? 'all';
-  const key = `${filters.fromYear ?? ''}|${filters.toYear ?? ''}|${scope}`;
+  let fromYear = normYear(filters.fromYear);
+  let toYear = normYear(filters.toYear);
+  // Inverted range → swap (lenient: "2020..2010" means "2010..2020").
+  if (fromYear != null && toYear != null && fromYear > toYear) [fromYear, toYear] = [toYear, fromYear];
+  const key = `${fromYear ?? ''}|${toYear ?? ''}|${scope}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.rows;
 
@@ -65,14 +83,14 @@ export async function buildAllTimeTable(filters: AllTimeFilters): Promise<AllTim
     return { row, fam };
   };
   const inRange = (year: number) =>
-    (filters.fromYear == null || year >= filters.fromYear) && (filters.toYear == null || year <= filters.toYear);
+    (fromYear == null || year >= fromYear) && (toYear == null || year <= toYear);
 
   if (scope === 'all') {
     const standings = await prisma.standing.findMany({
       where: { competitionId: LIGAT_HAAL_ID },
       select: {
         teamId: true, seasonId: true, played: true, wins: true, draws: true, losses: true,
-        goalsFor: true, goalsAgainst: true, points: true,
+        goalsFor: true, goalsAgainst: true, points: true, pointsAdjustment: true,
       },
     });
     // season years come from the family season list (avoids a join per row)
@@ -84,7 +102,10 @@ export async function buildAllTimeTable(filters: AllTimeFilters): Promise<AllTim
       const r = rowFor(s.teamId);
       if (!r) continue;
       r.row.played += s.played; r.row.wins += s.wins; r.row.draws += s.draws; r.row.losses += s.losses;
-      r.row.goalsFor += s.goalsFor; r.row.goalsAgainst += s.goalsAgainst; r.row.points += s.points;
+      r.row.goalsFor += s.goalsFor; r.row.goalsAgainst += s.goalsAgainst;
+      // Adjusted points — codebase convention (deductions live on the Standing
+      // row, e.g. Hapoel TA −2): stored points alone would inflate totals.
+      r.row.points += s.points + s.pointsAdjustment;
       seasonSets.get(r.fam.clubKey)!.add(year);
     }
   } else {
@@ -112,6 +133,7 @@ export async function buildAllTimeTable(filters: AllTimeFilters): Promise<AllTim
     .filter((r) => r.played > 0)
     .sort((a, b) => b.points - a.points || b.goalsDiff - a.goalsDiff || b.goalsFor - a.goalsFor);
 
+  if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value!);
   cache.set(key, { at: Date.now(), rows });
   return rows;
 }

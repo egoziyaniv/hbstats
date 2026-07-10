@@ -14,6 +14,8 @@
 import prisma from '@/lib/prisma';
 import { playerNamesMatch } from '@/lib/name-match';
 import { clearSpineCache } from '@/lib/history/seasons-spine';
+import { clearAllTimeCache } from '@/lib/history/all-time-table';
+import { clearClubCache } from '@/lib/history/club-identity';
 
 // A team can now hold several standing rows in one season (league + cup group).
 // Prefer the LEAGUE row (Premier 383 / National 382), then the most-played row,
@@ -1069,8 +1071,11 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
     },
   });
 
-  // Merges can create/update standings — drop the "כל העונות" spine cache.
+  // Merges can create/update standings — drop the "כל העונות" spine cache —
+  // and can create teams, which changes club families and the all-time table.
   clearSpineCache();
+  clearAllTimeCache();
+  clearClubCache();
 
   return { updated: applied.length, errors };
 }
@@ -1155,8 +1160,12 @@ export async function rollbackMerge(mergeId: string): Promise<{ reverted: number
     data: { status: 'rolled_back', rolledBackAt: new Date() },
   });
 
-  // Rollback reverts/deletes standings — drop the "כל העונות" spine cache.
+  // Rollback reverts/deletes standings — drop the "כל העונות" spine cache —
+  // and can delete merge-created teams, invalidating club families and the
+  // all-time table.
   clearSpineCache();
+  clearAllTimeCache();
+  clearClubCache();
 
   return { reverted, errors };
 }

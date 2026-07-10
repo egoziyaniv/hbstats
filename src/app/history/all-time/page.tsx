@@ -25,11 +25,13 @@ const ERA_OPTIONS: Array<{ from?: number; to?: number; label: string }> = [
   { from: 2020, label: 'מ-2020' },
 ];
 
-function buildHref(params: { scope?: string; from?: string; to?: string }): string {
+// hrefs are built from the PARSED (validated) scope/years — never the raw
+// query strings — so junk params don't propagate through the filter pills.
+function buildHref(params: { scope?: Scope; from?: number; to?: number }): string {
   const usp = new URLSearchParams();
   if (params.scope && params.scope !== 'all') usp.set('scope', params.scope);
-  if (params.from) usp.set('from', params.from);
-  if (params.to) usp.set('to', params.to);
+  if (params.from != null) usp.set('from', String(params.from));
+  if (params.to != null) usp.set('to', String(params.to));
   const qs = usp.toString();
   return qs ? `/history/all-time?${qs}` : '/history/all-time';
 }
@@ -63,7 +65,7 @@ export default async function AllTimeTablePage({
             return (
               <Link
                 key={opt.value}
-                href={buildHref({ scope: opt.value, from: searchParams?.from, to: searchParams?.to })}
+                href={buildHref({ scope: opt.value, from: fromYear, to: toYear })}
                 className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
                   active ? 'bg-[var(--accent)] text-white' : 'text-stone-600 hover:bg-stone-100'
                 }`}
@@ -80,7 +82,7 @@ export default async function AllTimeTablePage({
             return (
               <Link
                 key={era.label}
-                href={buildHref({ scope: searchParams?.scope, from: era.from ? String(era.from) : undefined, to: era.to ? String(era.to) : undefined })}
+                href={buildHref({ scope, from: era.from, to: era.to })}
                 className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
                   active ? 'bg-[var(--accent)] text-white' : 'text-stone-600 hover:bg-stone-100'
                 }`}
