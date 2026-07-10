@@ -25,9 +25,14 @@ export default function SeasonsSpineScreen() {
           <ActivityIndicator color={brand.accent} />
         </View>
       ) : rows.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        // Empty state stays inside a refreshable ScrollView so pull-to-refresh
+        // can recover from a transient fetch failure.
+        <ScrollView
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
           <Text style={{ color: theme.ink[700], fontSize: 14 }}>אין נתונים להצגה.</Text>
-        </View>
+        </ScrollView>
       ) : (
         <ScrollView
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}

@@ -97,9 +97,16 @@ export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
       runnerUp = champOrdered[1] ? ref(champOrdered[1]) : null;
       relegated = (marked.length ? marked : relOrdered.slice(-2)).map(ref);
     } else {
-      // Single-table season: order by real standing rules (adjusted points,
-      // goal difference, …) rather than the raw stored position.
-      const ordered = sortStandings(rowsForSeason);
+      // Single-table season: the stored `position` IS the official final
+      // ranking, and history has seasons where it deliberately disagrees with
+      // points order (1973/74 withdrawn teams ranked 5-6 with 1-4 points;
+      // 1989/90 top/bottom split where positions 7-12 out-point position 6).
+      // Honor it. Fall back to standing rules only when positions are
+      // duplicated without group labels (ambiguous data).
+      const uniquePositions = new Set(rowsForSeason.map((r) => r.position));
+      const ordered = uniquePositions.size === rowsForSeason.length
+        ? [...rowsForSeason].sort((a, b) => a.position - b.position)
+        : sortStandings(rowsForSeason);
       champion = ordered[0] ? ref(ordered[0]) : null;
       runnerUp = ordered[1] ? ref(ordered[1]) : null;
       relegated = (marked.length ? marked : ordered.slice(-2)).map(ref);

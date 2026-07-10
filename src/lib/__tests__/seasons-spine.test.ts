@@ -113,6 +113,28 @@ describe('getSeasonsSpine', () => {
     expect(rows[0].relegated.map((r) => r.nameHe)).toEqual(['הפועל תל אביב', 'סקציה נס ציונה']);
   });
 
+  it('single-table season: relegated follow the OFFICIAL stored positions, not points order', async () => {
+    p.season.findMany.mockResolvedValue([{ id: 's73', year: 1973, name: '1973/74' }]);
+    // Historical shape: withdrawn teams officially ranked 5-6 despite having
+    // fewer points than the teams stored at the bottom positions.
+    p.standing.findMany.mockResolvedValue([
+      standing('s73', 'mn', 'מכבי נתניה', { position: 1, points: 44, goalsFor: 50, goalsAgainst: 18 }),
+      standing('s73', 'hpt', 'הפועל פ"ת', { position: 2, points: 40, goalsFor: 42, goalsAgainst: 22 }),
+      standing('s73', 'hh', 'הפועל חיפה', { position: 5, points: 4, goalsFor: 8, goalsAgainst: 30 }),
+      standing('s73', 'bt', 'בית"ר ת"א', { position: 6, points: 1, goalsFor: 5, goalsAgainst: 35 }),
+      standing('s73', 'hrg', 'הכח רמת גן', { position: 15, points: 20, goalsFor: 25, goalsAgainst: 33 }),
+      standing('s73', 'mh', 'מכבי חיפה', { position: 16, points: 18, goalsFor: 22, goalsAgainst: 36 }),
+    ]);
+    p.competitionLeaderboardEntry.findMany.mockResolvedValue([]);
+
+    const rows = await getSeasonsSpine();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].champion).toMatchObject({ teamId: 'mn', nameHe: 'מכבי נתניה' });
+    expect(rows[0].runnerUp).toMatchObject({ teamId: 'hpt', nameHe: 'הפועל פ"ת' });
+    // Bottom STORED positions relegate — not the points-poorest (positions 5-6).
+    expect(rows[0].relegated.map((r) => r.nameHe)).toEqual(['הכח רמת גן', 'מכבי חיפה']);
+  });
+
   it('omits unfinished seasons (any SCHEDULED/ONGOING league game)', async () => {
     p.season.findMany.mockResolvedValue([
       { id: 's25', year: 2025, name: '2025/26' },
