@@ -611,6 +611,40 @@ export interface AllTimeTablePayload {
   rows: AllTimeApiRow[];
 }
 
+// ---------- History: rivalry (H2H) ----------
+// Mirrors src/lib/h2h.ts's FullH2H (web) — same shape, JSON-safe (no Date objects).
+
+export interface H2HCompetitionSplitApi {
+  competitionNameHe: string;
+  games: number; winsA: number; draws: number; winsB: number;
+}
+export interface H2HVenueSplitApi { games: number; winsA: number; draws: number; winsB: number }
+export interface H2HMeetingApi {
+  gameId: string;
+  date: string;
+  competitionNameHe: string | null;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore: number;
+  awayScore: number;
+  isAHome: boolean;
+  resultFromA: 'W' | 'D' | 'L';
+}
+export interface FullH2HApiPayload {
+  teamAName: string;
+  teamBName: string;
+  totals: { games: number; winsA: number; draws: number; winsB: number; goalsA: number; goalsB: number };
+  byCompetition: H2HCompetitionSplitApi[];
+  atAHome: H2HVenueSplitApi;
+  atBHome: H2HVenueSplitApi;
+  biggestAWin: { gameId: string; label: string; year: number } | null;
+  biggestBWin: { gameId: string; label: string; year: number } | null;
+  meetings: H2HMeetingApi[];
+}
+
+export interface H2HClubOption { clubKey: string; nameHe: string }
+export interface H2HClubsPayload { clubs: H2HClubOption[] }
+
 // ---------- Search ----------
 
 export interface SearchResultApiItem {
