@@ -61,7 +61,9 @@ async function main() {
   const where = { source: 'walla', category: { in: Object.keys(CATEGORY_MAP) } };
   if (targetSeason) where.season = targetSeason;
 
-  const scraped = await prisma.scrapedLeaderboard.findMany({ where, orderBy: [{ season: 'asc' }, { category: 'asc' }, { rank: 'asc' }] });
+  // category DESC so 'X_full' (complete lists) merges before compact 'X' — the
+  // existing-row skip then lets compact lists only fill seasons lacking a _full one.
+  const scraped = await prisma.scrapedLeaderboard.findMany({ where, orderBy: [{ season: 'asc' }, { category: 'desc' }, { rank: 'asc' }] });
   console.log('Records to merge:', scraped.length);
 
   let created = 0, skipped = 0, errors = 0;
