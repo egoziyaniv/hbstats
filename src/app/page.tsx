@@ -13,6 +13,7 @@ import {
 import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
 import { getCurrentSeasonStartYear, getHomepageLiveSnapshots } from '@/lib/home-live';
 import HomeLivePanel from '@/components/HomeLivePanel';
+import OnThisDayCard from '@/components/OnThisDayCard';
 import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 
@@ -711,6 +712,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
             <Card title="לייב" actionHref="/live" actionLabel="כל המשחקים">
               <HomeLivePanel initialItems={initialLiveItems} selectedTeamId={null} limit={homepageLiveLimit} />
             </Card>
+
+            <OnThisDayCard />
 
             {predictions.length > 0 && (
               <Card title="תחזיות" actionHref="/games" actionLabel="למשחקים">

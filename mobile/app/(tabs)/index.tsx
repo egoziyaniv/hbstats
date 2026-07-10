@@ -81,6 +81,23 @@ export default function HomeScreen() {
           </Section>
         ) : null}
 
+        {data.onThisDay ? (
+          <Section title="היום לפני X שנים">
+            <Pressable onPress={() => router.push(`/games/${data.onThisDay!.gameId}` as any)}>
+              <Card>
+                <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' }}>
+                  {data.onThisDay.headline}
+                </Text>
+                {data.onThisDay.birthdays.length ? (
+                  <Text style={{ color: theme.ink[500], fontSize: 12, marginTop: 6, textAlign: 'right', writingDirection: 'rtl' }}>
+                    🎂 {data.onThisDay.birthdays.map((b) => `${b.nameHe} (${b.age})`).join(' · ')}
+                  </Text>
+                ) : null}
+              </Card>
+            </Pressable>
+          </Section>
+        ) : null}
+
         {/* Live strip — show secondary live games */}
         {data.liveStrip.length > 1 ? (
           <Section title="גם משחקים חיים">

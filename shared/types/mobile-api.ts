@@ -187,6 +187,14 @@ export interface PredictionsPayload {
   items: PredictionItem[];
 }
 
+export interface OnThisDayHome {
+  gameId: string;
+  yearsAgo: number;
+  headline: string;
+  competitionName: string | null;
+  birthdays: Array<{ playerId: string; nameHe: string; age: number }>;
+}
+
 export interface HomePayload {
   user: { id: string; name: string; avatarUrl: string | null } | null;
   favoriteTeam: TeamSummary | null;
@@ -195,6 +203,7 @@ export interface HomePayload {
   compactStandings: CompactStandingRow[];
   liveStrip: LiveMatchCompact[];
   newsStrip: NewsCard[];
+  onThisDay?: OnThisDayHome | null;
 }
 
 // ---------- Live ----------

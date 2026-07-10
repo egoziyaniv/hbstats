@@ -6,6 +6,7 @@ import {
   snapshotInvolvesIsraeliTeam,
   type HomepageLiveSnapshot,
 } from '@/lib/home-live';
+import { getOnThisDay } from '@/lib/on-this-day';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
@@ -337,6 +338,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     telegramMessages,
     liveItems,
     israeliTeamApiIds,
+    onThisDayData,
   ] = await Promise.all([
     prisma.game.findMany({
       where: {
@@ -417,6 +419,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     // worldwide matches and the live-countries admin setting isn't always set.
     getHomepageLiveSnapshots(null, { limit: 24 }),
     getIsraeliTeamApiFootballIds(),
+    getOnThisDay().catch(() => null),
   ]);
 
   // Prefer the favorite team's next game; fall back to the soonest game of any
@@ -639,6 +642,15 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
         fullText: message.text,
       })),
     },
+    onThisDay: onThisDayData?.match
+      ? {
+          gameId: onThisDayData.match.gameId,
+          yearsAgo: onThisDayData.match.yearsAgo,
+          headline: onThisDayData.match.headline,
+          competitionName: onThisDayData.match.competitionName,
+          birthdays: onThisDayData.birthdays.map((b) => ({ playerId: b.playerId, nameHe: b.nameHe, age: b.age })),
+        }
+      : null,
   };
 }
 

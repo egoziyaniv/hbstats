@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
     compactStandings,
     liveStrip,
     newsStrip,
+    onThisDay: raw.onThisDay,
   };
 
   return NextResponse.json(payload);
