@@ -353,6 +353,9 @@ export default async function StandingsPage({
               <p className="text-sm leading-6 text-stone-600 md:text-base">
                 בחרו עונה או מחזור כדי לראות את טבלת הליגה על פי הנתונים שנשמרו במערכת.
               </p>
+              <Link href="/history/seasons" className="inline-block text-sm font-bold text-[var(--accent)]">
+                🏆 כל העונות — אלופות ומלכי שערים
+              </Link>
             </div>
 
             <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/standings">
@@ -664,6 +667,9 @@ function PremierStandingsView({
               <p className="text-sm leading-6 text-stone-600">
                 כולל טופס חמשת המשחקים האחרונים, הקבוצה הבאה, ואפשרות לצפות בטבלה לאחר כל מחזור.
               </p>
+              <Link href="/history/seasons" className="inline-block text-sm font-bold text-[var(--accent)]">
+                🏆 כל העונות — אלופות ומלכי שערים
+              </Link>
             </div>
 
             <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/standings">

@@ -17,6 +17,14 @@ const CATEGORY_MAP = {
   redCards_full: 'TOP_RED_CARDS',
   substitutedIn_full: 'TOP_SUBSTITUTED_IN',
   substitutedOut_full: 'TOP_SUBSTITUTED_OUT',
+  // Compact per-season top lists (scrape-walla.js writes these without _full,
+  // Ligat Ha'al only — Leumit rows use a `_leumit` suffix and don't match here).
+  goals: 'TOP_SCORERS',
+  assists: 'TOP_ASSISTS',
+  yellowCards: 'TOP_YELLOW_CARDS',
+  redCards: 'TOP_RED_CARDS',
+  substitutedIn: 'TOP_SUBSTITUTED_IN',
+  substitutedOut: 'TOP_SUBSTITUTED_OUT',
 };
 
 function norm(n) {
@@ -47,14 +55,17 @@ async function main() {
   const competition = await prisma.competition.findFirst({ where: { apiFootballId: LIGA_HAAL_API_ID } });
   if (!competition) { console.log('Competition not found!'); return; }
 
-  const where = { source: 'walla', category: { endsWith: '_full' } };
+  // Filter by the known category keys (CATEGORY_MAP) rather than `endsWith('_full')`
+  // so the compact per-season lists merge too, while `_leumit`-suffixed rows
+  // (a different competition) stay excluded since they aren't in the map.
+  const where = { source: 'walla', category: { in: Object.keys(CATEGORY_MAP) } };
   if (targetSeason) where.season = targetSeason;
 
   const scraped = await prisma.scrapedLeaderboard.findMany({ where, orderBy: [{ season: 'asc' }, { category: 'asc' }, { rank: 'asc' }] });
   console.log('Records to merge:', scraped.length);
 
   let created = 0, skipped = 0, errors = 0;
-  let currentSeasonName = '';
+  let currentYear = null;
   let seasonId = '';
   let teams = [];
 
@@ -64,12 +75,15 @@ async function main() {
 
     const m = entry.season.match(/(\d{4})\/(\d{4})/);
     if (!m) { skipped++; continue; }
-    const dbSeasonName = `${m[1]}-${m[2]}`;
+    const year = parseInt(m[1], 10);
 
-    if (dbSeasonName !== currentSeasonName) {
-      currentSeasonName = dbSeasonName;
-      const season = await prisma.season.findFirst({ where: { name: dbSeasonName } });
-      if (!season) { seasonId = ''; continue; }
+    if (year !== currentYear) {
+      currentYear = year;
+      // Look up by YEAR (unique) — Season.name formatting varies across the
+      // table ("2010/2011" vs "2013/14"), so a reconstructed dash-joined name
+      // string ("2010-2011") never matches and silently drops every row.
+      const season = await prisma.season.findUnique({ where: { year } });
+      if (!season) { seasonId = ''; teams = []; skipped++; continue; }
       seasonId = season.id;
       teams = await prisma.team.findMany({ where: { seasonId }, select: { id: true, nameHe: true } });
     }

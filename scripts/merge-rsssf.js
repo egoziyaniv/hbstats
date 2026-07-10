@@ -136,7 +136,11 @@ async function getOrCreateSeason(seasonStr) {
   const year = parseInt(m[1]);
   const name = `${m[1]}-${m[2]}`;
 
-  let s = await prisma.season.findFirst({ where: { name } });
+  // Look up by YEAR first — season names drift ("1955/1956" vs "1955/56")
+  // but year is unique; creating on a name-miss violates the unique(year)
+  // constraint (P2002).
+  let s = await prisma.season.findUnique({ where: { year } });
+  if (!s) s = await prisma.season.findFirst({ where: { name } });
   if (!s) {
     if (!DRY_RUN) {
       s = await prisma.season.create({

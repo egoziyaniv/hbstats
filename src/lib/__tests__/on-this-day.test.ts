@@ -9,7 +9,7 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 import prisma from '@/lib/prisma';
-import { pickAnniversaryMatch, getOnThisDay } from '@/lib/on-this-day';
+import { pickAnniversaryMatch, getOnThisDay, _clearOnThisDayMemoForTests } from '@/lib/on-this-day';
 
 const p = prisma as unknown as {
   $queryRaw: jest.Mock;
@@ -67,6 +67,8 @@ describe('pickAnniversaryMatch scoring', () => {
 });
 
 describe('getOnThisDay', () => {
+  beforeEach(() => { _clearOnThisDayMemoForTests(); });
+
   it('assembles match + birthdays payload', async () => {
     p.$queryRaw.mockResolvedValueOnce([{ id: 'g1' }]);   // game ids for the day
     p.game.findMany.mockResolvedValue([mkGame()]);
@@ -80,5 +82,20 @@ describe('getOnThisDay', () => {
     expect(res.match!.headline).toContain('מכבי חיפה');
     expect(res.birthdays[0].nameHe).toBe('יוסי בניון');
     expect(res.birthdays[0].age).toBe(46);
+  });
+
+  it('memoizes by calendar day — a second call for the same date does not hit prisma again', async () => {
+    p.$queryRaw.mockResolvedValueOnce([{ id: 'g1' }]);   // game ids for the day
+    p.game.findMany.mockResolvedValue([mkGame()]);
+    p.$queryRaw.mockResolvedValueOnce([{ id: 'p1' }]);   // birthday player ids
+    p.player.findMany.mockResolvedValue([
+      { id: 'p1', canonicalPlayerId: null, nameHe: 'יוסי בניון', birthDate: new Date('1980-07-10'), photoUrl: null, _count: { lineupEntries: 300 } },
+    ]);
+    const now = new Date('2026-07-10T09:00:00Z');
+    const first = await getOnThisDay(now);
+    const callsAfterFirst = p.$queryRaw.mock.calls.length;
+    const second = await getOnThisDay(now);
+    expect(p.$queryRaw.mock.calls.length).toBe(callsAfterFirst);
+    expect(second).toBe(first); // same memoized object reference
   });
 });

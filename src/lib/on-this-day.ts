@@ -75,7 +75,13 @@ export function pickAnniversaryMatch(games: CandidateGame[], now: Date): Candida
   return best;
 }
 
+let memo: { key: string; value: OnThisDayPayload } | null = null;
+export function _clearOnThisDayMemoForTests() { memo = null; }
+
 export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> {
+  const key = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  if (memo && memo.key === key) return memo.value;
+
   const month = now.getMonth() + 1;
   const day = now.getDate();
 
@@ -151,5 +157,7 @@ export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> 
       }));
   }
 
-  return { match, birthdays };
+  const value = { match, birthdays };
+  memo = { key, value };
+  return value;
 }
