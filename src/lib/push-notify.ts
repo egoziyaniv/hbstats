@@ -3,11 +3,12 @@ import { sendExpoPush, type PushMessage } from '@/lib/push';
 import { getPushCategoryFlags, type PushCategory } from '@/lib/push-settings';
 
 /** Per-user opt-in column backing each push category. */
-const USER_PREF_COLUMN: Record<PushCategory, 'notifyGoals' | 'notifyResults' | 'notifyReminders' | 'notifyNews'> = {
+const USER_PREF_COLUMN: Record<PushCategory, 'notifyGoals' | 'notifyResults' | 'notifyReminders' | 'notifyNews' | 'notifyOnThisDay'> = {
   goals: 'notifyGoals',
   results: 'notifyResults',
   reminders: 'notifyReminders',
   news: 'notifyNews',
+  onThisDay: 'notifyOnThisDay',
 };
 
 /** True if the admin master switch for this category is on. */
@@ -23,7 +24,7 @@ export async function isCategoryEnabled(category: PushCategory): Promise<boolean
  */
 export async function tokensForTeamCategory(
   teamApiIds: Array<number | null | undefined>,
-  category: Exclude<PushCategory, 'news'>,
+  category: Exclude<PushCategory, 'news' | 'onThisDay'>,
 ): Promise<string[]> {
   if (!(await isCategoryEnabled(category))) return [];
   const apiIds = teamApiIds.filter((x): x is number => typeof x === 'number');
@@ -45,6 +46,16 @@ export async function tokensForNews(): Promise<string[]> {
   if (!(await isCategoryEnabled('news'))) return [];
   const users = await prisma.user.findMany({
     where: { isActive: true, notifyNews: true, pushTokens: { some: { enabled: true } } },
+    select: { pushTokens: { where: { enabled: true }, select: { token: true } } },
+  });
+  return users.flatMap((u) => u.pushTokens.map((t) => t.token));
+}
+
+/** Tokens for all users opted into the daily on-this-day push (no team filter). */
+export async function tokensForOnThisDay(): Promise<string[]> {
+  if (!(await isCategoryEnabled('onThisDay'))) return [];
+  const users = await prisma.user.findMany({
+    where: { isActive: true, notifyOnThisDay: true, pushTokens: { some: { enabled: true } } },
     select: { pushTokens: { where: { enabled: true }, select: { token: true } } },
   });
   return users.flatMap((u) => u.pushTokens.map((t) => t.token));

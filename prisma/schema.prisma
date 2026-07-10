@@ -28,6 +28,7 @@ model User {
   notifyResults             Boolean          @default(true)
   notifyReminders           Boolean          @default(true)
   notifyNews                Boolean          @default(true)
+  notifyOnThisDay           Boolean          @default(true)
   activityLogs              ActivityLog[]
   fetchJobs                 FetchJob[]       @relation("FetchJobInitiator")
   mergeOperations           MergeOperation[]

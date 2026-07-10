@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 
-type Flags = { goals: boolean; results: boolean; reminders: boolean; news: boolean };
+type Flags = { goals: boolean; results: boolean; reminders: boolean; news: boolean; onThisDay: boolean };
 
 const ROWS: Array<{ key: keyof Flags; title: string; desc: string }> = [
   { key: 'goals', title: '⚽ גולים', desc: 'התראה בזמן אמת על כל גול במשחק של קבוצה שעוקבים אחריה.' },
   { key: 'results', title: '🏁 תוצאות סיום', desc: 'התראה על התוצאה הסופית בתום המשחק.' },
   { key: 'reminders', title: '⏰ תזכורות משחק', desc: 'תזכורת כשעה לפני פתיחת משחק של קבוצה שעוקבים אחריה.' },
   { key: 'news', title: '📰 חדשות', desc: 'התראה על ידיעה חדשה מערוצי הטלגרם המוגדרים.' },
+  { key: 'onThisDay', title: '📅 היום לפני X שנים', desc: 'התראה יומית אחת עם משחק היסטורי שנערך בתאריך של היום.' },
 ];
 
 export default function AdminPushSettingsClient({ initialFlags }: { initialFlags: Flags }) {

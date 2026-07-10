@@ -8,19 +8,20 @@ import prisma from '@/lib/prisma';
  */
 export const PUSH_CATEGORIES_SETTING_KEY = 'push_categories';
 
-export type PushCategory = 'goals' | 'results' | 'reminders' | 'news';
+export type PushCategory = 'goals' | 'results' | 'reminders' | 'news' | 'onThisDay';
 export type PushCategoryFlags = Record<PushCategory, boolean>;
 
-export const PUSH_CATEGORIES: PushCategory[] = ['goals', 'results', 'reminders', 'news'];
+export const PUSH_CATEGORIES: PushCategory[] = ['goals', 'results', 'reminders', 'news', 'onThisDay'];
 
 export const PUSH_CATEGORY_LABELS_HE: Record<PushCategory, string> = {
   goals: 'גולים',
   results: 'תוצאות סיום',
   reminders: 'תזכורות משחק',
   news: 'חדשות',
+  onThisDay: 'היום לפני X שנים',
 };
 
-const DEFAULT_FLAGS: PushCategoryFlags = { goals: true, results: true, reminders: true, news: true };
+const DEFAULT_FLAGS: PushCategoryFlags = { goals: true, results: true, reminders: true, news: true, onThisDay: true };
 
 function coerce(value: unknown): PushCategoryFlags {
   const out: PushCategoryFlags = { ...DEFAULT_FLAGS };
