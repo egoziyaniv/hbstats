@@ -130,6 +130,15 @@ export default function StandingsScreen() {
           </Section>
         ));
         })()}
+        {/* Entry point to the "כל העונות" season spine — shown once below the
+            table(s) regardless of scope, since it isn't tied to the home/away
+            toggle. */}
+        <Pressable
+          onPress={() => router.push('/history/seasons' as any)}
+          style={{ marginTop: 4, marginHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: brand.accentGlow, alignItems: 'center' }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: '800', color: theme.ink[900] }}>🏆 כל העונות — אלופות ומלכי שערים</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

@@ -581,3 +581,19 @@ export interface PreferencesPayload {
   availableTeams: PreferenceTeamOption[];
   availableCompetitions: PreferenceCompetitionOption[];
 }
+
+// ---------- History: seasons spine ----------
+
+export interface SeasonSpineApiRow {
+  seasonId: string;
+  year: number;
+  name: string;
+  champion: { teamId: string; nameHe: string; logoUrl: string | null } | null;
+  runnerUp: { teamId: string; nameHe: string; logoUrl: string | null } | null;
+  topScorer: { playerId: string | null; nameHe: string; goals: number } | null;
+  relegated: Array<{ teamId: string; nameHe: string; logoUrl: string | null }>;
+}
+
+export interface SeasonsSpinePayload {
+  rows: SeasonSpineApiRow[];
+}
