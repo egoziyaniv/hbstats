@@ -598,6 +598,19 @@ export interface SeasonsSpinePayload {
   rows: SeasonSpineApiRow[];
 }
 
+// ---------- History: all-time club table ----------
+
+export interface AllTimeApiRow {
+  clubKey: string; nameHe: string; logoUrl: string | null; latestTeamId: string;
+  seasons: number; played: number; wins: number; draws: number; losses: number;
+  goalsFor: number; goalsAgainst: number; goalsDiff: number; points: number;
+}
+
+export interface AllTimeTablePayload {
+  scope: 'all' | 'home' | 'away';
+  rows: AllTimeApiRow[];
+}
+
 // ---------- Search ----------
 
 export interface SearchResultApiItem {
