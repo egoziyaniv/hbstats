@@ -59,4 +59,29 @@ describe('club-identity', () => {
     const fam = await getClubFamilyByTeamId('a1');
     expect(fam?.teamIds).toContain('a2');
   });
+
+  it('falls back to a name-based clubKey when no member has an apiFootballId', async () => {
+    findMany.mockResolvedValue([
+      t('n1', 'בית"ר ירושלים', 's2005', null),
+      t('n2', 'בית"ר ירושלים', 's2006', null),
+    ]);
+    const [fam] = await getClubFamilies();
+    expect(fam.clubKey).toBe(`name-${encodeURIComponent('בית"ר ירושלים')}`);
+  });
+
+  it('picks the newest row apiId deterministically when a name-united family has two apiIds', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    findMany.mockResolvedValue([
+      t('d1', 'הפועל רעננה', 's2010', 111),
+      t('d2', 'הפועל רעננה', 's2024', 222),
+    ]);
+    const [fam] = await getClubFamilies();
+    expect(fam.clubKey).toBe('api-222');
+    expect(warn).toHaveBeenCalledWith(
+      '[club-identity] family with multiple apiFootballIds:',
+      expect.any(String),
+      expect.arrayContaining([111, 222]),
+    );
+    warn.mockRestore();
+  });
 });

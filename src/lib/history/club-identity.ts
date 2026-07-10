@@ -8,8 +8,12 @@ import prisma from '@/lib/prisma';
  *   2. rows sharing a normalized Hebrew name are one club,
  *   union-find over both signals (handles transliteration drift like Marmorek).
  *
- * clubKey (stable URL slug, matches the admin teamKey convention):
- *   `api-<apiFootballId>` when the family has one, else `name-<encodeURIComponent(nameHe of newest row)>`.
+ * clubKey (stable URL slug): `api-<apiFootballId>` when the family has one
+ * (picked from the newest row that has an apiId — deterministic), else
+ * `name-<encodeURIComponent(nameHe of newest row)>`, else `team-<newest row id>`
+ * when the name is blank. api- keys interoperate with the admin teamKey
+ * convention; name- keys are this module's own (nameHe-based — admin resolves
+ * name-<x> against nameEn, so they are NOT interchangeable).
  */
 
 export interface ClubFamily {
@@ -45,12 +49,12 @@ type TeamRow = {
 };
 
 async function build() {
-  const rows = (await prisma.team.findMany({
+  const rows: TeamRow[] = await prisma.team.findMany({
     select: {
       id: true, nameHe: true, nameEn: true, logoUrl: true, apiFootballId: true, seasonId: true,
       season: { select: { id: true, year: true } },
     },
-  })) as TeamRow[];
+  });
 
   // Union-find over two signals: apiFootballId and normalized nameHe.
   const parent = new Map<string, string>();
@@ -89,13 +93,21 @@ async function build() {
 
   const families: ClubFamily[] = [];
   for (const members of groups.values()) {
-    // Sort newest-first ONCE and reuse it for newest/logo/seasons — logoUrl
-    // must come from the newest row that HAS one, not just insertion order.
-    const sorted = [...members].sort((a, b) => b.season.year - a.season.year);
+    // Sort newest-first ONCE (id tie-break keeps same-year ordering stable
+    // across rebuilds) and reuse it for newest/apiId/logo/seasons — each must
+    // come from the newest qualifying row, not DB insertion order.
+    const sorted = [...members].sort((a, b) => b.season.year - a.season.year || a.id.localeCompare(b.id));
     const newest = sorted[0];
-    const apiId = members.map((m) => m.apiFootballId).find((x): x is number => typeof x === 'number');
+    const apiId = sorted.find((m) => m.apiFootballId != null)?.apiFootballId ?? null;
+    const distinctApiIds = new Set(members.map((m) => m.apiFootballId).filter((x) => x != null));
+    if (distinctApiIds.size > 1) {
+      console.warn('[club-identity] family with multiple apiFootballIds:', newest.nameHe, [...distinctApiIds]);
+    }
+    const nameKey = newest.nameHe.trim()
+      ? `name-${encodeURIComponent(newest.nameHe)}`
+      : `team-${newest.id}`;
     families.push({
-      clubKey: apiId != null ? `api-${apiId}` : `name-${encodeURIComponent(newest.nameHe)}`,
+      clubKey: apiId != null ? `api-${apiId}` : nameKey,
       nameHe: newest.nameHe,
       nameEn: newest.nameEn,
       logoUrl: sorted.map((m) => m.logoUrl).find((l) => l) ?? null,
@@ -129,4 +141,8 @@ export async function getClubFamily(clubKey: string): Promise<ClubFamily | null>
 }
 export async function getClubFamilyByTeamId(teamId: string): Promise<ClubFamily | null> {
   return (await ensure()).byTeamId.get(teamId) ?? null;
+}
+/** Bulk teamId → family index — one call for aggregators that map many rows. */
+export async function getClubTeamIndex(): Promise<ReadonlyMap<string, ClubFamily>> {
+  return (await ensure()).byTeamId;
 }
