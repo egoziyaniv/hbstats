@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { rtlRow } from '@/lib/rtl';
 import { CachedImage } from '@/design-system/CachedImage';
 import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useStats } from '@/hooks/useStats';
 import { useTheme } from '@/contexts/ThemeContext';
 import { absoluteImage } from '@/lib/config';
@@ -43,12 +43,19 @@ export default function PlayersTab() {
   const headerRight = <SeasonChip />;
 
   const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search.trim()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
   const isSearching = search.trim().length >= 2;
-  const { data: searchData, isFetching: searching } = useQuery<SearchPayload>({
-    queryKey: ['search', search],
-    queryFn: () => apiClient.get<SearchPayload>(`/search?q=${encodeURIComponent(search.trim())}`),
-    enabled: isSearching,
+  const { data: searchData, isFetching: searching, isError: searchError } = useQuery<SearchPayload>({
+    queryKey: ['search', debounced],
+    queryFn: () => apiClient.get<SearchPayload>(`/search?q=${encodeURIComponent(debounced)}`),
+    enabled: debounced.length >= 2,
     staleTime: 30_000,
+    retry: false,
+    placeholderData: keepPreviousData,
   });
   const searchResults = (searchData?.results ?? []).filter((r) => r.type === 'player' || r.type === 'team');
 
@@ -82,6 +89,9 @@ export default function PlayersTab() {
           onChangeText={setSearch}
           placeholder="חיפוש שחקן או קבוצה…"
           placeholderTextColor={theme.ink[500]}
+          returnKeyType="search"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
           style={{
             backgroundColor: 'white',
             borderRadius: 12,
@@ -97,7 +107,10 @@ export default function PlayersTab() {
         />
       </View>
       {isSearching ? (
-        <ScrollView contentContainerStyle={{ paddingVertical: 16, gap: 8, paddingBottom: 32 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingVertical: 16, gap: 8, paddingBottom: 32 }}
+        >
           {searching ? <ActivityIndicator color={brand.accent} /> : null}
           {searchResults.map((r) => (
             <Pressable key={`${r.type}-${r.id}`} onPress={() => router.push(r.href as any)}>
@@ -116,7 +129,9 @@ export default function PlayersTab() {
               </Card>
             </Pressable>
           ))}
-          {!searching && searchResults.length === 0 ? (
+          {searchError ? (
+            <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>החיפוש נכשל, נסו שוב.</Text>
+          ) : !searching && searchResults.length === 0 ? (
             <Text style={{ textAlign: 'center', color: theme.ink[500], padding: 16 }}>לא נמצאו תוצאות.</Text>
           ) : null}
         </ScrollView>

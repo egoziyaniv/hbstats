@@ -1,13 +1,8 @@
 import prisma from '@/lib/prisma';
 import { formatPlayerName } from '@/lib/player-display';
+import type { SearchResultApiItem } from '@shared/types/mobile-api';
 
-export interface SearchResultItem {
-  id: string;
-  type: 'team' | 'player' | 'game' | 'venue';
-  label: string;
-  subtitle?: string;
-  href: string;
-}
+export type SearchResultItem = SearchResultApiItem;
 
 /** Name search over teams/players/games/venues (Hebrew + English, 5 per type). */
 export async function searchEntities(query: string): Promise<SearchResultItem[]> {
