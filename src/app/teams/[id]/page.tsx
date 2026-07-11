@@ -17,11 +17,14 @@ import { buildGoalTimingForTeam } from '@/lib/goal-timing';
 import { buildSquadDemographics, buildGoalTypes, buildXgOverTime } from '@/lib/team-extras';
 import { TeamOverviewPanel } from '@/components/TeamOverviewPanel';
 import TeamPositionHistory, { type PositionRow } from '@/components/TeamPositionHistory';
+import { getClubFamilyByTeamId } from '@/lib/history/club-identity';
+import { getClubHonors } from '@/lib/history/club-honors';
+import { RECORD_CATEGORIES } from '@/lib/history/records-engine';
 
 const LEAGUE_COMPETITION_ID = 'comp_liga_haal';
 const SECOND_TIER_COMPETITION_ID = 'comp_liga_leumit';
 
-type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts';
+type TeamPremierTab = 'overview' | 'matches' | 'squad' | 'stats' | 'referees' | 'contracts' | 'history';
 
 type ContractPlayer = { name: string; position: string | null; until: string };
 type ContractYearGroup = { year: number; count: number; players: ContractPlayer[] };
@@ -78,7 +81,7 @@ export default async function TeamPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { view?: string; tab?: string };
+  searchParams?: { view?: string; tab?: string; squadSeason?: string };
 }) {
   const displayMode = await getDisplayMode(searchParams?.view);
   const selectedTab = normalizeTeamPremierTab(searchParams?.tab);
@@ -275,6 +278,44 @@ export default async function TeamPage({
       tier: s.competitionId === SECOND_TIER_COMPETITION_ID ? 'leumit' : 'haal',
       isCurrent: s.seasonId === team.seasonId,
     }));
+
+  // History tab: club family (honors + records scope + historical squads),
+  // gated to when the tab is actually visible — classic (non-premier) mode
+  // always shows every tab stacked, so it's needed there too.
+  const wantsHistoryTab = displayMode !== 'premier' || selectedTab === 'history';
+  const clubFamily = wantsHistoryTab ? await getClubFamilyByTeamId(team.id) : null;
+  const clubHonors = clubFamily ? await getClubHonors(clubFamily.clubKey) : null;
+  const clubRecordRows = clubFamily
+    ? await prisma.recordEntry.findMany({
+        where: { scope: `club:${clubFamily.clubKey}` },
+        orderBy: [{ category: 'asc' }, { rank: 'asc' }],
+      })
+    : [];
+  const clubRecordGroups = RECORD_CATEGORIES.map((cat) => ({
+    key: cat.key,
+    titleHe: cat.titleHe,
+    rows: clubRecordRows.filter((r) => r.category === cat.key).slice(0, 3),
+  })).filter((group) => group.rows.length > 0);
+
+  // Historical squads: season picker over the club family's seasons; default
+  // to the requested squadSeason, falling back to this team row's own season.
+  const requestedSquadSeasonId = searchParams?.squadSeason;
+  const squadFamilySeason =
+    (requestedSquadSeasonId && clubFamily?.seasons.find((s) => s.seasonId === requestedSquadSeasonId)) ||
+    clubFamily?.seasons.find((s) => s.seasonId === team.seasonId) ||
+    null;
+  const squadTeamId = squadFamilySeason?.teamId ?? team.id;
+  const squadRoster = wantsHistoryTab && clubFamily
+    ? await prisma.player.findMany({
+        where: { teamId: squadTeamId },
+        orderBy: [{ jerseyNumber: 'asc' }, { nameHe: 'asc' }, { nameEn: 'asc' }],
+        select: {
+          id: true, nameHe: true, nameEn: true, firstNameHe: true, lastNameHe: true,
+          firstNameEn: true, lastNameEn: true, jerseyNumber: true, position: true,
+          photoUrl: true, canonicalPlayerId: true,
+        },
+      })
+    : [];
 
   const allTimeHomeGames = allTimeTeamIds.length
     ? await prisma.game.findMany({
@@ -534,6 +575,7 @@ export default async function TeamPage({
                   { id: 'contracts', label: 'חוזים' },
                   { id: 'stats', label: 'סטטיסטיקה' },
                   { id: 'referees', label: 'שופטים' },
+                  { id: 'history', label: 'היסטוריה' },
                 ].map((tab) => (
                   <Link
                     key={tab.id}
@@ -550,8 +592,123 @@ export default async function TeamPage({
           ) : null}
         </section>
 
-        {(displayMode !== 'premier' || selectedTab === 'overview') && positionRows.length >= 2 ? (
+        {(displayMode !== 'premier' || selectedTab === 'history') && positionRows.length >= 2 ? (
           <TeamPositionHistory rows={positionRows} />
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'history' ? (
+        <Panel title="ארון הגביעים">
+          {clubHonors && clubHonors.leagueTitles.count + clubHonors.stateCup.count + clubHonors.totoCup.count + clubHonors.superCup.count > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {clubHonors.leagueTitles.count > 0 ? (
+                <HonorChip label="אליפות ליגה" count={clubHonors.leagueTitles.count} years={clubHonors.leagueTitles.years} />
+              ) : null}
+              {clubHonors.stateCup.count > 0 ? (
+                <HonorChip label="גביע המדינה" count={clubHonors.stateCup.count} years={clubHonors.stateCup.years} />
+              ) : null}
+              {clubHonors.totoCup.count > 0 ? (
+                <HonorChip label="גביע הטוטו" count={clubHonors.totoCup.count} years={clubHonors.totoCup.years} />
+              ) : null}
+              {clubHonors.superCup.count > 0 ? (
+                <HonorChip label="גביע העל" count={clubHonors.superCup.count} years={clubHonors.superCup.years} />
+              ) : null}
+            </div>
+          ) : (
+            <EmptyState text="אין תארים רשומים לקבוצה זו." />
+          )}
+        </Panel>
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'history' ? (
+        <Panel title="שיאי המועדון">
+          {clubRecordGroups.length === 0 ? (
+            <EmptyState text="שיאי המועדון טרם חושבו לקבוצה זו." />
+          ) : (
+            <div className="space-y-5">
+              {clubRecordGroups.map((group) => (
+                <div key={group.key}>
+                  <h3 className="text-sm font-black text-stone-700">{group.titleHe}</h3>
+                  <div className="mt-2 space-y-1.5">
+                    {group.rows.map((row) => (
+                      <div key={row.id} className="flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                        <span className="w-5 shrink-0 text-center text-xs font-black text-stone-400">{row.rank}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-stone-900">
+                            {row.gameId ? (
+                              <Link href={`/games/${row.gameId}`} className="hover:text-[var(--accent)]">{row.labelHe}</Link>
+                            ) : row.playerId ? (
+                              <Link href={`/players/${row.playerId}`} className="hover:text-[var(--accent)]">{row.labelHe}</Link>
+                            ) : (
+                              row.labelHe
+                            )}
+                          </p>
+                          {row.detailHe ? <p className="text-xs text-stone-500">{row.detailHe}</p> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'history' ? (
+        <Panel title="סגלים היסטוריים">
+          {!clubFamily || clubFamily.seasons.length === 0 ? (
+            <EmptyState text="אין נתוני עונות היסטוריות לקבוצה זו." />
+          ) : (
+            <>
+              <form action={`/teams/${team.id}`} className="mb-4 flex flex-wrap items-center gap-3">
+                <input type="hidden" name="view" value={displayMode} />
+                <input type="hidden" name="tab" value="history" />
+                <select
+                  name="squadSeason"
+                  defaultValue={squadFamilySeason?.seasonId ?? ''}
+                  className="min-w-[160px] rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-900 focus:outline-none"
+                >
+                  {clubFamily.seasons.map((s) => (
+                    <option key={s.seasonId} value={s.seasonId}>
+                      {String(s.year % 100).padStart(2, '0')}/{String((s.year + 1) % 100).padStart(2, '0')}
+                    </option>
+                  ))}
+                </select>
+                <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white transition hover:opacity-90">
+                  הצג
+                </button>
+              </form>
+              {squadRoster.length === 0 ? (
+                <EmptyState text="אין נתוני סגל לעונה זו." />
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {squadRoster.map((player) => (
+                    <Link
+                      key={player.id}
+                      href={`/players/${player.canonicalPlayerId || player.id}`}
+                      className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-[var(--accent)]"
+                    >
+                      {player.photoUrl ? (
+                        <img src={player.photoUrl} alt={formatPlayerName(player)} className="h-12 w-12 rounded-full bg-white object-cover" />
+                      ) : null}
+                      <div>
+                        <div className="font-bold text-stone-900">{formatPlayerName(player)}</div>
+                        <div className="mt-1 text-sm text-stone-500">{player.position || 'ללא עמדה'}</div>
+                        <div className="mt-1 text-xs text-stone-400">#{player.jerseyNumber ?? '-'}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </Panel>
+        ) : null}
+
+        {displayMode !== 'premier' || selectedTab === 'history' ? (
+        <Panel title="מאמנים לאורך השנים">
+          <CoachWinChart entries={coachChart} />
+        </Panel>
         ) : null}
 
         {displayMode !== 'premier' || selectedTab === 'overview' ? (
@@ -1176,6 +1333,18 @@ function StatHighlight({ label, value, subvalue }: { label: string; value: strin
   );
 }
 
+function HonorChip({ label, count, years }: { label: string; count: number; years: number[] }) {
+  return (
+    <div className="rounded-[16px] border border-stone-200 bg-stone-50 px-3 py-2">
+      <span className="flex items-center gap-2 text-sm font-bold text-stone-700">
+        {label}
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-stone-500">{count}×</span>
+      </span>
+      <span className="mt-1 block max-w-[18rem] text-[10px] leading-4 text-stone-400">{years.join(' · ')}</span>
+    </div>
+  );
+}
+
 function GameSpotlight({
   game,
   teamId,
@@ -1398,6 +1567,7 @@ function normalizeTeamPremierTab(value: string | null | undefined): TeamPremierT
     case 'stats':
     case 'referees':
     case 'contracts':
+    case 'history':
       return value;
     default:
       return 'overview';

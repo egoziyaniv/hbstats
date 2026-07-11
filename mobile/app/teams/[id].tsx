@@ -40,6 +40,16 @@ export default function TeamScreen() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/' as any));
   const formHe = data.recentForm.map((r) => FORM_HE[r] || 'ת').join('');
 
+  // Club honors ("ארון הגביעים") — one chip per competition, zero-count comps hidden.
+  const honorChips = extras?.honors
+    ? [
+        { label: 'אליפות ליגה', count: extras.honors.leagueTitles.count, years: extras.honors.leagueTitles.years },
+        { label: 'גביע המדינה', count: extras.honors.stateCup.count, years: extras.honors.stateCup.years },
+        { label: 'גביע הטוטו', count: extras.honors.totoCup.count, years: extras.honors.totoCup.years },
+        { label: 'גביע העל', count: extras.honors.superCup.count, years: extras.honors.superCup.years },
+      ].filter((c) => c.count > 0)
+    : [];
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
     <ScrollView
@@ -357,6 +367,58 @@ export default function TeamScreen() {
                     <Text style={{ fontSize: 10, color: theme.ink[500] }}>{inj.reason || 'פציעה'}</Text>
                   </View>
                   {inj.date ? <Text style={{ fontSize: 10, color: theme.ink[500] }}>{inj.date}</Text> : null}
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Section>
+      ) : null}
+
+      {honorChips.length > 0 ? (
+        <Section title="ארון הגביעים">
+          <Card>
+            <View style={{ flexDirection: rtlRow(), flexWrap: 'wrap', gap: 8 }}>
+              {honorChips.map((c) => (
+                <View key={c.label} style={{ borderWidth: 1, borderColor: theme.ink[200], borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, minWidth: 104 }}>
+                  <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: theme.ink[900] }}>{c.label}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: theme.ink[700], backgroundColor: theme.ink[100], paddingHorizontal: 6, borderRadius: 8 }}>{c.count}×</Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: theme.ink[500], marginTop: 2 }} numberOfLines={1}>{c.years.join(' · ')}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Section>
+      ) : null}
+
+      {extras && extras.clubRecords.length > 0 ? (
+        <Section title="שיאי המועדון">
+          <Card>
+            <View style={{ gap: 12 }}>
+              {extras.clubRecords.map((group) => (
+                <View key={group.category}>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: theme.ink[900], marginBottom: 6 }}>{group.titleHe}</Text>
+                  <View style={{ gap: 4 }}>
+                    {group.rows.map((row) => {
+                      const RowInner = (
+                        <View style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.ink[100] }}>
+                          <Text style={{ fontSize: 11, fontWeight: '900', color: theme.ink[500], width: 16, textAlign: 'center' }}>{row.rank}</Text>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.ink[900] }} numberOfLines={1}>{row.labelHe}</Text>
+                            {row.detailHe ? <Text style={{ fontSize: 10, color: theme.ink[500] }} numberOfLines={1}>{row.detailHe}</Text> : null}
+                          </View>
+                        </View>
+                      );
+                      return row.gameId ? (
+                        <Pressable key={row.id} onPress={() => router.push(`/games/${row.gameId}` as any)}>
+                          {RowInner}
+                        </Pressable>
+                      ) : (
+                        <View key={row.id}>{RowInner}</View>
+                      );
+                    })}
+                  </View>
                 </View>
               ))}
             </View>

@@ -371,6 +371,10 @@ export interface TeamExtrasPayload {
   injuries: TeamInjury[];
   coachChart: CoachChartEntrySummary[];
   goalTiming: GoalTimingBucketSummary[];
+  /** Club honors ("ארון הגביעים") — null when the team has no resolvable club family. */
+  honors: ClubHonorsApi | null;
+  /** Club-scope RecordEntry rows ("שיאי המועדון"), grouped by category — top 3 each, empty categories omitted. */
+  clubRecords: ClubRecordGroupApi[];
 }
 
 // ---------- Advanced leaderboards (key passes, duels, dribbles) ----------
@@ -703,6 +707,13 @@ export interface RecordEntryApi {
 export interface RecordsPayload {
   category: string;
   categories: RecordCategoryApi[];
+  rows: RecordEntryApi[];
+}
+
+/** Club-scope record group for the team history tab — mirrors the web page's grouping of RecordEntry rows by RECORD_CATEGORIES. */
+export interface ClubRecordGroupApi {
+  category: string;
+  titleHe: string;
   rows: RecordEntryApi[];
 }
 
