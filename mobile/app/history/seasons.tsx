@@ -32,6 +32,9 @@ export default function SeasonsSpineScreen() {
         <Pressable onPress={() => router.push('/history/cups' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: brand.accent }}>🏆 זוכי הגביעים ←</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/history/records' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: brand.accent }}>📖 ספר השיאים ←</Text>
+        </Pressable>
       </View>
       {isLoading && !data ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

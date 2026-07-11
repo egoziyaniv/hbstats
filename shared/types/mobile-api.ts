@@ -679,6 +679,33 @@ export interface FullH2HApiPayload {
 export interface H2HClubOption { clubKey: string; nameHe: string }
 export interface H2HClubsPayload { clubs: H2HClubOption[] }
 
+// ---------- History: record book ----------
+// Mirrors src/lib/history/records-engine.ts's RecordEntry rows (league scope
+// only — club-scope records ship with the team history tab).
+
+export interface RecordCategoryApi {
+  key: string;
+  titleHe: string;
+  eventBased: boolean;
+  ordered: boolean;
+}
+
+export interface RecordEntryApi {
+  id: string;
+  rank: number;
+  labelHe: string;
+  detailHe: string | null;
+  playerId: string | null;
+  gameId: string | null;
+  computedAt: string; // ISO
+}
+
+export interface RecordsPayload {
+  category: string;
+  categories: RecordCategoryApi[];
+  rows: RecordEntryApi[];
+}
+
 // ---------- Search ----------
 
 export interface SearchResultApiItem {
