@@ -33,6 +33,14 @@ export interface OnThisDayPayload {
 // Big-club pairs whose meetings are derbies. Hebrew names as stored in Team.nameHe.
 // Exported (read-only) for /history/h2h's curated rivalry index.
 export const DERBY_PAIRS: ReadonlyArray<readonly [string, string]> = [
+  // StatsAI is Hapoel Be'er Sheva-fans-first — HBS rivalries lead the list.
+  // Order matters downstream: the /history hub teaser uses DERBY_PAIRS[0], and
+  // the /history/h2h index groups HBS pairs into their own top section.
+  ['הפועל באר שבע', 'מכבי תל אביב'],
+  ['הפועל באר שבע', 'מכבי חיפה'],
+  ['הפועל באר שבע', 'בית"ר ירושלים'],
+  ['הפועל באר שבע', 'הפועל תל אביב'],
+  ['הפועל באר שבע', 'מ.ס. אשדוד'], // דרבי הדרום
   ['מכבי תל אביב', 'הפועל תל אביב'],
   ['מכבי חיפה', 'הפועל חיפה'],
   ['בית"ר ירושלים', 'הפועל ירושלים'],

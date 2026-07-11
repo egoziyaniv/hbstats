@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { useRouter, type Router } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
@@ -25,7 +25,17 @@ export default function H2HScreen() {
 
   const [a, setA] = useState<string | undefined>(undefined);
   const [b, setB] = useState<string | undefined>(undefined);
+  const [autoPicked, setAutoPicked] = useState(false);
   const { data: h2h, isLoading: h2hLoading, isError } = useH2H(a, b);
+
+  // StatsAI is Hapoel Be'er Sheva-fans-first — preselect HBS as side A once the
+  // club list arrives (only on first load; the user can still deselect/change).
+  useEffect(() => {
+    if (autoPicked || a || b || clubs.length === 0) return;
+    const hbs = clubs.find((c) => c.nameHe.includes('באר שבע') && c.nameHe.includes('הפועל'));
+    if (hbs) setA(hbs.clubKey);
+    setAutoPicked(true);
+  }, [autoPicked, a, b, clubs]);
 
   // Each side's list excludes whatever the other side already picked.
   const clubsForA = useMemo(() => clubs.filter((c) => c.clubKey !== b), [clubs, b]);

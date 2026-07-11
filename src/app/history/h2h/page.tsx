@@ -47,6 +47,14 @@ export default async function H2HIndexPage() {
     return { famA, famB };
   }).filter((x): x is { famA: ClubFamily; famB: ClubFamily } => x !== null);
 
+  // StatsAI is Hapoel Be'er Sheva-fans-first: HBS rivalries get their own
+  // leading section; the classic derbies follow.
+  const hbsKey = normalizeName('הפועל באר שבע');
+  const isHbsPair = (d: { famA: ClubFamily; famB: ClubFamily }) =>
+    normalizeName(d.famA.nameHe) === hbsKey || normalizeName(d.famB.nameHe) === hbsKey;
+  const hbsDerbies = derbies.filter(isHbsPair);
+  const otherDerbies = derbies.filter((d) => !isHbsPair(d));
+
   const topClubs = families.slice(0, 10);
 
   return (
@@ -57,39 +65,31 @@ export default async function H2HIndexPage() {
         <Link href="/history/all-time" className="font-bold text-[var(--accent)]">טבלת כל הזמנים ←</Link>
       </p>
 
-      {derbies.length > 0 ? (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {derbies.map(({ famA, famB }) => (
-            <Link
-              key={`${famA.clubKey}__${famB.clubKey}`}
-              href={`/history/h2h/${famA.clubKey}__${famB.clubKey}`}
-              className="flex items-center justify-between gap-3 rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm transition-colors hover:border-[var(--accent)]"
-            >
-              <span className="flex items-center gap-2 font-bold text-stone-900">
-                <TeamLogo
-                  src={famA.logoUrl}
-                  alt={famA.nameHe}
-                  className="h-7 w-7 rounded-full object-contain"
-                  fallbackClassName="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700"
-                />
-                {famA.nameHe}
-              </span>
-              <span className="text-xs font-black text-stone-400">נגד</span>
-              <span className="flex items-center gap-2 font-bold text-stone-900">
-                {famB.nameHe}
-                <TeamLogo
-                  src={famB.logoUrl}
-                  alt={famB.nameHe}
-                  className="h-7 w-7 rounded-full object-contain"
-                  fallbackClassName="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700"
-                />
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : (
+      {hbsDerbies.length > 0 ? (
+        <>
+          <h2 className="mt-6 text-lg font-black text-stone-900">היריבויות של הפועל באר שבע</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {hbsDerbies.map((d) => (
+              <DerbyCard key={`${d.famA.clubKey}__${d.famB.clubKey}`} famA={d.famA} famB={d.famB} />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {otherDerbies.length > 0 ? (
+        <>
+          <h2 className="mt-8 text-lg font-black text-stone-900">עוד יריבויות קלאסיות</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {otherDerbies.map((d) => (
+              <DerbyCard key={`${d.famA.clubKey}__${d.famB.clubKey}`} famA={d.famA} famB={d.famB} />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {derbies.length === 0 ? (
         <p className="mt-6 text-sm text-stone-500">אין יריבויות מוגדרות.</p>
-      )}
+      ) : null}
 
       <h2 className="mt-10 text-lg font-black text-stone-900">בחרו מועדון</h2>
       <p className="mt-1 text-xs text-stone-500">קישור לדף הקבוצה — משם ניתן לצפות בהיסטוריה מול כל יריב</p>
@@ -111,5 +111,34 @@ export default async function H2HIndexPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+function DerbyCard({ famA, famB }: { famA: ClubFamily; famB: ClubFamily }) {
+  return (
+    <Link
+      href={`/history/h2h/${famA.clubKey}__${famB.clubKey}`}
+      className="flex items-center justify-between gap-3 rounded-[20px] border border-stone-200 bg-white p-4 shadow-sm transition-colors hover:border-[var(--accent)]"
+    >
+      <span className="flex items-center gap-2 font-bold text-stone-900">
+        <TeamLogo
+          src={famA.logoUrl}
+          alt={famA.nameHe}
+          className="h-7 w-7 rounded-full object-contain"
+          fallbackClassName="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700"
+        />
+        {famA.nameHe}
+      </span>
+      <span className="text-xs font-black text-stone-400">נגד</span>
+      <span className="flex items-center gap-2 font-bold text-stone-900">
+        {famB.nameHe}
+        <TeamLogo
+          src={famB.logoUrl}
+          alt={famB.nameHe}
+          className="h-7 w-7 rounded-full object-contain"
+          fallbackClassName="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-700"
+        />
+      </span>
+    </Link>
   );
 }
