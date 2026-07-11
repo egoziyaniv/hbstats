@@ -4,6 +4,7 @@ import {
   computeFastestGoals,
   computePlayerGameGoals,
   computeAgeExtremes,
+  findReliableSeasonYears,
   type EngineGame,
   type EngineGoalEvent,
 } from '@/lib/history/records-engine';
@@ -59,6 +60,38 @@ describe('computeFastestGoals', () => {
     const rows = computeFastestGoals([ev('e1', 3, null, 'p1'), ev('e2', 1, null, 'p2'), ev('e3', 45, 2, 'p3')], 5);
     expect(rows[0].playerId).toBe('p2');
     expect(rows[0].valueNum).toBe(1);
+  });
+  it('drops minute-0 feed noise', () => {
+    const rows = computeFastestGoals([ev('e0', 0, null, 'p0'), ev('e1', 3, null, 'p1')], 5);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].playerId).toBe('p1');
+  });
+});
+
+describe('findReliableSeasonYears', () => {
+  it('flags a season unreliable when >50% of its games share one exact date', () => {
+    const reliable = findReliableSeasonYears([
+      // 1995: 3 of 4 games share the Sep-1 placeholder → unreliable
+      { seasonYear: 1995, dateTime: new Date('1995-09-01') },
+      { seasonYear: 1995, dateTime: new Date('1995-09-01') },
+      { seasonYear: 1995, dateTime: new Date('1995-09-01') },
+      { seasonYear: 1995, dateTime: new Date('1996-03-10') },
+      // 2010: distinct dates → reliable
+      { seasonYear: 2010, dateTime: new Date('2010-08-21') },
+      { seasonYear: 2010, dateTime: new Date('2010-08-28') },
+      { seasonYear: 2010, dateTime: new Date('2010-09-11') },
+    ]);
+    expect(reliable.has(2010)).toBe(true);
+    expect(reliable.has(1995)).toBe(false);
+  });
+  it('keeps a season reliable at exactly 50% shared (legit double-header days)', () => {
+    const reliable = findReliableSeasonYears([
+      { seasonYear: 2000, dateTime: new Date('2000-09-01') },
+      { seasonYear: 2000, dateTime: new Date('2000-09-01') },
+      { seasonYear: 2000, dateTime: new Date('2000-09-08') },
+      { seasonYear: 2000, dateTime: new Date('2000-09-15') },
+    ]);
+    expect(reliable.has(2000)).toBe(true);
   });
 });
 
