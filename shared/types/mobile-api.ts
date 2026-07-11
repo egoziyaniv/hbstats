@@ -634,7 +634,10 @@ export interface CupFinalApi {
   gameId: string;
   winner: { clubKey: string; nameHe: string } | null; // null = undecidable draw
   loser: { clubKey: string; nameHe: string } | null;
-  scoreLabel: string;
+  /** Participants — always populated, so undecided draws can still name both finalists. */
+  home: { clubKey: string; nameHe: string };
+  away: { clubKey: string; nameHe: string };
+  scoreLabel: string; // winner-first when decided
 }
 
 export interface CupHonorsPayload {

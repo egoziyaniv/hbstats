@@ -98,8 +98,9 @@ export default function CupHonorsScreen() {
                     <Text style={{ width: 34, fontSize: 11, fontWeight: '800', color: theme.ink[500] }}>{f.seasonYear}</Text>
                     <View style={{ flex: 1, flexShrink: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
-                        {f.winner ? `🏆 ${f.winner.nameHe}` : 'לא נקבע'}
-                        {f.loser ? ` · ${f.loser.nameHe}` : ''}
+                        {f.winner
+                          ? `🏆 ${f.winner.nameHe}${f.loser ? ` · ${f.loser.nameHe}` : ''}`
+                          : `לא הוכרע — ${f.home.nameHe} נגד ${f.away.nameHe}`}
                       </Text>
                       <Text style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
                         {f.competitionNameHe}
@@ -112,7 +113,7 @@ export default function CupHonorsScreen() {
             </Card>
             {skippedDraws > 0 ? (
               <Text style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>
-                {skippedDraws} גמרים הסתיימו בתיקו ללא נתוני פנדלים זמינים — הזוכה אינו ידוע.
+                {skippedDraws} {skippedDraws > 1 ? 'גמרים הסתיימו' : 'גמר הסתיים'} בתיקו ללא נתוני פנדלים זמינים — הזוכה אינו ידוע.
               </Text>
             ) : null}
           </View>

@@ -30,7 +30,10 @@ export interface CupFinalRow {
   gameId: string;
   winner: { clubKey: string; nameHe: string } | null; // null = undecidable draw (no penalty data)
   loser: { clubKey: string; nameHe: string } | null;
-  scoreLabel: string; // "2–1" or "1–1 (5–4 בפנדלים)"
+  /** Participants — always populated, so undecided draws can still name both finalists. */
+  home: { clubKey: string; nameHe: string };
+  away: { clubKey: string; nameHe: string };
+  scoreLabel: string; // winner-first when decided: "2–1" or "1–1 (5–4 בפנדלים)"
 }
 
 let cache: { at: number; rows: CupFinalRow[] } | null = null;
@@ -70,8 +73,10 @@ async function build(): Promise<CupFinalRow[]> {
 
   const clubIndex = await getClubTeamIndex();
   const rows: CupFinalRow[] = [];
+  const emitted = new Set<string>();
   let skippedDraws = 0;
   let skippedUnresolved = 0;
+  let skippedGhosts = 0;
 
   for (const g of games) {
     const homeFam = clubIndex.get(g.homeTeamId);
@@ -84,20 +89,42 @@ async function build(): Promise<CupFinalRow[]> {
     let loserFam: typeof homeFam | null = null;
     let scoreLabel = `${hs}–${as}`;
 
-    if (hs > as) {
-      winnerFam = homeFam; loserFam = awayFam;
-    } else if (as > hs) {
-      winnerFam = awayFam; loserFam = homeFam;
+    if (hs !== as) {
+      // Decided in regulation — scoreLabel winner-first (loser side second).
+      winnerFam = hs > as ? homeFam : awayFam;
+      loserFam = hs > as ? awayFam : homeFam;
+      scoreLabel = `${Math.max(hs, as)}–${Math.min(hs, as)}`;
     } else if (g.homePenalty != null && g.awayPenalty != null && g.homePenalty !== g.awayPenalty) {
-      // Drawn at full time, resolved by a penalty shootout.
+      // Drawn at full time, resolved by a penalty shootout — pens winner-first.
       const homeWonShootout = g.homePenalty > g.awayPenalty;
       winnerFam = homeWonShootout ? homeFam : awayFam;
       loserFam = homeWonShootout ? awayFam : homeFam;
-      scoreLabel = `${hs}–${as} (${g.homePenalty}–${g.awayPenalty} בפנדלים)`;
+      const [winPens, losePens] = homeWonShootout
+        ? [g.homePenalty, g.awayPenalty]
+        : [g.awayPenalty, g.homePenalty];
+      scoreLabel = `${hs}–${as} (${winPens}–${losePens} בפנדלים)`;
     } else {
       // Drawn with no (or equal — data error) penalty data — never guess a winner.
       skippedDraws += 1;
     }
+
+    // Ghost-final defense: API-Football sometimes ships a postponed slot AND
+    // the rescheduled match, both as FT (observed: 2020 Super Cup, apiIds
+    // 591796 ghost / 591797 real). One final per (cup, season, winner, loser):
+    // rows arrive dateTime-DESC, so the later — real — match is emitted first
+    // and the earlier ghost is dropped here.
+    const ghostKey = [
+      g.competitionId,
+      g.season.year,
+      winnerFam?.clubKey ?? 'draw',
+      loserFam?.clubKey ?? 'draw',
+    ].join('::');
+    if (emitted.has(ghostKey)) {
+      skippedGhosts += 1;
+      if (!winnerFam) skippedDraws -= 1; // don't double-report a skipped ghost draw
+      continue;
+    }
+    emitted.add(ghostKey);
 
     rows.push({
       seasonYear: g.season.year,
@@ -106,6 +133,8 @@ async function build(): Promise<CupFinalRow[]> {
       gameId: g.id,
       winner: winnerFam ? { clubKey: winnerFam.clubKey, nameHe: winnerFam.nameHe } : null,
       loser: loserFam ? { clubKey: loserFam.clubKey, nameHe: loserFam.nameHe } : null,
+      home: { clubKey: homeFam.clubKey, nameHe: homeFam.nameHe },
+      away: { clubKey: awayFam.clubKey, nameHe: awayFam.nameHe },
       scoreLabel,
     });
   }
@@ -115,6 +144,9 @@ async function build(): Promise<CupFinalRow[]> {
   }
   if (skippedUnresolved > 0) {
     console.warn(`[cup-finals] skipped ${skippedUnresolved} final(s) with unresolvable club identity`);
+  }
+  if (skippedGhosts > 0) {
+    console.warn(`[cup-finals] dropped ${skippedGhosts} duplicate (ghost) final import(s)`);
   }
 
   return rows;

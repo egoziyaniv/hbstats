@@ -39,17 +39,21 @@ export default async function CupHonorsPage() {
             <Link
               key={h.clubKey}
               href={`/teams/${h.latestTeamId}`}
-              title={h.stateCup.years.join(', ')}
-              className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold text-stone-700 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              className="rounded-[16px] border border-stone-200 bg-white px-3 py-2 transition-colors hover:border-[var(--accent)]"
             >
-              <TeamLogo
-                src={h.logoUrl}
-                alt={h.nameHe}
-                className="h-5 w-5 rounded-full object-contain"
-                fallbackClassName="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[8px] font-black text-violet-700"
-              />
-              {h.nameHe}
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500">{h.stateCup.count}×</span>
+              <span className="flex items-center gap-2 text-sm font-bold text-stone-700">
+                <TeamLogo
+                  src={h.logoUrl}
+                  alt={h.nameHe}
+                  className="h-5 w-5 rounded-full object-contain"
+                  fallbackClassName="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[8px] font-black text-violet-700"
+                />
+                {h.nameHe}
+                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500">{h.stateCup.count}×</span>
+              </span>
+              <span className="mt-1 block max-w-[18rem] text-[10px] leading-4 text-stone-400">
+                {h.stateCup.years.join(' · ')}
+              </span>
             </Link>
           ))}
         </div>
@@ -77,7 +81,11 @@ export default async function CupHonorsPage() {
                   <td className="px-4 py-3 text-stone-700">{f.seasonYear}</td>
                   <td className="px-4 py-3 text-stone-500">{f.competitionNameHe}</td>
                   <td className="px-4 py-3 font-black text-stone-900">
-                    {f.winner ? `🏆 ${f.winner.nameHe}` : <span className="text-stone-400">לא נקבע</span>}
+                    {f.winner ? (
+                      `🏆 ${f.winner.nameHe}`
+                    ) : (
+                      <span className="font-normal text-stone-400">לא הוכרע — {f.home.nameHe} נגד {f.away.nameHe}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-stone-700">{f.scoreLabel}</td>
                   <td className="px-4 py-3 text-stone-500">{f.loser?.nameHe ?? '—'}</td>
@@ -94,7 +102,7 @@ export default async function CupHonorsPage() {
       )}
       {skippedDraws > 0 ? (
         <p className="mt-3 text-xs text-stone-400">
-          {skippedDraws} גמר{skippedDraws > 1 ? 'ים' : ''} הסתיימ{skippedDraws > 1 ? 'ו' : ''} בתיקו ללא נתוני פנדלים זמינים — הזוכה אינו ידוע.
+          {skippedDraws} {skippedDraws > 1 ? 'גמרים הסתיימו' : 'גמר הסתיים'} בתיקו ללא נתוני פנדלים זמינים — הזוכה אינו ידוע.
         </p>
       ) : null}
     </div>

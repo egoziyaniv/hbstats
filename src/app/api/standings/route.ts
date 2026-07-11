@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getRequestUser } from '@/lib/auth';
 import { clearSpineCache } from '@/lib/history/seasons-spine';
 import { clearAllTimeCache } from '@/lib/history/all-time-table';
+import { clearHonorsCache } from '@/lib/history/club-honors';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -115,6 +116,8 @@ export async function PUT(request: NextRequest) {
     clearSpineCache();
     // ...and adjusted points feed the all-time club table too.
     clearAllTimeCache();
+    // ...and a flipped champion changes league-title tallies in club honors.
+    clearHonorsCache();
 
     await prisma.activityLog.create({
       data: {

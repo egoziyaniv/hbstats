@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getRequestUser } from '@/lib/auth';
 import { recomputeStoredStandings } from '@/lib/standings-from-games';
+import { clearSpineCache } from '@/lib/history/seasons-spine';
+import { clearAllTimeCache } from '@/lib/history/all-time-table';
+import { clearClubCache } from '@/lib/history/club-identity';
+import { clearH2HCache } from '@/lib/h2h';
+import { clearHonorsCache } from '@/lib/history/club-honors';
+
+// Admin game edits/deletes change the inputs of every history aggregation —
+// standings-derived spine rows, all-time totals, rivalry meetings, and cup
+// finals (score/status/round edits can create or flip a final). Same clear
+// set the merge engine uses at execute/rollback.
+function clearHistoryCaches() {
+  clearSpineCache();
+  clearAllTimeCache();
+  clearClubCache();
+  clearH2HCache();
+  clearHonorsCache();
+}
 
 function parseOptionalInteger(value: unknown) {
   if (value === undefined) return undefined;
@@ -185,6 +202,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    clearHistoryCaches(); // a created game can be a completed final / league result
+
     return NextResponse.json(game, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
@@ -316,6 +335,8 @@ export async function PUT(request: NextRequest) {
       return updatedGame;
     });
 
+    clearHistoryCaches();
+
     return NextResponse.json(game);
   } catch (error: any) {
     return NextResponse.json(
@@ -346,6 +367,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await prisma.game.delete({ where: { id } });
+    clearHistoryCaches();
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json(
