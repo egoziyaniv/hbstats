@@ -20,11 +20,13 @@ export default function SeasonsSpineScreen() {
       {/* Header supports onBack (Header.tsx:17), but only renders the back
           chevron instead of the hamburger when showBack is also set. */}
       <Header title="כל העונות" subtitle="ליגת העל" onBack={() => router.back()} showBack />
-      <View style={{ flexDirection: rtlRow(), gap: 16, paddingHorizontal: 16, paddingTop: 10 }}>
-        <Pressable onPress={() => router.push('/history/all-time' as any)}>
+      {/* Per-Pressable padding keeps touch targets larger than the text
+          bounds; flexWrap so the links don't clip on narrow screens. */}
+      <View style={{ flexDirection: rtlRow(), flexWrap: 'wrap', columnGap: 8, paddingHorizontal: 8, paddingTop: 2 }}>
+        <Pressable onPress={() => router.push('/history/all-time' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: brand.accent }}>🏆 טבלת כל הזמנים ←</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/history/h2h' as any)}>
+        <Pressable onPress={() => router.push('/history/h2h' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: brand.accent }}>⚔️ יריבויות ←</Text>
         </Pressable>
       </View>

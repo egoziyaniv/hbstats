@@ -1,22 +1,41 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getClubFamily } from '@/lib/history/club-identity';
+import { getClubFamily, type ClubFamily } from '@/lib/history/club-identity';
 import { buildFullH2H } from '@/lib/h2h';
 
 export const dynamic = 'force-dynamic';
 
-function parseKeys(raw: string): [string, string] | null {
-  const parts = decodeURIComponent(raw).split('__');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-  return [parts[0], parts[1]];
+// Next's router already decodes the dynamic segment — do NOT decode again.
+// `name-…` clubKeys are percent-encoded and the byKey index is keyed on the
+// encoded form, so a second decodeURIComponent 404s every valid name- URL
+// (and throws URIError → 500 on malformed sequences like %zz). Shared by
+// generateMetadata and the page body; the try/catch is a belt so any parse
+// surprise degrades to a 404, never a 500.
+async function resolvePair(raw: string): Promise<{ famA: ClubFamily; famB: ClubFamily } | null> {
+  try {
+    const parts = raw.split('__');
+    if (parts.length !== 2 || !parts[0] || !parts[1] || parts[0] === parts[1]) return null;
+    const [famA, famB] = await Promise.all([getClubFamily(parts[0]), getClubFamily(parts[1])]);
+    if (!famA || !famB) return null;
+    return { famA, famB };
+  } catch {
+    return null;
+  }
+}
+
+// Meeting dates are date-only ISO strings ("YYYY-MM-DD") — format the parts
+// directly. A Date() round-trip parses as UTC midnight and can shift a day
+// when rendered in a western-timezone locale.
+function fmtDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${Number(d)}.${Number(m)}.${y}`;
 }
 
 export async function generateMetadata({ params }: { params: { keys: string } }): Promise<Metadata> {
-  const parsed = parseKeys(params.keys);
-  if (!parsed) return {};
-  const [famA, famB] = await Promise.all([getClubFamily(parsed[0]), getClubFamily(parsed[1])]);
-  if (!famA || !famB) return {};
+  const pair = await resolvePair(params.keys);
+  if (!pair) return {};
+  const { famA, famB } = pair;
   return {
     title: `${famA.nameHe} נגד ${famB.nameHe} — כל המפגשים | StatsAI`,
     description: `כל המפגשים ההיסטוריים בין ${famA.nameHe} ל${famB.nameHe} — תוצאות, שערים ועימותים לפי תחרות ומגרש.`,
@@ -24,12 +43,9 @@ export async function generateMetadata({ params }: { params: { keys: string } })
 }
 
 export default async function H2HPairPage({ params }: { params: { keys: string } }) {
-  const parsed = parseKeys(params.keys);
-  if (!parsed) notFound();
-  const [keyA, keyB] = parsed;
-
-  const [famA, famB] = await Promise.all([getClubFamily(keyA), getClubFamily(keyB)]);
-  if (!famA || !famB) notFound();
+  const pair = await resolvePair(params.keys);
+  if (!pair) notFound();
+  const { famA, famB } = pair;
 
   const h2h = await buildFullH2H(famA.latestTeamId, famB.latestTeamId);
 
@@ -158,7 +174,7 @@ export default async function H2HPairPage({ params }: { params: { keys: string }
                     <tr key={m.gameId} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
                       <td className="p-0">
                         <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-stone-400" dir="ltr">
-                          {new Date(m.date).toLocaleDateString('he-IL')}
+                          {fmtDate(m.date)}
                         </Link>
                       </td>
                       <td className="p-0">

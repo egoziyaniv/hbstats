@@ -10,6 +10,13 @@ import { theme } from '@/design-system/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { H2HClubOption, FullH2HApiPayload } from '@shared/types/mobile-api';
 
+// Meeting dates are date-only ISO strings ("YYYY-MM-DD") — format the parts
+// directly, no Date() round-trip (UTC-midnight parsing can shift a day).
+const fmtDate = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${Number(d)}.${Number(m)}.${y}`;
+};
+
 export default function H2HScreen() {
   const router = useRouter();
   const { brand } = useTheme();
@@ -100,7 +107,9 @@ function ClubPickerRow({
       <Text style={{ fontSize: 12, fontWeight: '700', color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>
         {label}
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: rtlRow(), gap: 8, paddingHorizontal: 2 }}>
+      {/* nestedScrollEnabled — horizontal row inside the screen's vertical
+          ScrollView; without it Android can swallow the inner scroll. */}
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: rtlRow(), gap: 8, paddingHorizontal: 2 }}>
         {clubs.map((c) => (
           <ClubChip
             key={c.clubKey}
@@ -261,7 +270,7 @@ function H2HResult({ h2h, router }: { h2h: FullH2HApiPayload; router: Router }) 
                   borderBottomColor: theme.ink[100],
                 }}
               >
-                <Text style={{ fontSize: 10, color: theme.ink[500] }}>{m.date}</Text>
+                <Text style={{ fontSize: 10, color: theme.ink[500] }}>{fmtDate(m.date)}</Text>
                 <Text
                   style={{ flexShrink: 1, fontSize: 12, fontWeight: '600', color: theme.ink[900], textAlign: 'center' }}
                   numberOfLines={1}

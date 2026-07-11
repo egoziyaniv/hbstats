@@ -131,7 +131,32 @@ export interface FullH2H {
   meetings: H2HMeeting[]; // FULL list, newest first (reuse the existing H2HMeeting type)
 }
 
+// Module-level cache — same policy as the other history services (1h TTL,
+// cleared by merge-engine execute/rollback). Keyed on the ORDERED pair as
+// called: A-vs-B and B-vs-A are different perspectives, not the same entry.
+const H2H_CACHE_TTL_MS = 60 * 60 * 1000;
+const H2H_CACHE_MAX = 64;
+const h2hCache = new Map<string, { at: number; data: FullH2H | null }>();
+export function clearH2HCache() { h2hCache.clear(); }
+export const _clearH2HCacheForTests = clearH2HCache;
+
 export async function buildFullH2H(teamAId: string, teamBId: string): Promise<FullH2H | null> {
+  const cacheKey = `${teamAId}|${teamBId}`;
+  const cached = h2hCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < H2H_CACHE_TTL_MS) return cached.data;
+
+  const data = await computeFullH2H(teamAId, teamBId);
+
+  // FIFO cap — Maps iterate in insertion order, so the first key is the oldest.
+  if (h2hCache.size >= H2H_CACHE_MAX) {
+    const oldest = h2hCache.keys().next().value;
+    if (oldest !== undefined) h2hCache.delete(oldest);
+  }
+  h2hCache.set(cacheKey, { at: Date.now(), data });
+  return data;
+}
+
+async function computeFullH2H(teamAId: string, teamBId: string): Promise<FullH2H | null> {
   // Resolve both club families exactly like buildH2H does (nameHe grouping).
   const teams = await prisma.team.findMany({
     where: { id: { in: [teamAId, teamBId] } },
@@ -168,10 +193,12 @@ export async function buildFullH2H(teamAId: string, teamBId: string): Promise<Fu
     orderBy: { dateTime: 'desc' },
   });
 
-  // Explicit JS-level sort (newest first) — don't rely solely on the DB
-  // ORDER BY, so meetings/biggest-win ordering is deterministic regardless
-  // of how the rows arrive.
-  const sortedGames = [...games].sort((x, y) => y.dateTime.getTime() - x.dateTime.getTime());
+  // Explicit JS-level sort (newest first, id tiebreak) — don't rely solely on
+  // the DB ORDER BY, so meetings/biggest-win ordering is deterministic across
+  // requests even for identical timestamps.
+  const sortedGames = [...games].sort(
+    (x, y) => y.dateTime.getTime() - x.dateTime.getTime() || x.id.localeCompare(y.id),
+  );
 
   let winsA = 0, draws = 0, winsB = 0, goalsA = 0, goalsB = 0;
   const meetings: H2HMeeting[] = [];

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const a = searchParams.get('a');
   const b = searchParams.get('b');
 
-  if (!a || !b) {
+  if (!a && !b) {
     // No pair selected yet — return the club picker list (top families by
     // season count, mirrors the web index's "בחרו מועדון" list).
     const families = await getClubFamilies();
@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
       clubs: families.slice(0, 40).map((f) => ({ clubKey: f.clubKey, nameHe: f.nameHe })),
     };
     return NextResponse.json(payload);
+  }
+  if (!a || !b) {
+    return NextResponse.json({ error: 'Both a and b are required' }, { status: 400 });
+  }
+  if (a === b) {
+    return NextResponse.json({ error: 'Pick two different clubs' }, { status: 400 });
   }
 
   const [famA, famB] = await Promise.all([getClubFamily(a), getClubFamily(b)]);

@@ -4,7 +4,7 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 import prisma from '@/lib/prisma';
-import { buildFullH2H } from '@/lib/h2h';
+import { buildFullH2H, _clearH2HCacheForTests } from '@/lib/h2h';
 
 const p = prisma as unknown as { team: { findMany: jest.Mock }; game: { findMany: jest.Mock } };
 
@@ -16,7 +16,7 @@ const game = (id: string, homeTeamId: string, awayTeamId: string, hs: number, as
 });
 
 describe('buildFullH2H', () => {
-  beforeEach(() => { p.team.findMany.mockReset(); p.game.findMany.mockReset(); });
+  beforeEach(() => { _clearH2HCacheForTests(); p.team.findMany.mockReset(); p.game.findMany.mockReset(); });
 
   it('aggregates totals, per-competition split, venue split and biggest wins', async () => {
     // buildFullH2H mirrors buildH2H's resolution exactly: a combined base-info

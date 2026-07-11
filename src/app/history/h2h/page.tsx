@@ -15,11 +15,26 @@ export const metadata: Metadata = {
 // known derby pairs (from on-this-day.ts's DERBY_PAIRS) resolved to club
 // families by name match, plus the top clubs by season count as a
 // secondary "pick a club" list linking to the team page.
+
+// Same normalization family club-identity uses for grouping — strip
+// quotes/gershayim/dashes/dots, collapse spaces, lowercase. Matching is
+// normalized-EXACT only: a substring fallback is dangerous here (e.g. a
+// family named "ירושלים" is a substring of both Jerusalem derby names and
+// could silently bind a derby card to the wrong club). A miss just drops
+// the card.
+function normalizeName(name: string): string {
+  return (name || '')
+    .replace(/&#\d+;/g, '')
+    .replace(/&\w+;/g, '')
+    .replace(/['"״׳\-\.`']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 function findFamily(families: ClubFamily[], name: string): ClubFamily | undefined {
-  return (
-    families.find((f) => f.nameHe === name) ||
-    families.find((f) => f.nameHe.includes(name) || name.includes(f.nameHe))
-  );
+  const key = normalizeName(name);
+  return families.find((f) => normalizeName(f.nameHe) === key);
 }
 
 export default async function H2HIndexPage() {

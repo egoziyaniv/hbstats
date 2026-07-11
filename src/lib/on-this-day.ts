@@ -31,8 +31,8 @@ export interface OnThisDayPayload {
 }
 
 // Big-club pairs whose meetings are derbies. Hebrew names as stored in Team.nameHe.
-// Exported for /history/h2h's curated rivalry index.
-export const DERBY_PAIRS: Array<[string, string]> = [
+// Exported (read-only) for /history/h2h's curated rivalry index.
+export const DERBY_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['מכבי תל אביב', 'הפועל תל אביב'],
   ['מכבי חיפה', 'הפועל חיפה'],
   ['בית"ר ירושלים', 'הפועל ירושלים'],
