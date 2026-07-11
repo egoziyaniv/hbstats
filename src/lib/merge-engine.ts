@@ -17,6 +17,7 @@ import { clearSpineCache } from '@/lib/history/seasons-spine';
 import { clearAllTimeCache } from '@/lib/history/all-time-table';
 import { clearClubCache } from '@/lib/history/club-identity';
 import { clearH2HCache } from '@/lib/h2h';
+import { clearHonorsCache } from '@/lib/history/club-honors';
 
 // A team can now hold several standing rows in one season (league + cup group).
 // Prefer the LEAGUE row (Premier 383 / National 382), then the most-played row,
@@ -1074,11 +1075,12 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
 
   // Merges can create/update standings — drop the "כל העונות" spine cache —
   // and can create teams/games, which changes club families, the all-time
-  // table and rivalry aggregations.
+  // table, rivalry aggregations, and club honors (titles + cup finals).
   clearSpineCache();
   clearAllTimeCache();
   clearClubCache();
   clearH2HCache();
+  clearHonorsCache();
 
   return { updated: applied.length, errors };
 }
@@ -1165,11 +1167,12 @@ export async function rollbackMerge(mergeId: string): Promise<{ reverted: number
 
   // Rollback reverts/deletes standings — drop the "כל העונות" spine cache —
   // and can delete merge-created teams/games, invalidating club families,
-  // the all-time table and rivalry aggregations.
+  // the all-time table, rivalry aggregations, and club honors.
   clearSpineCache();
   clearAllTimeCache();
   clearClubCache();
   clearH2HCache();
+  clearHonorsCache();
 
   return { reverted, errors };
 }

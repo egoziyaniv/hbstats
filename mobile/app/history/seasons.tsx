@@ -29,6 +29,9 @@ export default function SeasonsSpineScreen() {
         <Pressable onPress={() => router.push('/history/h2h' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: brand.accent }}>⚔️ יריבויות ←</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/history/cups' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: brand.accent }}>🏆 זוכי הגביעים ←</Text>
+        </Pressable>
       </View>
       {isLoading && !data ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -73,6 +76,11 @@ export default function SeasonsSpineScreen() {
                     </Text>
                   ) : null}
                 </Pressable>
+              ) : null}
+              {row.cupWinner ? (
+                <Text style={{ fontSize: 11, color: theme.ink[500], marginTop: 6, textAlign: 'right', writingDirection: 'rtl' }}>
+                  🏆 גביע המדינה: {row.cupWinner.nameHe}
+                </Text>
               ) : null}
               {row.relegated.length ? (
                 <Text style={{ fontSize: 11, color: theme.ink[500], marginTop: 6, textAlign: 'right', writingDirection: 'rtl' }}>

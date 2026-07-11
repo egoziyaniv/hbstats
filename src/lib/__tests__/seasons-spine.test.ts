@@ -8,8 +8,22 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
+// The spine's cupWinner column reads finals from cup-finals.ts and resolves
+// club families via club-identity.ts — mocked here (both have their own unit
+// tests) so this file stays focused on spine composition logic.
+jest.mock('@/lib/history/cup-finals', () => ({
+  __esModule: true,
+  getCupFinals: jest.fn(),
+}));
+jest.mock('@/lib/history/club-identity', () => ({
+  __esModule: true,
+  getClubFamilies: jest.fn(),
+}));
+
 import prisma from '@/lib/prisma';
 import { getSeasonsSpine, _clearSpineCacheForTests } from '@/lib/history/seasons-spine';
+import { getCupFinals } from '@/lib/history/cup-finals';
+import { getClubFamilies } from '@/lib/history/club-identity';
 
 const p = prisma as unknown as {
   season: { findMany: jest.Mock };
@@ -17,6 +31,8 @@ const p = prisma as unknown as {
   competitionLeaderboardEntry: { findMany: jest.Mock };
   game: { findMany: jest.Mock };
 };
+const mockGetCupFinals = getCupFinals as jest.Mock;
+const mockGetClubFamilies = getClubFamilies as jest.Mock;
 
 /** Standing fixture with the full field set the service selects (sortStandings needs the numeric fields). */
 function standing(
@@ -60,6 +76,10 @@ describe('getSeasonsSpine', () => {
     p.competitionLeaderboardEntry.findMany.mockReset();
     p.game.findMany.mockReset();
     p.game.findMany.mockResolvedValue([]); // default: no unfinished league games
+    mockGetCupFinals.mockReset();
+    mockGetCupFinals.mockResolvedValue([]); // default: no cup finals
+    mockGetClubFamilies.mockReset();
+    mockGetClubFamilies.mockResolvedValue([]);
   });
 
   it('builds one row per season with champion, runner-up, top scorer, relegated', async () => {
@@ -82,6 +102,7 @@ describe('getSeasonsSpine', () => {
       champion: { teamId: 't1', nameHe: 'מכבי תל אביב' },
       runnerUp: { teamId: 't2', nameHe: 'הפועל באר שבע' },
       topScorer: { playerId: 'pl1', nameHe: 'דור תורג\'מן', goals: 18 },
+      cupWinner: null, // no cup finals mocked for this season
     });
     expect(rows[0].relegated.map((r) => r.nameHe)).toEqual(['קריית שמונה', 'הפועל פ"ת']);
   });
@@ -151,5 +172,60 @@ describe('getSeasonsSpine', () => {
 
     const rows = await getSeasonsSpine();
     expect(rows.map((r) => r.seasonId)).toEqual(['s24']);
+  });
+
+  describe('cupWinner column', () => {
+    beforeEach(() => {
+      p.season.findMany.mockResolvedValue([{ id: 's24', year: 2024, name: '2024/25' }]);
+      p.standing.findMany.mockResolvedValue([
+        standing('s24', 't1', 'מכבי תל אביב', { position: 1, points: 70 }),
+        standing('s24', 't2', 'הפועל באר שבע', { position: 2, points: 65 }),
+      ]);
+      p.competitionLeaderboardEntry.findMany.mockResolvedValue([]);
+    });
+
+    it('resolves the State Cup winner for the matching season year via the club family', async () => {
+      mockGetCupFinals.mockResolvedValue([
+        {
+          seasonYear: 2024, competitionId: 'comp_state_cup', competitionNameHe: 'גביע המדינה', gameId: 'g1',
+          winner: { clubKey: 'api-2', nameHe: 'הפועל באר שבע' }, loser: { clubKey: 'api-1', nameHe: 'מכבי תל אביב' },
+          scoreLabel: '2–1',
+        },
+      ]);
+      mockGetClubFamilies.mockResolvedValue([
+        { clubKey: 'api-1', nameHe: 'מכבי תל אביב', nameEn: '', logoUrl: null, latestTeamId: 't1', teamIds: ['t1'], seasons: [] },
+        { clubKey: 'api-2', nameHe: 'הפועל באר שבע', nameEn: '', logoUrl: 'logo.png', latestTeamId: 't2', teamIds: ['t2'], seasons: [] },
+      ]);
+
+      const rows = await getSeasonsSpine();
+      expect(rows[0].cupWinner).toEqual({ teamId: 't2', nameHe: 'הפועל באר שבע', logoUrl: 'logo.png' });
+    });
+
+    it('ignores Toto Cup finals for the cupWinner column (State Cup only)', async () => {
+      mockGetCupFinals.mockResolvedValue([
+        {
+          seasonYear: 2024, competitionId: 'comp_toto_cup_al', competitionNameHe: 'גביע הטוטו ליגת העל', gameId: 'g2',
+          winner: { clubKey: 'api-1', nameHe: 'מכבי תל אביב' }, loser: { clubKey: 'api-2', nameHe: 'הפועל באר שבע' },
+          scoreLabel: '1–0',
+        },
+      ]);
+      mockGetClubFamilies.mockResolvedValue([]);
+
+      const rows = await getSeasonsSpine();
+      expect(rows[0].cupWinner).toBeNull();
+    });
+
+    it('is null when the final was an undecidable draw (winner: null)', async () => {
+      mockGetCupFinals.mockResolvedValue([
+        {
+          seasonYear: 2024, competitionId: 'comp_state_cup', competitionNameHe: 'גביע המדינה', gameId: 'g3',
+          winner: null, loser: null, scoreLabel: '1–1',
+        },
+      ]);
+      mockGetClubFamilies.mockResolvedValue([]);
+
+      const rows = await getSeasonsSpine();
+      expect(rows[0].cupWinner).toBeNull();
+    });
   });
 });

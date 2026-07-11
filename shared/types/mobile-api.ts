@@ -592,6 +592,8 @@ export interface SeasonSpineApiRow {
   runnerUp: { teamId: string; nameHe: string; logoUrl: string | null } | null;
   topScorer: { playerId: string | null; nameHe: string; goals: number } | null;
   relegated: Array<{ teamId: string; nameHe: string; logoUrl: string | null }>;
+  /** State Cup winner that season (null: no final data / undecidable draw). */
+  cupWinner: { teamId: string; nameHe: string; logoUrl: string | null } | null;
 }
 
 export interface SeasonsSpinePayload {
@@ -609,6 +611,35 @@ export interface AllTimeApiRow {
 export interface AllTimeTablePayload {
   scope: 'all' | 'home' | 'away';
   rows: AllTimeApiRow[];
+}
+
+// ---------- History: club honors + cup finals ----------
+// Mirrors src/lib/history/club-honors.ts's ClubHonors / CupFinalRow.
+
+export interface ClubHonorsApi {
+  clubKey: string;
+  nameHe: string;
+  logoUrl: string | null;
+  latestTeamId: string;
+  leagueTitles: { count: number; years: number[] };
+  stateCup: { count: number; years: number[] };
+  totoCup: { count: number; years: number[] };
+  superCup: { count: number; years: number[] };
+}
+
+export interface CupFinalApi {
+  seasonYear: number;
+  competitionId: string;
+  competitionNameHe: string;
+  gameId: string;
+  winner: { clubKey: string; nameHe: string } | null; // null = undecidable draw
+  loser: { clubKey: string; nameHe: string } | null;
+  scoreLabel: string;
+}
+
+export interface CupHonorsPayload {
+  honors: ClubHonorsApi[];
+  finals: CupFinalApi[];
 }
 
 // ---------- History: rivalry (H2H) ----------

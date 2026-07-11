@@ -1,10 +1,13 @@
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
+import { getCupFinals } from '@/lib/history/cup-finals';
+import { getClubFamilies } from '@/lib/history/club-identity';
 
 /**
- * "כל העונות" — one row per season: champion, runner-up, top scorer, relegated.
- * The FBref-style spine that makes 26 seasons browsable. Premier league only
- * (comp_liga_haal). Cached in-memory for 1h — history changes once a season.
+ * "כל העונות" — one row per season: champion, runner-up, top scorer, relegated,
+ * state-cup winner. The FBref-style spine that makes 26 seasons browsable.
+ * Premier league only (comp_liga_haal). Cached in-memory for 1h — history
+ * changes once a season.
  */
 
 const LIGAT_HAAL_ID = 'comp_liga_haal';
@@ -19,6 +22,8 @@ export interface SeasonSpineRow {
   runnerUp: SpineTeamRef | null;
   topScorer: { playerId: string | null; nameHe: string; goals: number } | null;
   relegated: SpineTeamRef[];
+  /** State Cup winner that season, from cup-finals.ts (null: no final that year, or an undecidable draw). */
+  cupWinner: SpineTeamRef | null;
 }
 
 let cache: { at: number; rows: SeasonSpineRow[] } | null = null;
@@ -29,7 +34,7 @@ export const _clearSpineCacheForTests = clearSpineCache;
 export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.rows;
 
-  const [seasons, standings, scorers, unfinishedGames] = await Promise.all([
+  const [seasons, standings, scorers, unfinishedGames, cupFinals, clubFamilies] = await Promise.all([
     prisma.season.findMany({ orderBy: { year: 'desc' }, select: { id: true, year: true, name: true } }),
     prisma.standing.findMany({
       where: { competitionId: LIGAT_HAAL_ID },
@@ -49,6 +54,8 @@ export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
       select: { seasonId: true },
       distinct: ['seasonId'],
     }),
+    getCupFinals(),
+    getClubFamilies(),
   ]);
 
   // a season with unplayed league games isn't history yet — no false champions
@@ -61,6 +68,15 @@ export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
     standingsBySeason.set(s.seasonId, arr);
   }
   const scorerBySeason = new Map(scorers.map((s) => [s.seasonId, s]));
+
+  // State Cup winner per season year — only the top-flight State Cup counts
+  // toward this column (mirrors club-honors.ts's stateCup tally).
+  const cupWinnerByYear = new Map(
+    cupFinals
+      .filter((f) => f.competitionId === 'comp_state_cup' && f.winner)
+      .map((f) => [f.seasonYear, f.winner!] as const),
+  );
+  const familyByKey = new Map(clubFamilies.map((f) => [f.clubKey, f] as const));
 
   const ref = (s: (typeof standings)[number]): SpineTeamRef =>
     ({ teamId: s.team.id, nameHe: s.team.nameHe, logoUrl: s.team.logoUrl });
@@ -113,6 +129,8 @@ export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
     }
 
     const scorer = scorerBySeason.get(season.id);
+    const cupWinnerRef = cupWinnerByYear.get(season.year);
+    const cupWinnerFamily = cupWinnerRef ? familyByKey.get(cupWinnerRef.clubKey) : undefined;
     rows.push({
       seasonId: season.id,
       year: season.year,
@@ -123,6 +141,9 @@ export async function getSeasonsSpine(): Promise<SeasonSpineRow[]> {
         ? { playerId: scorer.playerId, nameHe: scorer.playerNameHe || scorer.playerNameEn || '', goals: scorer.value }
         : null,
       relegated,
+      cupWinner: cupWinnerFamily
+        ? { teamId: cupWinnerFamily.latestTeamId, nameHe: cupWinnerFamily.nameHe, logoUrl: cupWinnerFamily.logoUrl }
+        : null,
     });
   }
 

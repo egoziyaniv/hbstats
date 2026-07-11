@@ -95,7 +95,7 @@ export default async function AllTimeTablePage({
       </div>
 
       {scope !== 'all' ? (
-        <p className="mt-3 text-xs text-stone-400">בית/חוץ מחושב ממשחקים — זמין מ-2000 ואילך</p>
+        <p className="mt-3 text-xs text-stone-400">בית/חוץ מחושב ממשחקים — זמין מ-1951 ואילך</p>
       ) : null}
 
       {rows.length === 0 ? (

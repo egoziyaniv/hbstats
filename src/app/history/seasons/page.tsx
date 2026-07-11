@@ -17,6 +17,8 @@ export default async function SeasonsSpinePage() {
       <p className="mt-2 text-sm text-stone-500">
         ליגת העל · {rows.length} עונות · כל שם הוא קישור ·{' '}
         <Link href="/history/all-time" className="font-bold text-[var(--accent)]">טבלת כל הזמנים ←</Link>
+        {' · '}
+        <Link href="/history/cups" className="font-bold text-[var(--accent)]">זוכי הגביעים ←</Link>
       </p>
       {rows.length === 0 ? (
         <p className="mt-6 text-sm text-stone-500">אין נתונים להצגה.</p>
@@ -28,6 +30,7 @@ export default async function SeasonsSpinePage() {
               <th className="px-4 py-3">עונה</th>
               <th className="px-4 py-3">אלופה</th>
               <th className="px-4 py-3">סגנית</th>
+              <th className="px-4 py-3">גביע המדינה</th>
               <th className="px-4 py-3">מלך השערים</th>
               <th className="px-4 py-3">יורדות</th>
               <th className="px-4 py-3"></th>
@@ -48,6 +51,13 @@ export default async function SeasonsSpinePage() {
                   {row.runnerUp ? (
                     <Link href={`/teams/${row.runnerUp.teamId}`} className="text-stone-700 hover:text-[var(--accent)]">
                       {row.runnerUp.nameHe}
+                    </Link>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-3">
+                  {row.cupWinner ? (
+                    <Link href={`/teams/${row.cupWinner.teamId}`} className="text-stone-700 hover:text-[var(--accent)]">
+                      🏆 {row.cupWinner.nameHe}
                     </Link>
                   ) : '—'}
                 </td>
