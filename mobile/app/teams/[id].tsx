@@ -392,7 +392,8 @@ export default function TeamScreen() {
         </Section>
       ) : null}
 
-      {extras && extras.clubRecords.length > 0 ? (
+      {/* clubRecords guard: stale persisted caches from pre-OTA bundles lack the field */}
+      {extras && extras.clubRecords && extras.clubRecords.length > 0 ? (
         <Section title="שיאי המועדון">
           <Card>
             <View style={{ gap: 12 }}>
