@@ -1795,3 +1795,22 @@ model ApiFootballRawFixtureStatistics {
   @@index([leagueId, season])
   @@map("apifootball_raw_fixture_statistics")
 }
+
+model RecordEntry {
+  id         String   @id @default(cuid())
+  category   String   // e.g. "biggest_win", "fastest_goal" — see records-engine CATEGORIES
+  scope      String   // "league" | "club:<clubKey>"
+  rank       Int
+  valueNum   Float?   // sortable magnitude (margin, minute, count…)
+  labelHe    String   // display line, superlative-framed
+  detailHe   String?  // secondary line (date · competition · opponent)
+  clubKey    String?
+  playerId   String?
+  gameId     String?
+  seasonYear Int?
+  computedAt DateTime @default(now())
+
+  @@unique([category, scope, rank])
+  @@index([scope, category])
+  @@map("record_entries")
+}
