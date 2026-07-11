@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Router } from 'expo-router';
 import { rtlRow } from '@/lib/rtl';
 import { useRecords } from '@/hooks/useRecords';
 import { Header } from '@/design-system/Header';
 import { Card } from '@/design-system/Card';
+import { TeamCrest } from '@/design-system/TeamCrest';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { RecordCategoryApi } from '@shared/types/mobile-api';
+import type { RecordEntryApi } from '@shared/types/mobile-api';
 
 // computedAt is an ISO string — format the date parts directly, no
 // toLocaleDateString (locale/TZ dependent and can shift the day).
@@ -22,13 +23,20 @@ export default function RecordsScreen() {
   const { brand } = useTheme();
   // undefined = server default (first category); set once the user picks a chip.
   const [cat, setCat] = useState<string | undefined>(undefined);
-  const { data, isLoading, isError, refetch, isRefetching } = useRecords(cat);
+  // Club filter — current Ligat Ha'al clubs only; club mode shows the club's
+  // whole record book grouped by category.
+  const [club, setClub] = useState<string | undefined>(undefined);
+  const { data, isLoading, isError, refetch, isRefetching } = useRecords(cat, club);
 
   const categories = data?.categories ?? [];
+  const clubs = data?.clubs ?? [];
+  const clubGroups = data?.clubGroups ?? [];
+  const activeClub = data?.club ?? null;
   const rows = data?.rows ?? [];
   const activeKey = data?.category;
   const activeCategory = categories.find((c) => c.key === activeKey);
-  const latestComputedAt = rows.reduce<string | null>(
+  const allVisibleRows = activeClub ? clubGroups.flatMap((g) => g.rows) : rows;
+  const latestComputedAt = allVisibleRows.reduce<string | null>(
     (max, r) => (!max || r.computedAt > max ? r.computedAt : max),
     null,
   );
@@ -54,9 +62,37 @@ export default function RecordsScreen() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={brand.accent} />}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}
         >
-          {categories.length > 0 ? (
-            // nestedScrollEnabled — horizontal row inside the screen's vertical
-            // ScrollView; without it Android can swallow the inner scroll.
+          {clubs.length > 0 ? (
+            // Club filter row — "כל הליגה" + current top-flight clubs.
+            // nestedScrollEnabled — horizontal row inside the vertical ScrollView.
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ flexDirection: rtlRow(), gap: 8, paddingHorizontal: 2 }}
+            >
+              <Chip
+                label="כל הליגה"
+                selected={!club}
+                onPress={() => setClub(undefined)}
+                brandAccent={brand.accent}
+                brandGlow={brand.accentGlow}
+              />
+              {clubs.map((c) => (
+                <Chip
+                  key={c.clubKey}
+                  label={c.nameHe}
+                  logoUrl={c.logoUrl}
+                  selected={club === c.clubKey}
+                  onPress={() => setClub(club === c.clubKey ? undefined : c.clubKey)}
+                  brandAccent={brand.accent}
+                  brandGlow={brand.accentGlow}
+                />
+              ))}
+            </ScrollView>
+          ) : null}
+
+          {!activeClub && categories.length > 0 ? (
             <ScrollView
               horizontal
               nestedScrollEnabled
@@ -64,9 +100,9 @@ export default function RecordsScreen() {
               contentContainerStyle={{ flexDirection: rtlRow(), gap: 8, paddingHorizontal: 2 }}
             >
               {categories.map((c) => (
-                <CategoryChip
+                <Chip
                   key={c.key}
-                  category={c}
+                  label={c.titleHe}
                   selected={c.key === activeKey}
                   onPress={() => setCat(c.key)}
                   brandAccent={brand.accent}
@@ -76,57 +112,31 @@ export default function RecordsScreen() {
             </ScrollView>
           ) : null}
 
-          {rows.length === 0 ? (
+          {activeClub ? (
+            clubGroups.length === 0 ? (
+              <Card>
+                <Text style={{ fontSize: 13, color: theme.ink[500], textAlign: 'center' }}>
+                  אין עדיין שיאים לקבוצה זו.
+                </Text>
+              </Card>
+            ) : (
+              clubGroups.map((g) => (
+                <View key={g.category} style={{ gap: 6 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>
+                    {g.titleHe}
+                  </Text>
+                  <RecordRowsCard rows={g.rows} router={router} />
+                </View>
+              ))
+            )
+          ) : rows.length === 0 ? (
             <Card>
               <Text style={{ fontSize: 13, color: theme.ink[500], textAlign: 'center' }}>
                 ספר השיאים טרם נבנה — הריצו עדכון מהאדמין.
               </Text>
             </Card>
           ) : (
-            <Card pad={false}>
-              {rows.map((row, i) => {
-                const content = (
-                  <View
-                    style={{
-                      flexDirection: rtlRow(),
-                      alignItems: 'center',
-                      gap: 10,
-                      paddingVertical: 10,
-                      paddingHorizontal: 14,
-                      borderBottomWidth: i === rows.length - 1 ? 0 : 1,
-                      borderBottomColor: theme.ink[100],
-                    }}
-                  >
-                    <Text style={{ width: 22, fontSize: 13, fontWeight: '900', color: theme.ink[500], textAlign: 'center' }}>
-                      {row.rank}
-                    </Text>
-                    <View style={{ flex: 1, flexShrink: 1 }}>
-                      <Text
-                        style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}
-                        numberOfLines={2}
-                      >
-                        {row.labelHe}
-                      </Text>
-                      {row.detailHe ? (
-                        <Text
-                          style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl', marginTop: 2 }}
-                          numberOfLines={1}
-                        >
-                          {row.detailHe}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                );
-                return row.gameId ? (
-                  <Pressable key={row.id} onPress={() => router.push(`/games/${row.gameId}` as any)}>
-                    {content}
-                  </Pressable>
-                ) : (
-                  <View key={row.id}>{content}</View>
-                );
-              })}
-            </Card>
+            <RecordRowsCard rows={rows} router={router} />
           )}
 
           <View style={{ gap: 4 }}>
@@ -135,12 +145,12 @@ export default function RecordsScreen() {
                 עודכן: {fmtDate(latestComputedAt)}
               </Text>
             ) : null}
-            {activeCategory?.eventBased ? (
+            {!activeClub && activeCategory?.eventBased ? (
               <Text style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>
                 נתוני אירועים מ-2006 ואילך
               </Text>
             ) : null}
-            {activeCategory?.ordered ? (
+            {activeClub || activeCategory?.ordered ? (
               <Text style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>
                 רצפים מחושבים מעונות עם תאריכי משחק מלאים
               </Text>
@@ -153,14 +163,65 @@ export default function RecordsScreen() {
   );
 }
 
-function CategoryChip({
-  category,
+function RecordRowsCard({ rows, router }: { rows: RecordEntryApi[]; router: Router }) {
+  return (
+    <Card pad={false}>
+      {rows.map((row, i) => {
+        const content = (
+          <View
+            style={{
+              flexDirection: rtlRow(),
+              alignItems: 'center',
+              gap: 10,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderBottomWidth: i === rows.length - 1 ? 0 : 1,
+              borderBottomColor: theme.ink[100],
+            }}
+          >
+            <Text style={{ width: 22, fontSize: 13, fontWeight: '900', color: theme.ink[500], textAlign: 'center' }}>
+              {row.rank}
+            </Text>
+            <View style={{ flex: 1, flexShrink: 1 }}>
+              <Text
+                style={{ fontSize: 13, fontWeight: '700', color: theme.ink[900], textAlign: 'right', writingDirection: 'rtl' }}
+                numberOfLines={2}
+              >
+                {row.labelHe}
+              </Text>
+              {row.detailHe ? (
+                <Text
+                  style={{ fontSize: 10, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl', marginTop: 2 }}
+                  numberOfLines={1}
+                >
+                  {row.detailHe}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        );
+        return row.gameId ? (
+          <Pressable key={row.id} onPress={() => router.push(`/games/${row.gameId}` as any)}>
+            {content}
+          </Pressable>
+        ) : (
+          <View key={row.id}>{content}</View>
+        );
+      })}
+    </Card>
+  );
+}
+
+function Chip({
+  label,
+  logoUrl,
   selected,
   onPress,
   brandAccent,
   brandGlow,
 }: {
-  category: RecordCategoryApi;
+  label: string;
+  logoUrl?: string | null;
   selected: boolean;
   onPress: () => void;
   brandAccent: string;
@@ -170,6 +231,9 @@ function CategoryChip({
     <Pressable
       onPress={onPress}
       style={{
+        flexDirection: rtlRow(),
+        alignItems: 'center',
+        gap: 6,
         paddingHorizontal: 12,
         paddingVertical: 7,
         borderRadius: 999,
@@ -178,8 +242,9 @@ function CategoryChip({
         backgroundColor: selected ? brandGlow : 'white',
       }}
     >
-      <Text style={{ fontSize: 13, fontWeight: selected ? '800' : '600', color: selected ? theme.ink[900] : theme.ink[700] }}>
-        {category.titleHe}
+      {logoUrl !== undefined ? <TeamCrest name={label} logoUrl={logoUrl} size={16} radius={8} /> : null}
+      <Text style={{ fontSize: 12, fontWeight: '800', color: selected ? theme.ink[900] : theme.ink[700] }}>
+        {label}
       </Text>
     </Pressable>
   );

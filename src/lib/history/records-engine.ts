@@ -511,9 +511,13 @@ export async function rebuildAllRecords(): Promise<{ written: number; byCategory
     await writeCategory('biggest_win', rows);
   }
 
-  // highest_scoring_game — league only
+  // highest_scoring_game — league + club (club scope = richest games INVOLVING the club)
   {
     const rows = rowsFromRecords('highest_scoring_game', 'league', computeHighestScoringGames(games, LEAGUE_TOP), seasonYearByGameId);
+    for (const clubKey of clubKeys) {
+      const clubGames = computeHighestScoringGames(byClub(games, clubKey), CLUB_TOP);
+      rows.push(...rowsFromRecords('highest_scoring_game', `club:${clubKey}`, clubGames, seasonYearByGameId));
+    }
     await writeCategory('highest_scoring_game', rows);
   }
 

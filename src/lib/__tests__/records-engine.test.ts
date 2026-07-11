@@ -1,5 +1,6 @@
 import {
   computeBiggestWins,
+  computeHighestScoringGames,
   computeStreaks,
   computeFastestGoals,
   computePlayerGameGoals,
@@ -119,5 +120,17 @@ describe('computeAgeExtremes', () => {
     ], 'youngest', 5);
     expect(rows[0].playerId).toBe('p1');
     expect(rows[0].labelHe).toContain('צעיר');
+  });
+});
+
+describe('computeHighestScoringGames', () => {
+  it('ranks by total goals, tie-break margin then earlier date', () => {
+    const rows = computeHighestScoringGames([
+      g('g1', 'A', 'B', 4, 3, '2012-01-01'), // total 7, margin 1
+      g('g2', 'C', 'D', 6, 2, '2015-01-01'), // total 8
+      g('g3', 'A', 'C', 5, 2, '2010-01-01'), // total 7, margin 3 -> above g1
+    ], 5);
+    expect(rows.map((r) => r.gameId)).toEqual(['g2', 'g3', 'g1']);
+    expect(rows[0].valueNum).toBe(8);
   });
 });

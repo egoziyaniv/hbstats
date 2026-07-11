@@ -28,7 +28,7 @@ export interface ClubFamily {
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 let cache: { at: number; families: ClubFamily[]; byTeamId: Map<string, ClubFamily>; byKey: Map<string, ClubFamily> } | null = null;
-export function clearClubCache() { cache = null; }
+export function clearClubCache() { cache = null; currentLeagueCache = null; }
 export const _clearClubCacheForTests = clearClubCache;
 
 // Same normalization family the merge engine uses for team-name matching.
@@ -145,4 +145,38 @@ export async function getClubFamilyByTeamId(teamId: string): Promise<ClubFamily 
 /** Bulk teamId → family index — one call for aggregators that map many rows. */
 export async function getClubTeamIndex(): Promise<ReadonlyMap<string, ClubFamily>> {
   return (await ensure()).byTeamId;
+}
+
+/**
+ * Club families of the CURRENT Ligat Ha'al season — for club pickers that
+ * should offer only top-flight clubs (e.g. the record book's club filter).
+ * "Current" = the newest season that has league standings rows. Sorted by
+ * family season-count desc (big clubs first). 1h-cached via the same store.
+ */
+let currentLeagueCache: { at: number; families: ClubFamily[] } | null = null;
+export async function getCurrentLeagueClubFamilies(): Promise<ClubFamily[]> {
+  if (currentLeagueCache && Date.now() - currentLeagueCache.at < CACHE_TTL_MS) return currentLeagueCache.families;
+  const newest = await prisma.standing.findFirst({
+    where: { competitionId: 'comp_liga_haal' },
+    orderBy: { season: { year: 'desc' } },
+    select: { seasonId: true },
+  });
+  if (!newest) return [];
+  const rows = await prisma.standing.findMany({
+    where: { competitionId: 'comp_liga_haal', seasonId: newest.seasonId },
+    select: { teamId: true },
+  });
+  const index = await getClubTeamIndex();
+  const seen = new Set<string>();
+  const families: ClubFamily[] = [];
+  for (const r of rows) {
+    const fam = index.get(r.teamId);
+    if (fam && !seen.has(fam.clubKey)) {
+      seen.add(fam.clubKey);
+      families.push(fam);
+    }
+  }
+  families.sort((a, b) => b.seasons.length - a.seasons.length);
+  currentLeagueCache = { at: Date.now(), families };
+  return families;
 }

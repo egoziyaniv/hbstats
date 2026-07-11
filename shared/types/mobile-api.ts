@@ -705,9 +705,17 @@ export interface RecordEntryApi {
 }
 
 export interface RecordsPayload {
-  category: string;
+  /** Active league-mode category key; null in club mode. */
+  category: string | null;
   categories: RecordCategoryApi[];
+  /** Current Ligat Ha'al clubs for the club filter. */
+  clubs: Array<{ clubKey: string; nameHe: string; logoUrl: string | null }>;
+  /** Active club in club mode; null in league mode. */
+  club: { clubKey: string; nameHe: string; logoUrl: string | null } | null;
+  /** League-mode rows (single category). Empty in club mode. */
   rows: RecordEntryApi[];
+  /** Club-mode groups (the club's whole record book). Empty in league mode. */
+  clubGroups: ClubRecordGroupApi[];
 }
 
 /** Club-scope record group for the team history tab — mirrors the web page's grouping of RecordEntry rows by RECORD_CATEGORIES. */
