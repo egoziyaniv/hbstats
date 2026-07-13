@@ -36,8 +36,10 @@
  *     birthDate/nationality/height/weight the moment a team falls back to the
  *     squads endpoint. *He fields stay strictly fill-only, same as the route.
  *   - nameHe/nationalityHe/birthPlaceHe/birthCountryHe default to the EN value
- *     on create (never touched on update) — Hebrew backfill is
- *     scripts/transliterate-players.js's job, same as it is for the route.
+ *     on create (never touched on update). After a successful EXECUTE run the
+ *     script spawns scripts/transliterate-players.js --season Y --apply to
+ *     Hebrew-ize new names — same post-import step the route runs
+ *     (transliterateSeasonPlayers).
  *   - NEVER deletes. The route prunes API-owned players missing from the
  *     response (players without an apiFootballId — IFA/manual — are already
  *     outside that prune's universe, matching the "additive" comment there).
@@ -58,6 +60,7 @@
 const fs = require('fs');
 const fsPromises = require('fs/promises');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 // .env loader (mirrors matchday-update.js / notify-matches.js)
 function loadEnv(file) {
@@ -203,19 +206,23 @@ function extensionFromUrl(url) {
     return null;
   }
 }
+// Anchor to the repo (__dirname/..), NOT process.cwd() — a cron launched from
+// another directory would otherwise write photos outside public/ and the DB
+// URLs would 404.
+const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 async function storePlayerPhotoLocally({ remoteUrl, seasonYear, teamName, playerId, playerName }) {
   if (!remoteUrl) return null;
   try {
-    const probe = await fetch(remoteUrl, { method: 'HEAD' });
+    const probe = await fetch(remoteUrl, { method: 'HEAD', signal: AbortSignal.timeout(20000) });
     const ext = extensionFromUrl(remoteUrl) || extensionFromContentType(probe.headers.get('content-type'));
-    const response = await fetch(remoteUrl);
+    const response = await fetch(remoteUrl, { signal: AbortSignal.timeout(20000) });
     if (!response.ok) throw new Error(`download failed: ${response.status}`);
     const buffer = Buffer.from(await response.arrayBuffer());
     const targetRelativePath = path.join(
       'uploads', 'players', String(seasonYear), slugify(teamName), `${playerId}-${slugify(playerName)}${ext}`
     );
-    const baseDir = path.resolve(process.cwd(), 'public', 'uploads');
-    const absolutePath = path.resolve(process.cwd(), 'public', targetRelativePath);
+    const baseDir = path.resolve(PUBLIC_DIR, 'uploads');
+    const absolutePath = path.resolve(PUBLIC_DIR, targetRelativePath);
     if (!absolutePath.startsWith(baseDir)) throw new Error('invalid path');
     await fsPromises.mkdir(path.dirname(absolutePath), { recursive: true });
     await fsPromises.writeFile(absolutePath, buffer);
@@ -320,14 +327,19 @@ function fieldsDiffer(existing, merged) {
 async function upsertPlayer(entry, team, seasonYear) {
   if (!entry.nameEn) return 'skipped';
 
-  const existingByApiId =
-    entry.apiId != null
-      ? await prisma.player.findUnique({ where: { apiFootballId_teamId: { apiFootballId: entry.apiId, teamId: team.id } } })
-      : null;
-  const existingPlayer =
-    existingByApiId || (await prisma.player.findFirst({ where: { nameEn: entry.nameEn, teamId: team.id } }));
-
   const canonicalPlayer = await findCanonicalPlayerMatch(entry.apiId, entry.nameEn);
+
+  const existingPlayer =
+    (entry.apiId != null
+      ? await prisma.player.findUnique({ where: { apiFootballId_teamId: { apiFootballId: entry.apiId, teamId: team.id } } })
+      : null) ||
+    (await prisma.player.findFirst({ where: { nameEn: entry.nameEn, teamId: team.id } })) ||
+    // Dupe guard: a returning player whose current-season row came from IFA has
+    // a Hebrew nameHe and no apiFootballId — find them via the canonical
+    // match's Hebrew name so we update that row instead of creating a twin.
+    (canonicalPlayer?.nameHe && canonicalPlayer.nameHe !== entry.nameEn
+      ? await prisma.player.findFirst({ where: { teamId: team.id, nameHe: canonicalPlayer.nameHe } })
+      : null);
 
   const jerseyConflict =
     entry.jerseyNumber != null
@@ -533,6 +545,21 @@ async function main() {
   );
   console.log(`Totals: new=${totals.new} updated=${totals.updated} unchanged=${totals.unchanged}`);
   console.log(EXECUTE ? 'Mode: EXECUTE — written to DB.' : 'Mode: DRY-RUN — no writes. Pass --execute to apply.');
+
+  // Post-sync transliteration — same step the admin route runs after player
+  // imports (transliterateSeasonPlayers). Without it, new signings keep their
+  // English nameHe on an RTL site and future IFA merges (which match on
+  // Hebrew names) create duplicate rows. transliterate-players.js hardcodes a
+  // 2025 season default, so --season must be passed explicitly.
+  if (EXECUTE && totals.new + totals.updated > 0) {
+    console.log(`\n→ Transliterating player names (season=${SEASON_YEAR})...`);
+    const result = spawnSync(
+      'node',
+      [path.resolve(__dirname, 'transliterate-players.js'), '--season', String(SEASON_YEAR), '--apply'],
+      { stdio: 'inherit' }
+    );
+    if (result.status !== 0) console.error('  ✗ transliteration failed (squad sync itself succeeded — run it manually)');
+  }
 
   await prisma.$disconnect();
 }
