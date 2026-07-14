@@ -67,14 +67,17 @@ async function main() {
     return;
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const r of repoints) {
-      await tx.player.update({ where: { id: r.childId }, data: { canonicalPlayerId: r.newCanonical } });
-    }
-    // Null any 2026 rows' self/other canonical refs first is unnecessary — they're deleted together.
-    const del = await tx.player.deleteMany({ where: { id: { in: pids } } });
-    console.log(`Re-pointed ${repoints.length}, deleted ${del.count} player rows.`);
-  });
+  await prisma.$transaction(
+    async (tx) => {
+      for (const r of repoints) {
+        await tx.player.update({ where: { id: r.childId }, data: { canonicalPlayerId: r.newCanonical } });
+      }
+      // Deleted together with the 2026 rows, so intra-2026 canonical refs are fine.
+      const del = await tx.player.deleteMany({ where: { id: { in: pids } } });
+      console.log(`Re-pointed ${repoints.length}, deleted ${del.count} player rows.`);
+    },
+    { timeout: 60_000 }, // 19 updates + a 737-row delete exceed the 5s default
+  );
 
   // Post-check: no dangling canonical refs to deleted ids.
   const dangling = await prisma.player.count({ where: { canonicalPlayerId: { in: pids } } });
