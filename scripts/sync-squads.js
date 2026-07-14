@@ -96,6 +96,12 @@ function getArg(name, dflt = null) {
   return i >= 0 ? args[i + 1] : dflt;
 }
 const EXECUTE = args.includes('--execute');
+// --force: sync even a season that hasn't kicked off. WITHOUT it, an un-started
+// season is skipped — API-Football's /players/squads returns a STALE (≈ last
+// season) roster before the season starts, which pollutes the new-season pages
+// (verified July 2026: it served departed players + missed new signings). Once
+// real league games exist, /players carries the accurate current squad.
+const FORCE = args.includes('--force');
 const LEAGUE_ARG = getArg('--league', 'all');
 const TEAM_FILTER = getArg('--team') ? parseInt(getArg('--team'), 10) : null;
 
@@ -500,6 +506,19 @@ async function main() {
     console.log(`\nNo Season row for year=${SEASON_YEAR} yet — nothing to sync. (Season/team rows come from the standings resource, not this script.)`);
     await prisma.$disconnect();
     return;
+  }
+
+  // Season-started guard: skip pre-season syncs (they'd import a stale roster).
+  if (!FORCE && !TEAM_FILTER) {
+    const startedGames = await prisma.game.count({
+      where: { seasonId: season.id, competitionId: { in: COMP_IDS }, status: { in: ['COMPLETED', 'ONGOING'] } },
+    });
+    if (startedGames === 0) {
+      console.log(`\nSeason ${season.name} has no completed/ongoing league games yet — not started.`);
+      console.log('Skipping squad sync (API-Football serves a stale pre-season roster). Re-run with --force to override.');
+      await prisma.$disconnect();
+      return;
+    }
   }
 
   const { teams, skipped } = await resolveTeams(season);
