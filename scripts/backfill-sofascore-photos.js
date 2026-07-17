@@ -15,6 +15,11 @@
  *   node scripts/backfill-sofascore-photos.js --execute
  *   node scripts/backfill-sofascore-photos.js --team 563 --execute   # one club
  *   node scripts/backfill-sofascore-photos.js --limit 20 --execute   # cap
+ *   node scripts/backfill-sofascore-photos.js --retry --execute      # re-try known no-photo players
+ *
+ * Cron-safe: players with no Sofascore image are marked (additionalInfo
+ * .noSofascorePhoto) and skipped on later runs, so a weekly run only fetches
+ * genuinely new players. Auto-restarts pm2 when it saves any photo.
  */
 'use strict';
 const fs = require('fs');
@@ -34,6 +39,7 @@ function loadEnv(file) {
 loadEnv(path.resolve(__dirname, '..', '.env'));
 
 const { PrismaClient } = require('@prisma/client');
+const { spawnSync } = require('child_process');
 const prisma = new PrismaClient();
 
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
@@ -42,6 +48,9 @@ const TEAM_AF = arg('team', null) ? parseInt(arg('team'), 10) : null;
 const LIMIT = parseInt(arg('limit', '0'), 10);
 const BATCH = parseInt(arg('batch', '10'), 10);
 const EXECUTE = process.argv.includes('--execute');
+// --retry: re-attempt players previously marked as having no Sofascore image.
+// Normally they're skipped so a weekly cron doesn't re-fetch them forever.
+const RETRY = process.argv.includes('--retry');
 const FC_KEY = process.env.FIRECRAWL_API_KEY;
 
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
@@ -85,7 +94,11 @@ async function main() {
     where,
     select: { id: true, nameEn: true, photoUrl: true, additionalInfo: true, team: { select: { nameEn: true } } },
   });
-  let targets = all.filter((p) => p.additionalInfo?.sofascoreId && (!p.photoUrl || p.photoUrl.includes('sofascore') || !p.photoUrl.startsWith('/uploads')));
+  let targets = all.filter((p) =>
+    p.additionalInfo?.sofascoreId &&
+    (!p.photoUrl || p.photoUrl.includes('sofascore') || !p.photoUrl.startsWith('/uploads')) &&
+    (RETRY || !p.additionalInfo?.noSofascorePhoto) // skip known no-photo players unless --retry
+  );
   if (LIMIT > 0) targets = targets.slice(0, LIMIT);
   console.log(`Season ${SEASON_YEAR}: ${targets.length} players need photos${TEAM_AF ? ` (team af=${TEAM_AF})` : ''} ${EXECUTE ? '(EXECUTE)' : '(DRY-RUN)'}`);
   if (!targets.length) { await prisma.$disconnect(); return; }
@@ -99,13 +112,18 @@ async function main() {
     let images;
     try { images = await fetchImages(batch.map((p) => Number(p.additionalInfo.sofascoreId))); }
     catch (e) { console.error(`  ✗ batch failed: ${e.message}`); failed += batch.length; continue; }
+    // mark a player as having no usable Sofascore image so future cron runs skip
+    const markNoPhoto = (p) => prisma.player.update({
+      where: { id: p.id },
+      data: { additionalInfo: { ...(p.additionalInfo || {}), noSofascorePhoto: true } },
+    }).catch(() => {});
     for (const [ssId, o] of Object.entries(images)) {
       const p = byId.get(ssId);
       if (!p) continue;
-      if (o.status !== 200 || !o.b64) { missing++; continue; }
+      if (o.status !== 200 || !o.b64) { missing++; await markNoPhoto(p); continue; }
       try {
         const buf = Buffer.from(o.b64, 'base64');
-        if (buf.length < 500) { missing++; continue; } // guard against empty/placeholder stubs
+        if (buf.length < 500) { missing++; await markNoPhoto(p); continue; } // empty/placeholder stub
         const rel = path.join('uploads', 'players', String(SEASON_YEAR), slugify(p.team.nameEn), `${p.id}-${slugify(p.nameEn)}${extFromCt(o.ct)}`);
         const abs = path.resolve(PUBLIC_DIR, rel);
         if (!abs.startsWith(path.resolve(PUBLIC_DIR, 'uploads'))) { failed++; continue; }
@@ -119,8 +137,14 @@ async function main() {
   }
 
   console.log(`\nDONE — saved=${saved}, no-image=${missing}, failed=${failed}`);
-  if (EXECUTE && saved > 0) console.log('→ Run `pm2 restart hbstats` so Next serves the new photos.');
   await prisma.$disconnect();
+  // Next serves public/ files present at process start, so restart to expose the
+  // new photos. Login shell (`bash -lc`) so pm2 is on PATH under cron.
+  if (EXECUTE && saved > 0) {
+    console.log('→ restarting pm2 (hbstats) to serve new photos…');
+    const r = spawnSync('bash', ['-lc', 'pm2 restart hbstats'], { stdio: 'inherit' });
+    if (r.status !== 0) console.error('  ✗ pm2 restart failed — run `pm2 restart hbstats` manually');
+  }
 }
 
 main().catch(async (e) => { console.error('FATAL', e.message); await prisma.$disconnect(); process.exit(1); });
