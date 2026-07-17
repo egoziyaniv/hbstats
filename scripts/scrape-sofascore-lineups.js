@@ -1,0 +1,216 @@
+#!/usr/bin/env node
+/**
+ * scrape-sofascore-lineups.js — pull a match's lineups (starting XI +
+ * substitutes + formation + coaches), and team statistics when Sofascore
+ * publishes them, for games API-Football doesn't cover (cup finals, Super
+ * Cup, friendlies).
+ *
+ * Why the roundabout Firecrawl route: api.sofascore.com is Cloudflare-blocked
+ * for our datacenter IP (403), and puppeteer-real-browser no longer clears it
+ * either. Firecrawl's `stealth` proxy renders www.sofascore.com from a
+ * residential IP with the CF challenge solved; from inside that page context
+ * we `executeJavascript` a same-origin fetch to the JSON API (exactly what the
+ * SPA does), which returns clean, correctly-attributed JSON.
+ *
+ * Writes GameLineupEntry rows (role STARTER/SUBSTITUTE/COACH, participantName,
+ * jerseyNumber, positionName, formation), linking to our Player rows by name
+ * where possible (Hebrew display + click-through); unlinked entries fall back
+ * to the Sofascore display name. Idempotent: replaces existing lineup entries
+ * for the game.
+ *
+ * Usage:
+ *   node scripts/scrape-sofascore-lineups.js --game <gameId> --url <sofascore-match-url> [--dry]
+ *   node scripts/scrape-sofascore-lineups.js --game <gameId> --event <sofascoreEventId> [--dry]
+ */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
+const GAME_ID = arg('game', process.env.SS_GAME || null);
+const URL_ARG = arg('url', process.env.SS_URL || null);
+let EVENT_ID = arg('event', process.env.SS_EVENT || null);
+const DRY = process.argv.includes('--dry') || process.env.SS_DRY === '1';
+
+let FC_KEY = process.env.FIRECRAWL_API_KEY;
+if (!FC_KEY) {
+  try {
+    const e = fs.readFileSync(path.resolve(__dirname, '..', '.env'), 'utf8')
+      .match(/^FIRECRAWL_API_KEY\s*=\s*"?([^"\n]+)"?/m);
+    if (e) FC_KEY = e[1].trim();
+  } catch {}
+}
+
+if (!EVENT_ID && URL_ARG) {
+  const m = URL_ARG.match(/#id:(\d+)/) || URL_ARG.match(/[?&]id=(\d+)/);
+  if (m) EVENT_ID = m[1];
+}
+
+const POS_HE = { G: 'שוער', D: 'הגנה', M: 'קישור', F: 'חלוץ' };
+const stripAccents = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+const norm = (s) => stripAccents(s).replace(/[.,'"`\-]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+const tokensOf = (s) => norm(s).split(' ').filter((t) => t.length > 1); // drop single-letter initials
+const firstInitial = (s) => (norm(s)[0] || '');
+
+async function fetchViaFirecrawl(eventId, pageUrl) {
+  const eps = ['lineups', 'managers', 'statistics'];
+  const script =
+    `(async()=>{const out={};for(const ep of ${JSON.stringify(eps)}){try{` +
+    `const r=await fetch('https://api.sofascore.com/api/v1/event/${eventId}/'+ep);` +
+    `out[ep]={status:r.status,body:await r.text()};}catch(e){out[ep]={err:String(e)};}}` +
+    `return JSON.stringify(out);})()`;
+  const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${FC_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: pageUrl, proxy: 'stealth', waitFor: 6000, formats: ['markdown'],
+      actions: [{ type: 'wait', milliseconds: 4000 }, { type: 'executeJavascript', script }],
+    }),
+  });
+  const text = await res.text();
+  let d; try { d = JSON.parse(text); } catch { throw new Error('Firecrawl non-JSON: ' + text.slice(0, 150)); }
+  if (!d.success) throw new Error('Firecrawl error: ' + (d.error || JSON.stringify(d)).slice(0, 200));
+  const raw = (d.data?.actions?.javascriptReturns || [])[0]?.value;
+  if (!raw) throw new Error('No JS return from Firecrawl action');
+  const parsed = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  const result = {};
+  for (const ep of eps) {
+    const r = parsed[ep];
+    result[ep] = r && r.status === 200 ? JSON.parse(r.body) : null;
+    if (r && r.status !== 200) console.log(`  · /${ep}: HTTP ${r.status} (skipped)`);
+  }
+  return result;
+}
+
+// Build a surname-token index for one club's players (all seasons, most-recent
+// first). Sofascore gives full English names; our nameEn is abbreviated
+// ("O. Marciano") but lastNameEn/firstNameEn hold the full parts, so we match
+// the Sofascore surname against lastNameEn tokens and disambiguate by first
+// initial, preferring the most recent season.
+async function buildPlayerLookup(teamNameHe, teamNameEn) {
+  const players = await prisma.player.findMany({
+    where: { team: { OR: [{ nameHe: teamNameHe }, { nameEn: teamNameEn }] } },
+    select: { id: true, nameHe: true, nameEn: true, firstNameEn: true, lastNameEn: true, team: { select: { season: { select: { year: true } } } } },
+    orderBy: { team: { season: { year: 'desc' } } },
+  });
+  const index = new Map(); // surname token → [{ id, fi, year }]
+  for (const p of players) {
+    const year = p.team?.season?.year || 0;
+    const fi = firstInitial(p.firstNameEn || p.nameEn);
+    const surTokens = tokensOf(p.lastNameEn || p.nameEn);
+    for (const tok of new Set(surTokens)) {
+      if (!index.has(tok)) index.set(tok, []);
+      index.get(tok).push({ id: p.id, fi, year });
+    }
+  }
+  return { index, count: players.length };
+}
+
+function linkPlayer(lookup, ssName) {
+  const toks = tokensOf(ssName);
+  if (!toks.length) return null;
+  const ssLast = toks[toks.length - 1];
+  const ssFi = firstInitial(ssName);
+  const cands = lookup.index.get(ssLast);
+  if (!cands || !cands.length) return null;
+  const withFi = cands.filter((c) => c.fi === ssFi);
+  const pool = withFi.length ? withFi : cands;
+  pool.sort((a, b) => b.year - a.year); // most recent first
+  return pool[0].id;
+}
+
+function buildEntries(sideData, teamId, lookup, coachName) {
+  const formation = sideData?.formation || null;
+  const entries = [];
+  for (const e of sideData?.players || []) {
+    const name = e.player?.name || e.player?.shortName || 'שחקן';
+    const jersey = parseInt(e.jerseyNumber ?? e.shirtNumber ?? e.player?.jerseyNumber, 10);
+    const pos = e.position || e.player?.position || null;
+    entries.push({
+      role: e.substitute ? 'SUBSTITUTE' : 'STARTER',
+      participantType: 'PLAYER',
+      participantName: name,
+      jerseyNumber: Number.isFinite(jersey) ? jersey : null,
+      positionName: pos ? (POS_HE[pos] || pos) : null,
+      formation,
+      teamId,
+      playerId: linkPlayer(lookup, name),
+    });
+  }
+  if (coachName) {
+    entries.push({ role: 'COACH', participantType: 'COACH', participantName: coachName, formation, teamId, playerId: null, jerseyNumber: null, positionName: null });
+  }
+  return entries;
+}
+
+async function main() {
+  if (!GAME_ID || !EVENT_ID) {
+    console.error('Usage: --game <gameId> --url <sofascore-match-url> | --event <id> [--dry]');
+    process.exit(1);
+  }
+  if (!FC_KEY) { console.error('Missing FIRECRAWL_API_KEY'); process.exit(1); }
+
+  const game = await prisma.game.findUnique({
+    where: { id: GAME_ID },
+    select: {
+      id: true, homeTeamId: true, awayTeamId: true,
+      homeTeam: { select: { nameHe: true, nameEn: true } },
+      awayTeam: { select: { nameHe: true, nameEn: true } },
+    },
+  });
+  if (!game) { console.error(`No game ${GAME_ID}`); process.exit(1); }
+  console.log(`Game: ${game.homeTeam.nameHe} vs ${game.awayTeam.nameHe} (event ${EVENT_ID})`);
+
+  const pageUrl = URL_ARG || 'https://www.sofascore.com/';
+  console.log(`Fetching Sofascore via Firecrawl (stealth) …`);
+  const data = await fetchViaFirecrawl(EVENT_ID, pageUrl);
+  const lineups = data.lineups;
+  if (!lineups || (!lineups.home?.players?.length && !lineups.away?.players?.length)) {
+    console.error('No lineups returned from Sofascore for this event.');
+    process.exit(1);
+  }
+
+  const [homeLookup, awayLookup] = await Promise.all([
+    buildPlayerLookup(game.homeTeam.nameHe, game.homeTeam.nameEn),
+    buildPlayerLookup(game.awayTeam.nameHe, game.awayTeam.nameEn),
+  ]);
+  console.log(`Player pools — home: ${homeLookup.count}, away: ${awayLookup.count}`);
+
+  const mgr = data.managers;
+  const homeCoach = mgr?.homeManager?.name || null;
+  const awayCoach = mgr?.awayManager?.name || null;
+
+  const entries = [
+    ...buildEntries(lineups.home, game.homeTeamId, homeLookup, homeCoach),
+    ...buildEntries(lineups.away, game.awayTeamId, awayLookup, awayCoach),
+  ];
+
+  const linked = entries.filter((e) => e.playerId).length;
+  const players = entries.filter((e) => e.role !== 'COACH').length;
+  console.log(`\nParsed ${players} players (${linked} linked to DB), formations ${lineups.home?.formation}/${lineups.away?.formation}, coaches ${homeCoach || '—'}/${awayCoach || '—'}`);
+
+  for (const [label, side, teamId] of [['HOME', lineups.home, game.homeTeamId], ['AWAY', lineups.away, game.awayTeamId]]) {
+    console.log(`\n${label} (${label === 'HOME' ? game.homeTeam.nameHe : game.awayTeam.nameHe}) — ${side?.formation || '?'}`);
+    for (const e of entries.filter((x) => x.teamId === teamId && x.role !== 'COACH')) {
+      console.log(`  ${e.role === 'STARTER' ? '⚽' : '🔁'} #${e.jerseyNumber ?? '?'} ${e.positionName || ''} ${e.participantName} ${e.playerId ? '→ ' + e.playerId : '(unlinked)'}`);
+    }
+  }
+
+  if (DRY) { console.log('\n[dry-run] no DB writes.'); await prisma.$disconnect(); return; }
+
+  await prisma.$transaction([
+    prisma.gameLineupEntry.deleteMany({ where: { gameId: GAME_ID } }),
+    ...entries.map((e) => prisma.gameLineupEntry.create({ data: { gameId: GAME_ID, ...e } })),
+  ], { timeout: 60_000 });
+  console.log(`\n✓ Wrote ${entries.length} lineup entries to game ${GAME_ID}`);
+
+  // Team statistics — only present for some matches; fill when available.
+  if (data.statistics) {
+    console.log('  (statistics available — not yet materialized; lineups only for now)');
+  }
+  await prisma.$disconnect();
+}
+
+main().catch(async (e) => { console.error('FATAL', e.message); await prisma.$disconnect(); process.exit(1); });
