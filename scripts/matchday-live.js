@@ -81,7 +81,7 @@ async function main() {
     console.log(`\n→ fast matchday-update --date ${d} (API-Football only)`);
     const r = spawnSync('node', [
       'scripts/matchday-update.js', '--date', d, '--league', 'all',
-      '--no-footystats', '--no-walla', '--no-ifa', '--no-merge',
+      '--no-footystats', '--no-walla', '--no-ifa', '--no-sofascore', '--no-merge',
     ], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
     if (r.status !== 0) { failed++; console.error(`  ✗ matchday-update failed for ${d}`); }
   }
