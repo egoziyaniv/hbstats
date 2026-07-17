@@ -49,18 +49,24 @@ if (!EVENT_ID && URL_ARG) {
 }
 
 const POS_HE = { G: 'שוער', D: 'הגנה', M: 'קישור', F: 'חלוץ' };
+
+// our Team.apiFootballId → Sofascore team id (Ligat Ha'al; used to auto-resolve
+// a fixture's Sofascore event id from a team's schedule feed).
+const AF_TO_SS = {
+  657: 5204, 4481: 5392, 563: 5202, 2253: 5201, 4510: 5399, 4486: 86406,
+  4488: 5199, 4489: 7385, 4501: 5396, 6181: 61702, 4195: 5197, 4495: 5333,
+  4505: 5395, 604: 5198,
+};
 const stripAccents = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
 const norm = (s) => stripAccents(s).replace(/[.,'"`\-]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 const tokensOf = (s) => norm(s).split(' ').filter((t) => t.length > 1); // drop single-letter initials
 const firstInitial = (s) => (norm(s)[0] || '');
 
-async function fetchViaFirecrawl(eventId, pageUrl) {
-  const eps = ['lineups', 'managers', 'statistics'];
-  const script =
-    `(async()=>{const out={};for(const ep of ${JSON.stringify(eps)}){try{` +
-    `const r=await fetch('https://api.sofascore.com/api/v1/event/${eventId}/'+ep);` +
-    `out[ep]={status:r.status,body:await r.text()};}catch(e){out[ep]={err:String(e)};}}` +
-    `return JSON.stringify(out);})()`;
+// Generic: render a www.sofascore.com page via Firecrawl stealth and run `script`
+// (a bare async IIFE expression) inside the page context; returns its parsed
+// JSON string result. This is how we reach api.sofascore.com (CF-blocked for our
+// datacenter IP) — same-origin fetch from the loaded page.
+async function fcEval(pageUrl, script) {
   const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
     method: 'POST',
     headers: { Authorization: `Bearer ${FC_KEY}`, 'Content-Type': 'application/json' },
@@ -74,7 +80,17 @@ async function fetchViaFirecrawl(eventId, pageUrl) {
   if (!d.success) throw new Error('Firecrawl error: ' + (d.error || JSON.stringify(d)).slice(0, 200));
   const raw = (d.data?.actions?.javascriptReturns || [])[0]?.value;
   if (!raw) throw new Error('No JS return from Firecrawl action');
-  const parsed = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+  return JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+}
+
+async function fetchViaFirecrawl(eventId, pageUrl) {
+  const eps = ['lineups', 'managers', 'statistics'];
+  const script =
+    `(async()=>{const out={};for(const ep of ${JSON.stringify(eps)}){try{` +
+    `const r=await fetch('https://api.sofascore.com/api/v1/event/${eventId}/'+ep);` +
+    `out[ep]={status:r.status,body:await r.text()};}catch(e){out[ep]={err:String(e)};}}` +
+    `return JSON.stringify(out);})()`;
+  const parsed = await fcEval(pageUrl, script);
   const result = {};
   for (const ep of eps) {
     const r = parsed[ep];
@@ -82,6 +98,27 @@ async function fetchViaFirecrawl(eventId, pageUrl) {
     if (r && r.status !== 200) console.log(`  · /${ep}: HTTP ${r.status} (skipped)`);
   }
   return result;
+}
+
+// Auto-resolve a fixture's Sofascore event id from a team's schedule feed:
+// map one of the fixture's teams to its Sofascore id, pull last+next events,
+// match by kickoff date (±1 day). Returns the event id or null.
+async function resolveEventId(game, pageUrl) {
+  const afIds = [game.homeTeam?.apiFootballId, game.awayTeam?.apiFootballId].filter((x) => x != null);
+  const ssId = afIds.map((af) => AF_TO_SS[af]).find(Boolean);
+  if (!ssId) { console.log('  · no Sofascore team mapping for either side — cannot auto-resolve'); return null; }
+  const script =
+    `(async()=>{const out={};for(const w of ['last','next']){try{` +
+    `const r=await fetch('https://api.sofascore.com/api/v1/team/${ssId}/events/'+w+'/0');` +
+    `out[w]=r.status===200?await r.text():null;}catch(e){out[w]=null;}}return JSON.stringify(out);})()`;
+  const parsed = await fcEval(pageUrl, script);
+  const events = [];
+  for (const w of ['last', 'next']) { if (parsed[w]) { try { events.push(...(JSON.parse(parsed[w]).events || [])); } catch {} } }
+  const target = new Date(game.dateTime).getTime();
+  const DAY = 86400 * 1000;
+  const match = events.find((e) => Math.abs(e.startTimestamp * 1000 - target) <= DAY);
+  if (match) console.log(`  · resolved Sofascore event ${match.id} (${match.homeTeam?.name} v ${match.awayTeam?.name}, ${match.tournament?.name})`);
+  return match ? String(match.id) : null;
 }
 
 // Build a surname-token index for one club's players (all seasons, most-recent
@@ -146,8 +183,9 @@ function buildEntries(sideData, teamId, lookup, coachName) {
 }
 
 async function main() {
-  if (!GAME_ID || !EVENT_ID) {
-    console.error('Usage: --game <gameId> --url <sofascore-match-url> | --event <id> [--dry]');
+  if (!GAME_ID) {
+    console.error('Usage: --game <gameId> [--url <sofascore-match-url> | --event <id>] [--dry]');
+    console.error('  Without --url/--event the Sofascore event id is auto-resolved from the fixture.');
     process.exit(1);
   }
   if (!FC_KEY) { console.error('Missing FIRECRAWL_API_KEY'); process.exit(1); }
@@ -155,15 +193,21 @@ async function main() {
   const game = await prisma.game.findUnique({
     where: { id: GAME_ID },
     select: {
-      id: true, homeTeamId: true, awayTeamId: true,
-      homeTeam: { select: { nameHe: true, nameEn: true } },
-      awayTeam: { select: { nameHe: true, nameEn: true } },
+      id: true, homeTeamId: true, awayTeamId: true, dateTime: true,
+      homeTeam: { select: { nameHe: true, nameEn: true, apiFootballId: true } },
+      awayTeam: { select: { nameHe: true, nameEn: true, apiFootballId: true } },
     },
   });
   if (!game) { console.error(`No game ${GAME_ID}`); process.exit(1); }
-  console.log(`Game: ${game.homeTeam.nameHe} vs ${game.awayTeam.nameHe} (event ${EVENT_ID})`);
 
   const pageUrl = URL_ARG || 'https://www.sofascore.com/';
+  if (!EVENT_ID) {
+    console.log(`Auto-resolving Sofascore event id for ${game.homeTeam.nameHe} vs ${game.awayTeam.nameHe} (${new Date(game.dateTime).toISOString().slice(0,10)}) …`);
+    EVENT_ID = await resolveEventId(game, pageUrl);
+    if (!EVENT_ID) { console.error('Could not auto-resolve a Sofascore event id — pass --event or --url.'); process.exit(1); }
+  }
+  console.log(`Game: ${game.homeTeam.nameHe} vs ${game.awayTeam.nameHe} (event ${EVENT_ID})`);
+
   console.log(`Fetching Sofascore via Firecrawl (stealth) …`);
   const data = await fetchViaFirecrawl(EVENT_ID, pageUrl);
   const lineups = data.lineups;

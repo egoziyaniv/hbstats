@@ -55,8 +55,9 @@ async function main() {
   const games = await prisma.game.findMany({
     where: { dateTime: { gte: from, lte: to }, competitionId: { startsWith: 'comp_' } },
     select: {
-      id: true, dateTime: true, status: true,
-      homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } },
+      id: true, dateTime: true, status: true, competitionId: true,
+      homeTeam: { select: { nameHe: true, apiFootballId: true } },
+      awayTeam: { select: { nameHe: true, apiFootballId: true } },
     },
     orderBy: { dateTime: 'asc' },
   });
@@ -72,9 +73,8 @@ async function main() {
     console.log(`  ${g.dateTime.toISOString().slice(11, 16)}  ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe}  [${g.status}]`);
   }
   const dates = [...new Set(games.map((g) => g.dateTime.toISOString().slice(0, 10)))];
-  await prisma.$disconnect();
 
-  if (DRY) { console.log(`[dry-run] would run fast matchday-update for: ${dates.join(', ')}`); return; }
+  if (DRY) { console.log(`[dry-run] would run fast matchday-update for: ${dates.join(', ')}`); await prisma.$disconnect(); return; }
 
   let failed = 0;
   for (const d of dates) {
@@ -85,6 +85,27 @@ async function main() {
     ], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
     if (r.status !== 0) { failed++; console.error(`  ✗ matchday-update failed for ${d}`); }
   }
+
+  // Cup / Super Cup fixtures API-Football doesn't cover: if still no lineups,
+  // auto-pull from Sofascore (event id resolved from a team's schedule). League
+  // lineups come from API-Football, so skip those. Only clubs mapped to a
+  // Sofascore id can be resolved. Each attempt is ~2 Firecrawl calls and stops
+  // once lineups land (count > 0), so it self-limits over the window.
+  const LEAGUE_COMPS = new Set(['comp_liga_haal', 'comp_liga_leumit']);
+  const SS_RESOLVABLE = new Set([657, 4481, 563, 2253, 4510, 4486, 4488, 4489, 4501, 6181, 4195, 4495, 4505, 604]);
+  if (process.env.FIRECRAWL_API_KEY) {
+    for (const g of games) {
+      if (LEAGUE_COMPS.has(g.competitionId)) continue;
+      if (!SS_RESOLVABLE.has(g.homeTeam.apiFootballId) && !SS_RESOLVABLE.has(g.awayTeam.apiFootballId)) continue;
+      const cnt = await prisma.gameLineupEntry.count({ where: { gameId: g.id } });
+      if (cnt > 0) continue;
+      console.log(`\n→ Sofascore lineup fallback: ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe} (no API-Football lineups)`);
+      const r = spawnSync('node', ['scripts/scrape-sofascore-lineups.js', '--game', g.id], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+      if (r.status !== 0) console.error('  ✗ Sofascore lineup fallback failed (continuing)');
+    }
+  }
+
+  await prisma.$disconnect();
   process.exit(failed ? 1 : 0);
 }
 
