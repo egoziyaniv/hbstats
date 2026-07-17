@@ -53,6 +53,11 @@ const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ?
 const SEASON_YEAR = parseInt(arg('season', process.env.SQ_SEASON || '2026'), 10);
 const TEAM_FILTER = arg('team', process.env.SQ_TEAM || null) ? parseInt(arg('team', process.env.SQ_TEAM), 10) : null;
 const EXECUTE = process.argv.includes('--execute') || process.env.SQ_EXECUTE === '1';
+// --force: import even after the league has kicked off. WITHOUT it, once real
+// Ligat Ha'al games are played the import is skipped — this is a PRE-SEASON tool
+// (API-Football's sync-squads, with per-season stats, takes over in-season and
+// Sofascore's full-club roster would otherwise re-add academy players).
+const FORCE = process.argv.includes('--force') || process.env.SQ_FORCE === '1';
 const FC_KEY = process.env.FIRECRAWL_API_KEY;
 
 // Sofascore team id → our Team.apiFootballId (Ligat Ha'al, verified 2026/27).
@@ -200,6 +205,20 @@ async function main() {
 
   const season = await prisma.season.findUnique({ where: { year: SEASON_YEAR } });
   if (!season) { console.error(`No Season ${SEASON_YEAR}`); process.exit(1); }
+
+  // Season-started guard: this is a pre-season tool. Once Ligat Ha'al games are
+  // played, API-Football's sync-squads owns squads (per-season stats), so skip
+  // unless --force or a single --team is requested.
+  if (!FORCE && !TEAM_FILTER) {
+    const startedLeagueGames = await prisma.game.count({
+      where: { seasonId: season.id, competitionId: 'comp_liga_haal', status: { in: ['COMPLETED', 'ONGOING'] } },
+    });
+    if (startedLeagueGames > 0) {
+      console.log(`\nLigat Ha'al ${season.name} has already started (${startedLeagueGames} played) — API-Football sync-squads owns squads now. Skipping. Use --force to override.`);
+      await prisma.$disconnect();
+      return;
+    }
+  }
 
   // resolve our teams by apiFootballId
   const wantAf = TEAM_FILTER ? [TEAM_FILTER] : Object.values(SS_TO_AF);
