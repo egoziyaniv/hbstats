@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { apiClient } from './apiClient';
+import { apiClient, ensureAccessToken } from './apiClient';
 
 // Show notifications while the app is foregrounded.
 Notifications.setNotificationHandler({
@@ -58,6 +58,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
   const token = await getExpoPushToken();
   if (!token) return null;
   try {
+    // Make sure a bearer is available first — the register endpoint accepts
+    // anonymous posts (200), so without it the device silently binds to
+    // userId=null and gets no favorite-team pushes. ensureAccessToken() is a
+    // no-op for genuine guests (no refresh token) → they stay anonymous.
+    await ensureAccessToken().catch(() => null);
     await apiClient.post('/notifications/register', { token, platform: Platform.OS });
   } catch {
     // non-fatal — we'll retry next launch

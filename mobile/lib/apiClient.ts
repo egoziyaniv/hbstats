@@ -89,6 +89,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return res.json() as Promise<T>;
 }
 
+/**
+ * Return a usable access token: the in-memory one, or — on a cold start where
+ * only the refresh token survived — mint one from it. Call before an
+ * authenticated request that the server would accept anonymously (e.g. the push
+ * token register returns 200 with no bearer, so it never 401s into the
+ * auto-refresh path and would otherwise bind the device to userId=null).
+ */
+export async function ensureAccessToken(): Promise<string | null> {
+  return getAccessToken() ?? (await refreshAccessToken());
+}
+
 export const apiClient = {
   get: <T>(path: string, headers?: Record<string, string>) => request<T>(path, { method: 'GET', headers }),
   post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>

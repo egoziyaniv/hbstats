@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { apiClient } from '@/lib/apiClient';
+import { apiClient, ensureAccessToken } from '@/lib/apiClient';
 import { queryClient, persister, clearUserQueries } from '@/lib/queryClient';
 import { getGoogleIdToken } from '@/lib/googleAuth';
 import { signInWithApple } from '@/lib/appleAuth';
@@ -42,8 +42,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const [refresh, savedUser, guest] = await Promise.all([loadRefreshToken(), loadUser(), loadGuest()]);
         if (cancelled) return;
-        if (refresh && savedUser) setUser(savedUser);
-        else if (guest) setIsGuest(true);
+        if (refresh && savedUser) {
+          // Mint a live access token from the stored refresh token BEFORE marking
+          // the session ready, so cold-start authenticated calls carry the bearer.
+          // Critical for the push-token register: the server accepts it
+          // anonymously (200, no 401), so without a bearer the device would bind
+          // to userId=null and never receive personalized (favorite-team) pushes.
+          await ensureAccessToken().catch(() => {});
+          if (cancelled) return;
+          setUser(savedUser);
+        } else if (guest) setIsGuest(true);
       } catch {
         // Secure storage unavailable — treat as logged out rather than hang.
       } finally {
