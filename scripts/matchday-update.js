@@ -229,12 +229,15 @@ async function projectFixtureToGame(game, raw, lookups) {
     return null;
   };
 
-  // Wipe existing canonical rows for this game so we reset cleanly
-  await prisma.gameEvent.deleteMany({ where: { gameId: game.id } });
-  await prisma.gameLineupEntry.deleteMany({ where: { gameId: game.id } });
+  // Wipe existing canonical rows ONLY when API-Football actually returned
+  // replacement data — otherwise we'd erase lineups/events sourced elsewhere
+  // (Sofascore cup imports, IFA, manual) for fixtures API-Football doesn't cover.
+  const lineupResp = raw.lineup?.response || [];
+  const evResp = raw.events?.response || [];
+  if (evResp.length) await prisma.gameEvent.deleteMany({ where: { gameId: game.id } });
+  if (lineupResp.length) await prisma.gameLineupEntry.deleteMany({ where: { gameId: game.id } });
 
   // Lineups
-  const lineupResp = raw.lineup?.response || [];
   for (const teamLineup of lineupResp) {
     const apiTeamId = teamLineup.team?.id;
     const sideTeamId = (teamApiToIds.get(apiTeamId) || []).find((id) => id === game.homeTeamId || id === game.awayTeamId)
@@ -255,8 +258,7 @@ async function projectFixtureToGame(game, raw, lookups) {
     }
   }
 
-  // Events
-  const evResp = raw.events?.response || [];
+  // Events (evResp declared above alongside the guarded wipe)
   for (const ev of evResp) {
     const evType = mapEventType(ev.type, ev.detail);
     if (!evType) continue;
