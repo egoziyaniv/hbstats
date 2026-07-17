@@ -286,23 +286,36 @@ function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 }
 
-function translateName(firstNameEn, lastNameEn) {
-  // Take only first token of multi-word first name (e.g., "Larry Johan" → "Larry")
-  const firstName = (firstNameEn || '').split(/\s+/)[0];
-  // Take last token of last name for compound surnames (e.g., "Angulo Riascos" → "Angulo")
-  const lastNameRaw = (lastNameEn || '').split(/\s+/)[0];
+// Transliterate one token via the dictionaries (a token may be a known first OR
+// last name), falling back to phonetic.
+function translateToken(tok) {
+  return (
+    FIRST_NAMES[tok] || FIRST_NAMES[capitalize(tok)] ||
+    LAST_NAMES[tok] || LAST_NAMES[capitalize(tok)] ||
+    phoneticTransliterate(tok)
+  );
+}
 
-  const firstHe =
-    FIRST_NAMES[firstName] ||
-    FIRST_NAMES[capitalize(firstName)] ||
-    phoneticTransliterate(firstName);
+function translateName(firstNameEn, lastNameEn, nameEn) {
+  const fnTokens = (firstNameEn || '').split(/\s+/).filter(Boolean);
+  const lnTokens = (lastNameEn || '').split(/\s+/).filter(Boolean);
 
-  const lastHe =
-    LAST_NAMES[lastNameRaw] ||
-    LAST_NAMES[capitalize(lastNameRaw)] ||
-    phoneticTransliterate(lastNameRaw);
+  let firstTok = '';
+  let restToks = [];
+  if (lnTokens.length) {
+    // Explicit split available: first token of the first name + ALL surname
+    // tokens (keeps compound surnames like "Ben Harosh", "Abu Rumi").
+    firstTok = fnTokens[0] || '';
+    restToks = lnTokens;
+  } else {
+    // No lastName — the whole name often sits in firstName (or nameEn). Split it
+    // so the surname isn't dropped (e.g. "João Victor", "Yoav Koren").
+    const full = fnTokens.length ? fnTokens : (nameEn || '').split(/\s+/).filter(Boolean);
+    firstTok = full[0] || '';
+    restToks = full.slice(1);
+  }
 
-  return `${firstHe} ${lastHe}`.trim();
+  return [firstTok, ...restToks].filter(Boolean).map(translateToken).join(' ').trim();
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
@@ -327,14 +340,7 @@ async function processSeasonYear(year) {
   let skipped = 0;
 
   for (const player of untranslated) {
-    let translated;
-
-    if (!player.firstNameEn && !player.lastNameEn) {
-      const parts = (player.nameEn || '').split(/\s+/);
-      translated = parts.map(phoneticTransliterate).join(' ');
-    } else {
-      translated = translateName(player.firstNameEn, player.lastNameEn);
-    }
+    const translated = translateName(player.firstNameEn, player.lastNameEn, player.nameEn);
 
     if (!translated || latinChars.test(translated)) {
       skipped++;
@@ -375,8 +381,12 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error(err);
-  prisma.$disconnect();
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    prisma.$disconnect();
+    process.exit(1);
+  });
+}
+
+module.exports = { translateName, translateToken, phoneticTransliterate };
