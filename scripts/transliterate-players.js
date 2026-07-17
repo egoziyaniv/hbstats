@@ -251,10 +251,19 @@ function phoneticTransliterate(word) {
         // Vowel in middle/end: only i→י, o/u→ו; a/e are mostly silent
         if (ch === 'i') result += 'י';
         else if (ch === 'o' || ch === 'u') result += 'ו';
-        // a and e are silent inside the word
+        else if (ch === 'a' && isLast) result += 'ה'; // word-final -a → ה (Ventura→בנטורה)
+        // a and e are otherwise silent inside the word
         // except: 'e' at very end → silent (like "Andre", "Ище")
+      } else {
+        // Consecutive vowels (hiatus / long vowel): emit a mater lectionis so
+        // the sound isn't dropped (João→ג'ואו, Kanaan→קנאן), avoiding a
+        // duplicated letter. Bare mid-word 'e' after a vowel stays silent.
+        const last = result[result.length - 1];
+        if ((ch === 'o' || ch === 'u') && last !== 'ו') result += 'ו';
+        else if (ch === 'i' && last !== 'י') result += 'י';
+        else if (ch === 'a' && last !== 'א') result += 'א';
+        else if (ch === 'e' && lower[i - 1] === 'e' && last !== 'י') result += 'י';
       }
-      // skip consecutive vowels
     } else if (ch === 'y') {
       result += 'י';
     } else {
