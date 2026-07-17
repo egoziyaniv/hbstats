@@ -1,13 +1,26 @@
-import { QueryClient, type Query } from '@tanstack/react-query';
+import { QueryClient, type Query, focusManager } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState, Platform } from 'react-native';
+
+// Bridge React Native's foreground/background to React Query's focus manager.
+// Without this, `refetchOnWindowFocus` is a no-op on native, so a screen cached
+// while the app was backgrounded (e.g. a home "last match" from before a game
+// was played) stays stale until a manual pull-to-refresh. With it, returning to
+// the app refetches anything older than staleTime.
+focusManager.setEventListener((handleFocus) => {
+  const sub = AppState.addEventListener('change', (status) => {
+    if (Platform.OS !== 'web') handleFocus(status === 'active');
+  });
+  return () => sub.remove();
+});
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60_000,
       retry: 1,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       gcTime: 24 * 60 * 60 * 1000, // keep 24 hours
     },
   },
