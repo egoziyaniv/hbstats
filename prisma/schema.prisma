@@ -1814,3 +1814,14 @@ model RecordEntry {
   @@index([scope, category])
   @@map("record_entries")
 }
+
+model StatNarrative {
+  id          String   @id @default(cuid())
+  questionKey String   // "<id>[:<clubKey>][:<rivalKey>]"
+  dataVersion String
+  text        String
+  createdAt   DateTime @default(now())
+
+  @@unique([questionKey, dataVersion])
+  @@map("stat_narratives")
+}
