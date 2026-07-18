@@ -20,7 +20,10 @@ import type { StatAnswerApi } from '@shared/types/mobile-api';
 const IN_APP_HREF_PREFIXES = ['/players/', '/games/', '/teams/', '/history/'];
 
 function isInAppHref(href: string): boolean {
-  return IN_APP_HREF_PREFIXES.some((prefix) => href.startsWith(prefix));
+  // The h2h resolver emits a keyed path (/history/h2h/<a>__<b>), but mobile's
+  // h2h screen is a query-param route (/history/h2h?a=&b=) with no matching
+  // dynamic segment — exclude it so we don't offer a dead link.
+  return IN_APP_HREF_PREFIXES.some((prefix) => href.startsWith(prefix)) && !href.startsWith('/history/h2h/');
 }
 
 export function StatAnswerCard({ card }: { card: StatAnswerApi }) {

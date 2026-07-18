@@ -10,6 +10,9 @@ export interface AnsweredCard extends StatAnswer { id: string; titleHe: string; 
 export async function answerQuestion(id: string, ctx: ResolveCtx): Promise<AnsweredCard | null> {
   const q = getQuestion(id);
   if (!q) return null;
+  if (q.needsClub && !ctx.clubKey) {
+    return { headline: null, id, titleHe: q.titleHe(ctx), cardType: q.cardType, narrative: null };
+  }
   const answer = await q.resolve(ctx);
   const questionKey = [id, ctx.clubKey, ctx.rivalKey].filter(Boolean).join(':');
   const dataVersion = await getDataVersion();
