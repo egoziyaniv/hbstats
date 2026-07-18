@@ -725,6 +725,40 @@ export interface ClubRecordGroupApi {
   rows: RecordEntryApi[];
 }
 
+// ---------- History: stat-answer cards ("ask a question") ----------
+// Mirrors src/lib/stats-qa's AnsweredCard / StatAnswer / StatQuestion shapes.
+
+export interface StatAnswerApi {
+  id: string;
+  titleHe: string;
+  cardType: 'hero' | 'bar' | 'leaderboard';
+  headline: { label: string; value: string; unit?: string } | null;
+  secondary?: string;
+  series?: { label: string; value: number }[];
+  top?: { name: string; value: string; href?: string }[];
+  href?: string;
+  coverageNote?: string;
+  narrative: string | null;
+}
+
+export interface StatQuestionApi {
+  id: string;
+  scope: 'club' | 'league';
+  cardType: 'hero' | 'bar' | 'leaderboard';
+  needsClub: boolean;
+  needsRival: boolean;
+  titleHe: string;
+}
+
+export interface StatQuestionsPayload {
+  questions: StatQuestionApi[];
+  clubs: { clubKey: string; nameHe: string }[];
+}
+
+export interface StatAnswerPayload {
+  card: StatAnswerApi | null;
+}
+
 // ---------- Search ----------
 
 export interface SearchResultApiItem {
