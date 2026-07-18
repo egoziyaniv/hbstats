@@ -431,7 +431,28 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     upcomingByCompetition.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] ||
     upcomingByCompetition[0] ||
     null;
+  // The take:24 window over ALL clubs' completed games can drop a selected
+  // team's real last game once ≥24 other-club games are newer. When a team is
+  // selected, query ITS last completed game directly so lastMatch is accurate.
+  const teamScopedLastGame = selectedTeamIds.length
+    ? await prisma.game.findFirst({
+        where: {
+          seasonId: statsSeason.id,
+          status: 'COMPLETED',
+          OR: [{ homeTeamId: { in: selectedTeamIds } }, { awayTeamId: { in: selectedTeamIds } }],
+        },
+        include: {
+          homeTeam: true,
+          awayTeam: true,
+          competition: { select: { id: true, nameHe: true, nameEn: true, apiFootballId: true } },
+        },
+        orderBy: { dateTime: 'desc' },
+      })
+    : null;
   const lastGame =
+    (teamScopedLastGame && gameMatchesPreferredCompetition(teamScopedLastGame, selectedCompetitionApiIds)
+      ? teamScopedLastGame
+      : null) ||
     lastGamesRaw
       .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
       .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;

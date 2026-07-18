@@ -484,9 +484,29 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
     upcomingByCompetition.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] ||
     upcomingByCompetition[0] ||
     null;
-  const lastGame = lastGamesRaw
-    .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
-    .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
+  // The take:24 window over ALL clubs' completed games can drop a selected
+  // team's real last game once ≥24 other-club games are newer (busy season /
+  // pre-season friendlies). When a team is selected, query ITS last completed
+  // game directly so the "last game" card is always accurate.
+  const teamScopedLastGame = selectedTeamIds.length
+    ? await prisma.game.findFirst({
+        where: {
+          seasonId: statsSeason.id,
+          status: 'COMPLETED',
+          OR: [{ homeTeamId: { in: selectedTeamIds } }, { awayTeamId: { in: selectedTeamIds } }],
+        },
+        include: { homeTeam: true, awayTeam: true, competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } } },
+        orderBy: { dateTime: 'desc' },
+      })
+    : null;
+  const lastGame =
+    (teamScopedLastGame && gameMatchesPreferredCompetition(teamScopedLastGame, selectedCompetitionApiIds)
+      ? teamScopedLastGame
+      : null) ||
+    lastGamesRaw
+      .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
+      .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] ||
+    null;
 
   const predictions = predictionsRaw
     .filter((prediction) => prediction.game.status !== 'CANCELLED')
