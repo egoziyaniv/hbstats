@@ -10,6 +10,8 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { spawnSync } from 'child_process';
+import { PrismaClient } from '@prisma/client';
 
 (function loadEnv() {
   try {
@@ -23,6 +25,8 @@ import path from 'path';
 // Relative import — tsx does not resolve the tsconfig `@/*` path alias.
 import { rebuildAllRecords } from '../src/lib/history/records-engine';
 
+const prisma = new PrismaClient();
+
 async function main() {
   const startedAt = Date.now();
   const { written, byCategory } = await rebuildAllRecords();
@@ -32,6 +36,18 @@ async function main() {
   for (const [category, count] of Object.entries(byCategory)) {
     console.log(`  ${category}: ${count}`);
   }
+
+  const version = new Date().toISOString();
+  await prisma.siteSetting.upsert({
+    where: { key: 'stat_data_version' },
+    update: { valueJson: version },
+    create: { key: 'stat_data_version', valueJson: version },
+  });
+  console.log('bumped stat_data_version =', version);
+  await prisma.$disconnect();
+
+  const r = spawnSync('npx', ['tsx', 'scripts/prewarm-stat-narratives.ts'], { stdio: 'inherit' });
+  if (r.status !== 0) console.error('prewarm-stat-narratives failed (non-fatal)');
 }
 
 main()
