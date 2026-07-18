@@ -16,6 +16,7 @@ import HomeLivePanel from '@/components/HomeLivePanel';
 import OnThisDayCard from '@/components/OnThisDayCard';
 import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
+import { HomeStatTeaser } from '@/components/HomeStatTeaser';
 
 export const dynamic = 'force-dynamic';
 
@@ -834,6 +835,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
                 </Link>
               </Card>
             )}
+
+            <HomeStatTeaser />
 
             {headToHeadGroups.length > 0 && (
               <Card title="ראש בראש" actionHref="/games" actionLabel="למשחקים">
