@@ -4,6 +4,7 @@ import DeleteAccountButton from '@/components/DeleteAccountButton';
 import { requireUser } from '@/lib/auth';
 import { getCurrentSeasonStartYear } from '@/lib/home-live';
 import prisma from '@/lib/prisma';
+import { normalizeHomeLeagueScope } from '@/lib/home-league-scope';
 import type { Theme, ColorSchemePref } from '@/components/ThemeProvider';
 
 export default async function AccountPage() {
@@ -14,6 +15,7 @@ export default async function AccountPage() {
       select: {
         favoriteTeamApiIds: true,
         favoriteCompetitionApiIds: true,
+        homeLeagueScope: true,
         theme: true,
         colorScheme: true,
       },
@@ -60,6 +62,7 @@ export default async function AccountPage() {
           competitions={competitions.map((c) => ({ apiFootballId: c.apiFootballId!, name: c.nameHe || c.nameEn || '' }))}
           initialFavoriteTeamApiIds={storedUser?.favoriteTeamApiIds || []}
           initialFavoriteCompetitionApiIds={storedUser?.favoriteCompetitionApiIds || []}
+          initialHomeLeagueScope={(normalizeHomeLeagueScope(storedUser?.homeLeagueScope) ?? 'FAVORITES')}
           initialTheme={(storedUser?.theme as Theme) || 'modern'}
           initialColorScheme={(storedUser?.colorScheme as ColorSchemePref) || 'auto'}
         />

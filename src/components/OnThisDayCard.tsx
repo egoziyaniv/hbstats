@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { getOnThisDay } from '@/lib/on-this-day';
 
-export default async function OnThisDayCard() {
-  const data = await getOnThisDay().catch((e) => { console.error('[on-this-day]', e); return null; });
+export default async function OnThisDayCard({ favoriteTeamApiIds = [] }: { favoriteTeamApiIds?: number[] }) {
+  const data = await getOnThisDay(new Date(), favoriteTeamApiIds).catch((e) => { console.error('[on-this-day]', e); return null; });
   if (!data || (!data.match && data.birthdays.length === 0)) return null;
   return (
     <>
@@ -25,9 +25,15 @@ export default async function OnThisDayCard() {
       {data.birthdays.length ? (
         <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">🎂 ימי הולדת היום</p>
-          <p className="mt-2 text-sm text-stone-700">
-            {data.birthdays.map((b) => `${b.nameHe} (בן ${b.age})`).join(' · ')}
-          </p>
+          <ul className="mt-2 space-y-1.5">
+            {data.birthdays.map((b) => (
+              <li key={b.playerId} className="flex items-center gap-2 text-sm">
+                <Link href={`/players/${b.playerId}`} className="font-bold text-stone-900 hover:text-red-800">{b.nameHe}</Link>
+                <span className="text-stone-500">בן {b.age}</span>
+                {b.currentTeam ? <span className="text-xs text-stone-400">· {b.currentTeam.nameHe}</span> : null}
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
     </>

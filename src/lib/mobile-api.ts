@@ -7,6 +7,7 @@ import {
   type HomepageLiveSnapshot,
 } from '@/lib/home-live';
 import { getOnThisDay } from '@/lib/on-this-day';
+import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
@@ -220,7 +221,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     viewer
       ? prisma.user.findUnique({
           where: { id: viewer.id },
-          select: { favoriteTeamApiIds: true, favoriteCompetitionApiIds: true },
+          select: { favoriteTeamApiIds: true, favoriteCompetitionApiIds: true, homeLeagueScope: true },
         })
       : Promise.resolve(null),
     prisma.team.findMany({
@@ -260,7 +261,10 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
       : seasonTeams
           .filter((team) => team.apiFootballId !== null && (storedUser?.favoriteTeamApiIds || []).includes(team.apiFootballId))
           .map((team) => team.id);
-  const selectedCompetitionApiIds = queryLeagueIds.length > 0 ? queryLeagueIds : storedUser?.favoriteCompetitionApiIds || [];
+  const selectedCompetitionApiIds =
+    queryLeagueIds.length > 0
+      ? queryLeagueIds
+      : resolveHomeLeagueScope(storedUser?.homeLeagueScope, storedUser?.favoriteCompetitionApiIds || []);
   const selectedTeams = seasonTeams.filter((team) => favoriteTeamIds.includes(team.id));
   const selectedTeamIds = selectedTeams.map((team) => team.id);
 
@@ -419,7 +423,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     // worldwide matches and the live-countries admin setting isn't always set.
     getHomepageLiveSnapshots(null, { limit: 24 }),
     getIsraeliTeamApiFootballIds(),
-    getOnThisDay().catch((e) => { console.error('[on-this-day]', e); return null; }),
+    getOnThisDay(new Date(), storedUser?.favoriteTeamApiIds || []).catch((e) => { console.error('[on-this-day]', e); return null; }),
   ]);
 
   // Prefer the favorite team's next game; fall back to the soonest game of any
@@ -680,7 +684,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
                   competitionName: onThisDayData.match.competitionName,
                 }
               : null,
-            birthdays: onThisDayData.birthdays.map((b) => ({ playerId: b.playerId, nameHe: b.nameHe, age: b.age })),
+            birthdays: onThisDayData.birthdays.map((b) => ({ playerId: b.playerId, nameHe: b.nameHe, age: b.age, currentTeam: b.currentTeam })),
           }
         : null,
   };

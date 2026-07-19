@@ -22,6 +22,7 @@ model User {
   passwordChangedAt         DateTime?
   favoriteCompetitionApiIds Int[]            @default([])
   favoriteTeamApiIds        Int[]            @default([])
+  homeLeagueScope           String           @default("FAVORITES") // FAVORITES | LIGAT_HAAL | ALL — home next/last-game/predictions league filter
   colorScheme               String           @default("auto")
   theme                     String           @default("modern")
   notifyGoals               Boolean          @default(true)

@@ -14,6 +14,7 @@ import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
 import { getCurrentSeasonStartYear, getHomepageLiveSnapshots } from '@/lib/home-live';
 import HomeLivePanel from '@/components/HomeLivePanel';
 import OnThisDayCard from '@/components/OnThisDayCard';
+import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
@@ -161,7 +162,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
     viewer
       ? prisma.user.findUnique({
           where: { id: viewer.id },
-          select: { favoriteTeamApiIds: true, favoriteCompetitionApiIds: true },
+          select: { favoriteTeamApiIds: true, favoriteCompetitionApiIds: true, homeLeagueScope: true },
         })
       : Promise.resolve(null),
     prisma.team.findMany({
@@ -212,7 +213,10 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       : seasonTeams
           .filter((team) => team.apiFootballId !== null && (storedUser?.favoriteTeamApiIds || []).includes(team.apiFootballId))
           .map((team) => team.id);
-  const selectedCompetitionApiIds = queryLeagueIds.length > 0 ? queryLeagueIds : storedUser?.favoriteCompetitionApiIds || [];
+  const selectedCompetitionApiIds =
+    queryLeagueIds.length > 0
+      ? queryLeagueIds
+      : resolveHomeLeagueScope(storedUser?.homeLeagueScope, storedUser?.favoriteCompetitionApiIds || []);
   const selectedTeams = seasonTeams.filter((team) => favoriteTeamIdsFromUser.includes(team.id));
   const selectedTeam = selectedTeams.length === 1 ? selectedTeams[0] : null;
   const selectedTeamIds = selectedTeams.map((team) => team.id);
@@ -738,7 +742,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
               <HomeLivePanel initialItems={initialLiveItems} selectedTeamId={null} limit={homepageLiveLimit} />
             </Card>
 
-            <OnThisDayCard />
+            <OnThisDayCard favoriteTeamApiIds={storedUser?.favoriteTeamApiIds || []} />
 
             {predictions.length > 0 && (
               <Card title="תחזיות" actionHref="/games" actionLabel="למשחקים">

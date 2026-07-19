@@ -95,9 +95,14 @@ export default function HomeScreen() {
         {data.onThisDay?.birthdays.length ? (
           <Section title="🎂 ימי הולדת היום">
             <Card>
-              <Text style={{ color: theme.ink[700], fontSize: 13, textAlign: 'right', writingDirection: 'rtl' }}>
-                {data.onThisDay.birthdays.map((b) => `${b.nameHe} (בן ${b.age})`).join(' · ')}
-              </Text>
+              <View style={{ gap: 6 }}>
+                {data.onThisDay.birthdays.map((b) => (
+                  <Text key={b.playerId} style={{ fontSize: 13, textAlign: 'right', writingDirection: 'rtl' }}>
+                    <Text style={{ color: theme.ink[900], fontWeight: '800' }}>{b.nameHe}</Text>
+                    <Text style={{ color: theme.ink[500] }}>{`  בן ${b.age}${b.currentTeam ? ` · ${b.currentTeam.nameHe}` : ''}`}</Text>
+                  </Text>
+                ))}
+              </View>
             </Card>
           </Section>
         ) : null}

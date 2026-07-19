@@ -23,6 +23,9 @@ export interface OnThisDayBirthday {
   nameHe: string;
   age: number;
   photoUrl: string | null;
+  /** The player's current club — set only if they have a current-season roster
+   * entry (i.e. still active); null for retired / departed players. */
+  currentTeam: { nameHe: string; logoUrl: string | null } | null;
 }
 
 export interface OnThisDayPayload {
@@ -54,8 +57,8 @@ type CandidateGame = {
   homeScore: number | null;
   awayScore: number | null;
   roundNameEn: string | null;
-  homeTeam: { id: string; nameHe: string };
-  awayTeam: { id: string; nameHe: string };
+  homeTeam: { id: string; nameHe: string; apiFootballId: number | null };
+  awayTeam: { id: string; nameHe: string; apiFootballId: number | null };
   competition: { nameHe: string | null } | null;
 };
 
@@ -65,7 +68,12 @@ function isDerby(a: string, b: string): boolean {
   );
 }
 
-export function pickAnniversaryMatch(games: CandidateGame[], now: Date): CandidateGame | null {
+export function pickAnniversaryMatch(
+  games: CandidateGame[],
+  now: Date,
+  favoriteTeamApiIds: number[] = [],
+): CandidateGame | null {
+  const favSet = new Set(favoriteTeamApiIds);
   let best: CandidateGame | null = null;
   let bestScore = -1;
   for (const g of games) {
@@ -79,6 +87,12 @@ export function pickAnniversaryMatch(games: CandidateGame[], now: Date): Candida
     if (/^finals?$/i.test((g.roundNameEn || '').trim())) score += 100;
     if (isDerby(g.homeTeam.nameHe, g.awayTeam.nameHe)) score += 50;
     if (yearsAgo % 10 === 0 || yearsAgo === 25) score += 20;
+    // Personalisation: a game involving the viewer's favourite team wins over a
+    // generic higher-scoring one, but not over a genuine final.
+    if ((g.homeTeam.apiFootballId != null && favSet.has(g.homeTeam.apiFootballId)) ||
+        (g.awayTeam.apiFootballId != null && favSet.has(g.awayTeam.apiFootballId))) {
+      score += 60;
+    }
     if (score > bestScore) { bestScore = score; best = g; }
   }
   return best;
@@ -87,8 +101,9 @@ export function pickAnniversaryMatch(games: CandidateGame[], now: Date): Candida
 let memo: { key: string; value: OnThisDayPayload } | null = null;
 export function _clearOnThisDayMemoForTests() { memo = null; }
 
-export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> {
-  const key = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+export async function getOnThisDay(now = new Date(), favoriteTeamApiIds: number[] = []): Promise<OnThisDayPayload> {
+  const favKey = [...favoriteTeamApiIds].sort((a, b) => a - b).join(',');
+  const key = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}|${favKey}`;
   if (memo && memo.key === key) return memo.value;
 
   const month = now.getMonth() + 1;
@@ -110,12 +125,12 @@ export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> 
       where: { id: { in: idRows.map((r) => r.id) } },
       select: {
         id: true, dateTime: true, homeScore: true, awayScore: true, roundNameEn: true,
-        homeTeam: { select: { id: true, nameHe: true } },
-        awayTeam: { select: { id: true, nameHe: true } },
+        homeTeam: { select: { id: true, nameHe: true, apiFootballId: true } },
+        awayTeam: { select: { id: true, nameHe: true, apiFootballId: true } },
         competition: { select: { nameHe: true } },
       },
     });
-    const picked = pickAnniversaryMatch(candidates, now);
+    const picked = pickAnniversaryMatch(candidates, now, favoriteTeamApiIds);
     if (picked) {
       const yearsAgo = now.getFullYear() - picked.dateTime.getFullYear();
       match = {
@@ -132,7 +147,9 @@ export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> 
     }
   }
 
-  // Birthdays: players born on this day, most-capped first, deduped by canonical id.
+  // Birthdays: players born on this day, most-capped first, deduped by canonical
+  // id. Favourite-team players are ordered first; each shows its current club if
+  // the player still has a current-season roster entry.
   const bdayIdRows = await prisma.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM players
     WHERE "birthDate" IS NOT NULL
@@ -149,21 +166,64 @@ export async function getOnThisDay(now = new Date()): Promise<OnThisDayPayload> 
       },
     });
     const seen = new Set<string>();
-    birthdays = players
+    const deduped = players
       .sort((a, b) => b._count.lineupEntries - a._count.lineupEntries)
       .filter((pl) => {
-        const key = pl.canonicalPlayerId || pl.id;
-        if (seen.has(key)) return false;
-        seen.add(key);
+        const canonId = pl.canonicalPlayerId || pl.id;
+        if (seen.has(canonId)) return false;
+        seen.add(canonId);
         return true;
       })
-      .slice(0, 3)
       .map((pl) => ({
-        playerId: pl.canonicalPlayerId || pl.id,
+        canonId: pl.canonicalPlayerId || pl.id,
         nameHe: pl.nameHe,
         age: now.getFullYear() - pl.birthDate!.getFullYear(),
         photoUrl: pl.photoUrl,
       }));
+
+    // Prioritise players linked to a favourite team (stable → keeps caps order within groups).
+    if (favoriteTeamApiIds.length && deduped.length) {
+      const canonIds = deduped.map((d) => d.canonId);
+      const favRows = await prisma.player.findMany({
+        where: {
+          OR: [{ id: { in: canonIds } }, { canonicalPlayerId: { in: canonIds } }],
+          team: { apiFootballId: { in: favoriteTeamApiIds } },
+        },
+        select: { id: true, canonicalPlayerId: true },
+      });
+      const favSet = new Set(favRows.map((r) => r.canonicalPlayerId || r.id));
+      deduped.sort((a, b) => (favSet.has(b.canonId) ? 1 : 0) - (favSet.has(a.canonId) ? 1 : 0));
+    }
+
+    const display = deduped.slice(0, 3);
+
+    // Current club: a display player is "still active" if any row in their
+    // canonical group has a team in the latest season.
+    const teamByCanon = new Map<string, { nameHe: string; logoUrl: string | null }>();
+    if (display.length) {
+      const currentSeason = await prisma.season.findFirst({ orderBy: { year: 'desc' }, select: { id: true } });
+      if (currentSeason) {
+        const ids = display.map((d) => d.canonId);
+        const rows = await prisma.player.findMany({
+          where: {
+            OR: [{ id: { in: ids } }, { canonicalPlayerId: { in: ids } }],
+            team: { seasonId: currentSeason.id },
+          },
+          select: { id: true, canonicalPlayerId: true, team: { select: { nameHe: true, logoUrl: true } } },
+        });
+        for (const r of rows) {
+          if (r.team) teamByCanon.set(r.canonicalPlayerId || r.id, { nameHe: r.team.nameHe, logoUrl: r.team.logoUrl });
+        }
+      }
+    }
+
+    birthdays = display.map((d) => ({
+      playerId: d.canonId,
+      nameHe: d.nameHe,
+      age: d.age,
+      photoUrl: d.photoUrl,
+      currentTeam: teamByCanon.get(d.canonId) ?? null,
+    }));
   }
 
   const value = { match, birthdays };

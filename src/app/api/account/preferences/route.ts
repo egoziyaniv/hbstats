@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getRequestUser } from '@/lib/auth';
+import { normalizeHomeLeagueScope } from '@/lib/home-league-scope';
 
 const VALID_THEMES = ['classic', 'modern'] as const;
 const VALID_COLORS = ['auto', 'red', 'yellow', 'green', 'blue'] as const;
@@ -39,6 +40,10 @@ export async function PUT(request: NextRequest) {
   if (typeof body?.colorScheme === 'string' && VALID_COLORS.includes(body.colorScheme as typeof VALID_COLORS[number])) {
     updates.colorScheme = body.colorScheme;
   }
+  if (body?.homeLeagueScope !== undefined) {
+    const scope = normalizeHomeLeagueScope(body.homeLeagueScope);
+    if (scope) updates.homeLeagueScope = scope;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ ok: true, message: 'No changes' });
@@ -50,6 +55,7 @@ export async function PUT(request: NextRequest) {
     select: {
       favoriteTeamApiIds: true,
       favoriteCompetitionApiIds: true,
+      homeLeagueScope: true,
       theme: true,
       colorScheme: true,
     },

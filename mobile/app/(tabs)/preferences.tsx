@@ -10,7 +10,13 @@ import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { theme } from '@/design-system/theme';
-import type { PreferencesPayload, PreferenceTeamOption, PreferenceCompetitionOption } from '@shared/types/mobile-api';
+import type { PreferencesPayload, PreferenceTeamOption, PreferenceCompetitionOption, HomeLeagueScopeApi } from '@shared/types/mobile-api';
+
+const SCOPE_OPTIONS: { id: HomeLeagueScopeApi; label: string }[] = [
+  { id: 'FAVORITES', label: 'הליגות המועדפות שלי' },
+  { id: 'LIGAT_HAAL', label: 'ליגת העל בלבד' },
+  { id: 'ALL', label: 'כל הליגות' },
+];
 
 export default function PreferencesScreen() {
   const router = useRouter();
@@ -203,6 +209,41 @@ export default function PreferencesScreen() {
         </Card>
       </Section>
 
+      <Section title="ליגות בדף הבית">
+        <Card>
+          <Text style={{ color: theme.ink[500], fontSize: 13, marginBottom: 10, textAlign: 'right', writingDirection: 'rtl' }}>
+            אילו ליגות יוצגו בבלוקים לפי ליגה (המשחק הבא, האחרון ותחזיות). ברירת מחדל: המועדפות, ואם אין — ליגת העל.
+          </Text>
+          <View style={{ gap: 8 }}>
+            {SCOPE_OPTIONS.map((opt) => {
+              const selected = (data.homeLeagueScope ?? 'FAVORITES') === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  onPress={() => update.mutate({ ...data, homeLeagueScope: opt.id })}
+                  style={{
+                    flexDirection: rtlRow(),
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderRadius: 12,
+                    borderWidth: selected ? 2 : 1,
+                    borderColor: selected ? brand.accent : theme.ink[200],
+                    backgroundColor: selected ? brand.accentGlow : 'white',
+                  }}
+                >
+                  <Text style={{ color: selected ? theme.ink[900] : theme.ink[700], fontSize: 14, fontWeight: selected ? '800' : '600', writingDirection: 'rtl' }}>
+                    {opt.label}
+                  </Text>
+                  {selected ? <Text style={{ color: brand.accent, fontWeight: '800' }}>✓</Text> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      </Section>
+
       <Section title="התראות">
         <Card>
           <Text style={{ color: theme.ink[500], fontSize: 13, marginBottom: 4, textAlign: 'right', writingDirection: 'rtl' }}>
@@ -212,7 +253,7 @@ export default function PreferencesScreen() {
           <NotifRow label="🏁 תוצאות סיום" desc="התוצאה הסופית בתום המשחק" value={notif.results} onChange={() => toggleNotification('results')} accent={brand.accent} />
           <NotifRow label="⏰ תזכורות משחק" desc="כשעה לפני פתיחת המשחק" value={notif.reminders} onChange={() => toggleNotification('reminders')} accent={brand.accent} />
           <NotifRow label="📰 חדשות" desc="ידיעות חדשות מהערוצים" value={notif.news} onChange={() => toggleNotification('news')} accent={brand.accent} />
-          <NotifRow label="📅 היום לפני X שנים" desc="התראה יומית עם משחק היסטורי מאותו תאריך." value={notif.onThisDay} onChange={() => toggleNotification('onThisDay')} accent={brand.accent} last />
+          <NotifRow label="📅 היום בהיסטוריה" desc="התראה יומית עם משחק היסטורי מאותו תאריך." value={notif.onThisDay} onChange={() => toggleNotification('onThisDay')} accent={brand.accent} last />
         </Card>
       </Section>
 

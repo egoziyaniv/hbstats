@@ -4,6 +4,13 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme, teamNameToColor } from '@/components/ThemeProvider';
 import type { Theme, ColorSchemePref } from '@/components/ThemeProvider';
+import { HOME_LEAGUE_SCOPES, type HomeLeagueScope } from '@/lib/home-league-scope';
+
+const SCOPE_LABELS: Record<HomeLeagueScope, string> = {
+  FAVORITES: 'הליגות המועדפות שלי',
+  LIGAT_HAAL: 'ליגת העל בלבד',
+  ALL: 'כל הליגות',
+};
 
 type TeamOption = {
   apiFootballId: number;
@@ -41,6 +48,7 @@ export default function AccountPreferencesForm({
   competitions,
   initialFavoriteTeamApiIds,
   initialFavoriteCompetitionApiIds,
+  initialHomeLeagueScope,
   initialTheme,
   initialColorScheme,
 }: {
@@ -48,6 +56,7 @@ export default function AccountPreferencesForm({
   competitions: CompetitionOption[];
   initialFavoriteTeamApiIds: number[];
   initialFavoriteCompetitionApiIds: number[];
+  initialHomeLeagueScope: HomeLeagueScope;
   initialTheme: Theme;
   initialColorScheme: ColorSchemePref;
 }) {
@@ -57,6 +66,7 @@ export default function AccountPreferencesForm({
 
   const [favoriteTeamApiIds, setFavoriteTeamApiIds] = useState<number[]>(initialFavoriteTeamApiIds);
   const [favoriteCompetitionApiIds, setFavoriteCompetitionApiIds] = useState<number[]>(initialFavoriteCompetitionApiIds);
+  const [homeLeagueScope, setHomeLeagueScope] = useState<HomeLeagueScope>(initialHomeLeagueScope);
   const [teamQuery, setTeamQuery] = useState('');
   const [competitionQuery, setCompetitionQuery] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -97,6 +107,7 @@ export default function AccountPreferencesForm({
       body: JSON.stringify({
         favoriteTeamApiIds,
         favoriteCompetitionApiIds,
+        homeLeagueScope,
         theme: selectedTheme,
         colorScheme: selectedColor,
       }),
@@ -249,6 +260,30 @@ export default function AccountPreferencesForm({
             selectedIds={favoriteCompetitionApiIds}
             onToggle={(id) => setFavoriteCompetitionApiIds((c) => toggleId(c, id))}
           />
+        </div>
+
+        <div className="mt-6">
+          <h3 className="text-base font-bold text-stone-800">ליגות בדף הבית</h3>
+          <p className="mt-1 text-xs text-stone-500">
+            אילו ליגות יוצגו בבלוקים לפי ליגה (המשחק הבא, המשחק האחרון ותחזיות). ברירת מחדל: הליגות המועדפות, ואם לא נבחרו — ליגת העל.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {HOME_LEAGUE_SCOPES.map((s) => {
+              const isSelected = homeLeagueScope === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setHomeLeagueScope(s)}
+                  className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                    isSelected ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
+                  }`}
+                >
+                  {SCOPE_LABELS[s]}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

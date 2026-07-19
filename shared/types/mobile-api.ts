@@ -189,7 +189,12 @@ export interface PredictionsPayload {
 
 export interface OnThisDayHome {
   match: { gameId: string; yearsAgo: number; headline: string; competitionName: string | null } | null;
-  birthdays: Array<{ playerId: string; nameHe: string; age: number }>;
+  birthdays: Array<{
+    playerId: string;
+    nameHe: string;
+    age: number;
+    currentTeam: { nameHe: string; logoUrl: string | null } | null;
+  }>;
 }
 
 export interface HomePayload {
@@ -578,9 +583,13 @@ export interface NotificationPreferences {
   onThisDay: boolean;
 }
 
+export type HomeLeagueScopeApi = 'FAVORITES' | 'LIGAT_HAAL' | 'ALL';
+
 export interface PreferencesPayload {
   favoriteTeamApiIds: number[];
   favoriteCompetitionApiIds: number[];
+  /** Home next/last-game/predictions league filter. Default 'FAVORITES'. */
+  homeLeagueScope: HomeLeagueScopeApi;
   notifications: NotificationPreferences;
   availableTeams: PreferenceTeamOption[];
   availableCompetitions: PreferenceCompetitionOption[];

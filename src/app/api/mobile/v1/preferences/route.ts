@@ -30,6 +30,7 @@ export async function PUT(request: NextRequest) {
     userId: auth.id,
     favoriteTeamApiIds: body?.favoriteTeamApiIds,
     favoriteCompetitionApiIds: body?.favoriteCompetitionApiIds,
+    homeLeagueScope: body?.homeLeagueScope,
     notifications: body?.notifications,
   });
 

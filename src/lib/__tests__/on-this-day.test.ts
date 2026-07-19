@@ -5,6 +5,7 @@ jest.mock('@/lib/prisma', () => ({
     $queryRaw: jest.fn(),
     game: { findMany: jest.fn() },
     player: { findMany: jest.fn() },
+    season: { findFirst: jest.fn() },
   },
 }));
 
@@ -15,6 +16,7 @@ const p = prisma as unknown as {
   $queryRaw: jest.Mock;
   game: { findMany: jest.Mock };
   player: { findMany: jest.Mock };
+  season: { findFirst: jest.Mock };
 };
 
 const mkGame = (over: Record<string, unknown> = {}) => ({
@@ -22,8 +24,8 @@ const mkGame = (over: Record<string, unknown> = {}) => ({
   dateTime: new Date('2012-07-10T18:00:00Z'),
   homeScore: 1, awayScore: 0,
   roundNameEn: 'Round 12',
-  homeTeam: { id: 'a', nameHe: 'מכבי חיפה' },
-  awayTeam: { id: 'b', nameHe: 'הפועל תל אביב' },
+  homeTeam: { id: 'a', nameHe: 'מכבי חיפה', apiFootballId: 100 },
+  awayTeam: { id: 'b', nameHe: 'הפועל תל אביב', apiFootballId: 200 },
   competition: { nameHe: 'ליגת העל' },
   ...over,
 });
@@ -63,6 +65,14 @@ describe('pickAnniversaryMatch scoring', () => {
 
   it('returns null on empty input', () => {
     expect(pickAnniversaryMatch([], now)).toBeNull();
+  });
+
+  it('prefers a favourite-team game over a higher-scoring non-favourite one', () => {
+    const fav = mkGame({ id: 'fav', homeScore: 1, awayScore: 0, homeTeam: { id: 'x', nameHe: 'הפועל באר שבע', apiFootballId: 563 }, awayTeam: { id: 'y', nameHe: 'מכבי נתניה', apiFootballId: 999 } });
+    const goalfest = mkGame({ id: 'goals', homeScore: 4, awayScore: 3 });
+    // Without favourites the goalfest (35) beats fav (5); with 563 favourited, fav gets +60.
+    expect(pickAnniversaryMatch([goalfest, fav], now)!.id).toBe('goals');
+    expect(pickAnniversaryMatch([goalfest, fav], now, [563])!.id).toBe('fav');
   });
 });
 

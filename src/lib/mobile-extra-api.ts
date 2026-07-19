@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth';
 import { getCurrentSeasonStartYear } from '@/lib/home-live';
+import { normalizeHomeLeagueScope } from '@/lib/home-league-scope';
 import prisma from '@/lib/prisma';
 import {
   DEFAULT_TELEGRAM_SOURCES,
@@ -104,6 +105,7 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
     select: {
       favoriteTeamApiIds: true,
       favoriteCompetitionApiIds: true,
+      homeLeagueScope: true,
       notifyGoals: true,
       notifyResults: true,
       notifyReminders: true,
@@ -147,6 +149,7 @@ export async function getMobilePreferencesPayload(params?: { userId?: string }) 
   return {
     favoriteTeamApiIds: user?.favoriteTeamApiIds || [],
     favoriteCompetitionApiIds: user?.favoriteCompetitionApiIds || [],
+    homeLeagueScope: normalizeHomeLeagueScope(user?.homeLeagueScope) ?? 'FAVORITES',
     notifications: {
       goals: user?.notifyGoals ?? true,
       results: user?.notifyResults ?? true,
@@ -175,11 +178,16 @@ export async function updateMobilePreferencesPayload(input: {
   userId: string;
   favoriteTeamApiIds?: unknown;
   favoriteCompetitionApiIds?: unknown;
+  homeLeagueScope?: unknown;
   notifications?: unknown;
 }) {
   const data: Record<string, unknown> = {};
   if (input.favoriteTeamApiIds !== undefined) data.favoriteTeamApiIds = normalizeIdArray(input.favoriteTeamApiIds);
   if (input.favoriteCompetitionApiIds !== undefined) data.favoriteCompetitionApiIds = normalizeIdArray(input.favoriteCompetitionApiIds);
+  if (input.homeLeagueScope !== undefined) {
+    const scope = normalizeHomeLeagueScope(input.homeLeagueScope);
+    if (scope) data.homeLeagueScope = scope;
+  }
 
   // Per-category notification toggles — only the booleans actually sent.
   const notif = input.notifications;
@@ -203,6 +211,7 @@ export async function updateMobilePreferencesPayload(input: {
     select: {
       favoriteTeamApiIds: true,
       favoriteCompetitionApiIds: true,
+      homeLeagueScope: true,
       notifyGoals: true,
       notifyResults: true,
       notifyReminders: true,
@@ -215,6 +224,7 @@ export async function updateMobilePreferencesPayload(input: {
     ok: true,
     favoriteTeamApiIds: user.favoriteTeamApiIds,
     favoriteCompetitionApiIds: user.favoriteCompetitionApiIds,
+    homeLeagueScope: normalizeHomeLeagueScope(user.homeLeagueScope) ?? 'FAVORITES',
     notifications: {
       goals: user.notifyGoals,
       results: user.notifyResults,
