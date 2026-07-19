@@ -40,8 +40,6 @@ export function StatAnswerCard({ card }: { card: StatAnswerApi }) {
     );
   }
 
-  const max = Math.max(1, ...(card.series ?? []).map((s) => s.value));
-
   return (
     <Card>
       <Text style={{ fontSize: 11, color: theme.ink[500], textAlign: 'right', writingDirection: 'rtl' }}>
@@ -71,22 +69,6 @@ export function StatAnswerCard({ card }: { card: StatAnswerApi }) {
               </Text>
               <Text style={{ fontSize: 13, fontWeight: '800', color: theme.ink[900] }}>{t.value}</Text>
             </View>
-          ))}
-        </View>
-      ) : null}
-
-      {card.cardType === 'bar' && card.series ? (
-        <View style={{ marginTop: 10, flexDirection: rtlRow(), alignItems: 'flex-end', gap: 4, height: 48 }}>
-          {card.series.map((s, i) => (
-            <View
-              key={i}
-              style={{
-                flex: 1,
-                height: `${Math.max(4, Math.round((s.value / max) * 100))}%`,
-                backgroundColor: brand.accent,
-                borderRadius: 4,
-              }}
-            />
           ))}
         </View>
       ) : null}

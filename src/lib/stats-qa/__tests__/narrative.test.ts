@@ -9,9 +9,9 @@ jest.mock('@/lib/prisma', () => ({
 import { prisma } from '@/lib/prisma';
 
 jest.mock('@/lib/ai-settings', () => ({ getAiSettings: jest.fn(), getActiveApiKey: jest.fn() }));
-jest.mock('@/lib/ai-providers', () => ({ chatWithClaude: jest.fn() }));
-import { getActiveApiKey } from '@/lib/ai-settings';
-import { chatWithClaude } from '@/lib/ai-providers';
+jest.mock('@/lib/ai-providers', () => ({ chatWithClaude: jest.fn(), chatWithOpenAI: jest.fn() }));
+import { getActiveApiKey, getAiSettings } from '@/lib/ai-settings';
+import { chatWithClaude, chatWithOpenAI } from '@/lib/ai-providers';
 
 describe('getDataVersion', () => {
   it('returns the stored stat_data_version value', async () => {
@@ -34,16 +34,30 @@ describe('getNarrative', () => {
     expect(t).toBe('משפט שמור');
     expect(chatWithClaude).not.toHaveBeenCalled();
   });
-  it('generates + caches on miss', async () => {
+  it('generates + caches on miss (claude provider)', async () => {
     (prisma.statNarrative.findUnique as jest.Mock).mockResolvedValue(null);
+    (getAiSettings as jest.Mock).mockResolvedValue({ provider: 'claude' });
     (getActiveApiKey as jest.Mock).mockResolvedValue('sk-x');
     (chatWithClaude as jest.Mock).mockResolvedValue('משפט חדש');
     const t = await getNarrative('club_top_scorer:api-563', 'v1', 'שאלה', answer);
     expect(t).toBe('משפט חדש');
+    expect(chatWithClaude).toHaveBeenCalled();
+    expect(chatWithOpenAI).not.toHaveBeenCalled();
     expect(prisma.statNarrative.create).toHaveBeenCalled();
+  });
+  it('dispatches to OpenAI when that provider is active', async () => {
+    (prisma.statNarrative.findUnique as jest.Mock).mockResolvedValue(null);
+    (getAiSettings as jest.Mock).mockResolvedValue({ provider: 'openai' });
+    (getActiveApiKey as jest.Mock).mockResolvedValue('sk-openai');
+    (chatWithOpenAI as jest.Mock).mockResolvedValue('משפט מ-OpenAI');
+    const t = await getNarrative('club_top_scorer:api-563', 'v1', 'שאלה', answer);
+    expect(t).toBe('משפט מ-OpenAI');
+    expect(chatWithOpenAI).toHaveBeenCalled();
+    expect(chatWithClaude).not.toHaveBeenCalled();
   });
   it('returns null (never throws) when generation fails', async () => {
     (prisma.statNarrative.findUnique as jest.Mock).mockResolvedValue(null);
+    (getAiSettings as jest.Mock).mockResolvedValue({ provider: 'claude' });
     (getActiveApiKey as jest.Mock).mockResolvedValue('sk-x');
     (chatWithClaude as jest.Mock).mockRejectedValue(new Error('LLM down'));
     expect(await getNarrative('k', 'v1', 'שאלה', answer)).toBeNull();

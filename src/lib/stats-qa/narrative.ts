@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getAiSettings, getActiveApiKey } from '@/lib/ai-settings';
-import { chatWithClaude } from '@/lib/ai-providers';
+import { chatWithClaude, chatWithOpenAI } from '@/lib/ai-providers';
 import type { StatAnswer } from './types';
 
 export const STAT_DATA_VERSION_KEY = 'stat_data_version';
@@ -29,7 +29,12 @@ export async function getNarrative(
     const prompt =
       `אתה עורך סטטיסטיקות כדורגל ישראלי. נתון לך נתון אמת. כתוב משפט הקשר אחד בעברית (עד 18 מילים), ` +
       `בלי להמציא מספרים שאינם בנתון, בלי לחזור על המספר. שאלה: "${titleHe}". נתון: ${facts}`;
-    const text = (await chatWithClaude(apiKey, [{ role: 'user', content: prompt }])).trim();
+    // Dispatch on the configured provider — the active key is provider-specific
+    // (an OpenAI key must not be sent to the Claude client, and vice versa).
+    const messages = [{ role: 'user' as const, content: prompt }];
+    const text = (settings.provider === 'openai'
+      ? await chatWithOpenAI(apiKey, messages)
+      : await chatWithClaude(apiKey, messages)).trim();
     if (!text) return null;
     try {
       await prisma.statNarrative.create({ data: { questionKey, dataVersion, text } });

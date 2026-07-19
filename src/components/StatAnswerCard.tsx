@@ -5,7 +5,6 @@ export function StatAnswerCard({ card }: { card: AnsweredCard }) {
   if (!card.headline) {
     return <div className="rounded-xl border border-stone-200 bg-white p-4 text-center text-sm text-stone-400">אין מספיק נתונים לשאלה זו</div>;
   }
-  const max = Math.max(1, ...(card.series ?? []).map((s) => s.value));
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm" dir="rtl">
       <div className="text-xs text-stone-400">{card.titleHe}</div>
@@ -15,11 +14,6 @@ export function StatAnswerCard({ card }: { card: AnsweredCard }) {
         {card.headline.unit && <span className="text-xs text-stone-500">{card.headline.unit}</span>}
       </div>
       {card.secondary && <div className="mt-1 text-xs text-stone-600">{card.secondary}</div>}
-      {card.cardType === 'bar' && card.series && (
-        <div className="mt-2 flex h-10 items-end gap-1">
-          {card.series.map((s, i) => <div key={i} title={`${s.label}: ${s.value}`} className="flex-1 rounded-t bg-red-700" style={{ height: `${Math.round((s.value / max) * 100)}%` }} />)}
-        </div>
-      )}
       {card.cardType === 'leaderboard' && card.top && (
         <ol className="mt-2 space-y-1 text-sm">
           {card.top.map((t, i) => (

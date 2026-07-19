@@ -731,10 +731,9 @@ export interface ClubRecordGroupApi {
 export interface StatAnswerApi {
   id: string;
   titleHe: string;
-  cardType: 'hero' | 'bar' | 'leaderboard';
+  cardType: 'hero' | 'leaderboard';
   headline: { label: string; value: string; unit?: string } | null;
   secondary?: string;
-  series?: { label: string; value: number }[];
   top?: { name: string; value: string; href?: string }[];
   href?: string;
   coverageNote?: string;
@@ -744,7 +743,7 @@ export interface StatAnswerApi {
 export interface StatQuestionApi {
   id: string;
   scope: 'club' | 'league';
-  cardType: 'hero' | 'bar' | 'leaderboard';
+  cardType: 'hero' | 'leaderboard';
   needsClub: boolean;
   needsRival: boolean;
   titleHe: string;

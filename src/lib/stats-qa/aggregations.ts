@@ -3,30 +3,64 @@ import { getClubFamily, getClubTeamIndex } from '@/lib/history/club-identity';
 
 export interface ScorerRow { playerId: string | null; nameHe: string; goals: number }
 
-export async function clubAllTimeTopScorers(clubKey: string, take: number): Promise<ScorerRow[]> {
-  const fam = await getClubFamily(clubKey);
-  if (!fam) return [];
-  const grouped = await prisma.competitionLeaderboardEntry.groupBy({
-    by: ['playerId', 'playerNameHe'],
-    where: { category: 'TOP_SCORERS', teamId: { in: fam.teamIds } },
-    _sum: { value: true },
-  });
-  return grouped
-    .map((g) => ({ playerId: g.playerId, nameHe: g.playerNameHe ?? 'לא ידוע', goals: g._sum.value ?? 0 }))
+// One TOP_SCORERS leaderboard row, with enough player context to fold the same
+// real person's per-season rows together across seasons.
+interface ScorerEntry {
+  playerId: string | null;
+  playerNameHe: string | null;
+  value: number;
+  player: { canonicalPlayerId: string | null; nameHe: string | null; canonicalPlayer: { nameHe: string | null } | null } | null;
+}
+
+const SCORER_SELECT = {
+  playerId: true,
+  playerNameHe: true,
+  value: true,
+  player: { select: { canonicalPlayerId: true, nameHe: true, canonicalPlayer: { select: { nameHe: true } } } },
+} as const;
+
+// Group season leaderboard rows by CANONICAL player so a legend whose seasons
+// live under different Player rows (cross-season duplicates) counts once. The
+// canonical key is the player's canonicalPlayerId (its merged "head"), falling
+// back to its own id, then to the display name for rows with no linked player.
+function aggregateScorers(entries: ScorerEntry[], take: number): ScorerRow[] {
+  const groups = new Map<string, { goals: number; linkId: string | null; names: Map<string, number> }>();
+  for (const e of entries) {
+    const canonId = e.player?.canonicalPlayerId ?? e.playerId ?? null;
+    const key = canonId ?? `name:${e.playerNameHe ?? 'לא ידוע'}`;
+    const displayName = e.player?.canonicalPlayer?.nameHe ?? e.player?.nameHe ?? e.playerNameHe ?? 'לא ידוע';
+    const g = groups.get(key) ?? { goals: 0, linkId: canonId, names: new Map() };
+    g.goals += e.value ?? 0;
+    if (!g.linkId && canonId) g.linkId = canonId;
+    g.names.set(displayName, (g.names.get(displayName) ?? 0) + 1);
+    groups.set(key, g);
+  }
+  return [...groups.values()]
+    .map((g) => ({
+      playerId: g.linkId,
+      nameHe: [...g.names.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'לא ידוע',
+      goals: g.goals,
+    }))
     .sort((a, b) => b.goals - a.goals)
     .slice(0, take);
 }
 
-export async function leagueAllTimeTopScorers(take: number): Promise<ScorerRow[]> {
-  const grouped = await prisma.competitionLeaderboardEntry.groupBy({
-    by: ['playerId', 'playerNameHe'],
-    where: { category: 'TOP_SCORERS' },
-    _sum: { value: true },
+export async function clubAllTimeTopScorers(clubKey: string, take: number): Promise<ScorerRow[]> {
+  const fam = await getClubFamily(clubKey);
+  if (!fam) return [];
+  const entries = await prisma.competitionLeaderboardEntry.findMany({
+    where: { category: 'TOP_SCORERS', teamId: { in: fam.teamIds } },
+    select: SCORER_SELECT,
   });
-  return grouped
-    .map((g) => ({ playerId: g.playerId, nameHe: g.playerNameHe ?? 'לא ידוע', goals: g._sum.value ?? 0 }))
-    .sort((a, b) => b.goals - a.goals)
-    .slice(0, take);
+  return aggregateScorers(entries, take);
+}
+
+export async function leagueAllTimeTopScorers(take: number): Promise<ScorerRow[]> {
+  const entries = await prisma.competitionLeaderboardEntry.findMany({
+    where: { category: 'TOP_SCORERS' },
+    select: SCORER_SELECT,
+  });
+  return aggregateScorers(entries, take);
 }
 
 export interface OpponentRow { clubKey: string; nameHe: string; games: number; wins: number; draws: number; losses: number }

@@ -119,9 +119,9 @@ export const clubBestSeasonResolver = async (ctx: ResolveCtx): Promise<StatAnswe
   if (!fam) return { headline: null };
   const spine = await getSeasonsSpine();
   const champ = spine.find((s) => s.champion && fam.teamIds.includes(s.champion.teamId));
-  if (champ) return { headline: { label: 'אלופה', value: champ.name }, secondary: 'העונה הטובה ביותר: זכייה באליפות' };
+  if (champ) return { headline: { label: 'אלופה', value: champ.name }, secondary: 'העונה הטובה ביותר: זכייה באליפות', href: `/standings?season=${champ.seasonId}` };
   const runner = spine.find((s) => s.runnerUp && fam.teamIds.includes(s.runnerUp.teamId));
-  if (runner) return { headline: { label: 'סגנית אלופה', value: runner.name } };
+  if (runner) return { headline: { label: 'סגנית אלופה', value: runner.name }, href: `/standings?season=${runner.seasonId}` };
   return { headline: null };
 };
 
