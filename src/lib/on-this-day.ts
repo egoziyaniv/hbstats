@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 
 /**
  * "היום לפני X שנים" — pick the day's best anniversary match + birthdays.
@@ -201,7 +202,13 @@ export async function getOnThisDay(now = new Date(), favoriteTeamApiIds: number[
     // canonical group has a team in the latest season.
     const teamByCanon = new Map<string, { nameHe: string; logoUrl: string | null }>();
     if (display.length) {
-      const currentSeason = await prisma.season.findFirst({ orderBy: { year: 'desc' }, select: { id: true } });
+      // Clamp to the current started season (2026/27), NOT a future euro-shell
+      // season (e.g. 2027/28) that has no rosters — same rule the home/prefs use.
+      const currentSeason = await prisma.season.findFirst({
+        where: { year: { lte: getCurrentSeasonStartYear() } },
+        orderBy: { year: 'desc' },
+        select: { id: true },
+      });
       if (currentSeason) {
         const ids = display.map((d) => d.canonId);
         const rows = await prisma.player.findMany({
