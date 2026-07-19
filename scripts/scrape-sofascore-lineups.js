@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * scrape-sofascore-lineups.js — pull a match's lineups (starting XI +
- * substitutes + formation + coaches), and team statistics when Sofascore
- * publishes them, for games API-Football doesn't cover (cup finals, Super
- * Cup, friendlies).
+ * substitutes + formation + coaches), the penalty-shootout result, and team
+ * statistics when Sofascore publishes them, for games API-Football doesn't
+ * cover (cup finals, Super Cup, friendlies). API-Football marks such games
+ * status=PEN but leaves the shootout tally null, so Sofascore is our source.
  *
  * Why the roundabout Firecrawl route: api.sofascore.com is Cloudflare-blocked
  * for our datacenter IP (403), and puppeteer-real-browser no longer clears it
@@ -85,8 +86,11 @@ async function fcEval(pageUrl, script) {
 
 async function fetchViaFirecrawl(eventId, pageUrl) {
   const eps = ['lineups', 'managers', 'statistics'];
+  // `_summary` = the base event object (carries score.penalties + team ids).
   const script =
-    `(async()=>{const out={};for(const ep of ${JSON.stringify(eps)}){try{` +
+    `(async()=>{const out={};` +
+    `try{const r=await fetch('https://api.sofascore.com/api/v1/event/${eventId}');out._summary={status:r.status,body:await r.text()};}catch(e){out._summary={err:String(e)};}` +
+    `for(const ep of ${JSON.stringify(eps)}){try{` +
     `const r=await fetch('https://api.sofascore.com/api/v1/event/${eventId}/'+ep);` +
     `out[ep]={status:r.status,body:await r.text()};}catch(e){out[ep]={err:String(e)};}}` +
     `return JSON.stringify(out);})()`;
@@ -97,6 +101,8 @@ async function fetchViaFirecrawl(eventId, pageUrl) {
     result[ep] = r && r.status === 200 ? JSON.parse(r.body) : null;
     if (r && r.status !== 200) console.log(`  · /${ep}: HTTP ${r.status} (skipped)`);
   }
+  const s = parsed._summary;
+  result.summary = s && s.status === 200 ? JSON.parse(s.body) : null;
   return result;
 }
 
@@ -235,6 +241,20 @@ async function main() {
   const players = entries.filter((e) => e.role !== 'COACH').length;
   console.log(`\nParsed ${players} players (${linked} linked to DB), formations ${lineups.home?.formation}/${lineups.away?.formation}, coaches ${homeCoach || '—'}/${awayCoach || '—'}`);
 
+  // Penalty shootout: Sofascore's base event carries score.penalties. Map to
+  // OUR home/away — align by Sofascore team id (via AF_TO_SS) so a home/away
+  // flip vs Sofascore can't reverse the result; fall back to positional.
+  let penUpdate = null;
+  const evt = data.summary && data.summary.event;
+  const rawHome = evt && evt.homeScore ? evt.homeScore.penalties : undefined;
+  const rawAway = evt && evt.awayScore ? evt.awayScore.penalties : undefined;
+  if (typeof rawHome === 'number' && typeof rawAway === 'number') {
+    const ourAwaySs = AF_TO_SS[game.awayTeam.apiFootballId];
+    const flipped = !!(evt.homeTeam && ourAwaySs != null && evt.homeTeam.id === ourAwaySs);
+    penUpdate = { homePenalty: flipped ? rawAway : rawHome, awayPenalty: flipped ? rawHome : rawAway };
+    console.log(`Penalty shootout: ${game.homeTeam.nameHe} ${penUpdate.homePenalty}-${penUpdate.awayPenalty} ${game.awayTeam.nameHe}${flipped ? '  (orientation flipped vs Sofascore — corrected by team id)' : ''}`);
+  }
+
   for (const [label, side, teamId] of [['HOME', lineups.home, game.homeTeamId], ['AWAY', lineups.away, game.awayTeamId]]) {
     console.log(`\n${label} (${label === 'HOME' ? game.homeTeam.nameHe : game.awayTeam.nameHe}) — ${side?.formation || '?'}`);
     for (const e of entries.filter((x) => x.teamId === teamId && x.role !== 'COACH')) {
@@ -249,6 +269,11 @@ async function main() {
     ...entries.map((e) => prisma.gameLineupEntry.create({ data: { gameId: GAME_ID, ...e } })),
   ], { timeout: 60_000 });
   console.log(`\n✓ Wrote ${entries.length} lineup entries to game ${GAME_ID}`);
+
+  if (penUpdate) {
+    await prisma.game.update({ where: { id: GAME_ID }, data: penUpdate });
+    console.log(`✓ Set penalty shootout ${penUpdate.homePenalty}-${penUpdate.awayPenalty}`);
+  }
 
   // Team statistics — only present for some matches; fill when available.
   if (data.statistics) {

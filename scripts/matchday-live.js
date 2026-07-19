@@ -86,22 +86,30 @@ async function main() {
     if (r.status !== 0) { failed++; console.error(`  ✗ matchday-update failed for ${d}`); }
   }
 
-  // Cup / Super Cup fixtures API-Football doesn't cover: if still no lineups,
-  // auto-pull from Sofascore (event id resolved from a team's schedule). League
-  // lineups come from API-Football, so skip those. Only clubs mapped to a
-  // Sofascore id can be resolved. Each attempt is ~2 Firecrawl calls and stops
-  // once lineups land (count > 0), so it self-limits over the window.
+  // Cup / Super Cup fixtures API-Football doesn't cover: pull from Sofascore
+  // (event id resolved from a team's schedule; ~2 Firecrawl calls each). League
+  // lineups come from API-Football, so skip those; only Sofascore-mapped clubs
+  // resolve. We run when we lack the FULL squad (no substitute rows — these cups
+  // give us starters only, from IFA, and never a bench) OR when the game was
+  // decided on penalties but we don't have the shootout tally yet (API-Football
+  // sets status=PEN but leaves it null). Both conditions self-limit: once the
+  // importer writes SUBSTITUTE rows / the penalties land, they're false and we
+  // stop — and the whole loop only sees in-window fixtures anyway.
   const LEAGUE_COMPS = new Set(['comp_liga_haal', 'comp_liga_leumit']);
   const SS_RESOLVABLE = new Set([657, 4481, 563, 2253, 4510, 4486, 4488, 4489, 4501, 6181, 4195, 4495, 4505, 604]);
   if (process.env.FIRECRAWL_API_KEY) {
     for (const g of games) {
       if (LEAGUE_COMPS.has(g.competitionId)) continue;
       if (!SS_RESOLVABLE.has(g.homeTeam.apiFootballId) && !SS_RESOLVABLE.has(g.awayTeam.apiFootballId)) continue;
-      const cnt = await prisma.gameLineupEntry.count({ where: { gameId: g.id } });
-      if (cnt > 0) continue;
-      console.log(`\n→ Sofascore lineup fallback: ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe} (no API-Football lineups)`);
+      const subCnt = await prisma.gameLineupEntry.count({ where: { gameId: g.id, role: 'SUBSTITUTE' } });
+      const det = await prisma.game.findUnique({ where: { id: g.id }, select: { statusShort: true, homePenalty: true, awayPenalty: true } });
+      const needSquad = subCnt === 0;
+      const needPens = !!det && det.statusShort === 'PEN' && (det.homePenalty == null || det.awayPenalty == null);
+      if (!needSquad && !needPens) continue;
+      const why = [needSquad ? 'no full squad' : null, needPens ? 'shootout tally missing' : null].filter(Boolean).join(' + ');
+      console.log(`\n→ Sofascore fallback: ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe} (${why})`);
       const r = spawnSync('node', ['scripts/scrape-sofascore-lineups.js', '--game', g.id], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-      if (r.status !== 0) console.error('  ✗ Sofascore lineup fallback failed (continuing)');
+      if (r.status !== 0) console.error('  ✗ Sofascore fallback failed (continuing)');
     }
   }
 
