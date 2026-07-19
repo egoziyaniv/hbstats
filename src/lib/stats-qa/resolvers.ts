@@ -53,22 +53,22 @@ export function recordLeaderboardResolver(category: string, link: LinkKind, take
 // (resolvePair splits on `raw.split('__')`), NOT `--`.
 // ---------------------------------------------------------------------------
 
-const scorerCard = (rows: { playerId: string | null; nameHe: string; goals: number }[]): StatAnswer => {
+const scorerCard = (rows: { playerId: string | null; nameHe: string; goals: number }[], coverageNote: string): StatAnswer => {
   if (!rows.length) return { headline: null };
   const top = rows[0];
   return {
     headline: { label: top.nameHe, value: String(top.goals), unit: 'שערים' },
     top: rows.map((s) => ({ name: s.nameHe, value: String(s.goals), href: s.playerId ? `/players/${s.playerId}` : undefined })),
     href: top.playerId ? `/players/${top.playerId}` : undefined,
-    coverageNote: 'מבוסס לוחות מובילים עונתיים',
+    coverageNote,
   };
 };
 
 export const clubTopScorerResolver = async (ctx: ResolveCtx): Promise<StatAnswer> =>
-  scorerCard(await clubAllTimeTopScorers(ctx.clubKey!, 6));
+  scorerCard(await clubAllTimeTopScorers(ctx.clubKey!, 6), 'מבוסס אירועי משחק (2006 ואילך)');
 
 export const leagueTopScorerResolver = async (): Promise<StatAnswer> =>
-  scorerCard(await leagueAllTimeTopScorers(6));
+  scorerCard(await leagueAllTimeTopScorers(6), 'מבוסס לוחות מובילים עונתיים');
 
 export const clubTopOpponentResolver = async (ctx: ResolveCtx): Promise<StatAnswer> => {
   const rows = await clubTopOpponents(ctx.clubKey!, 6);

@@ -1,28 +1,42 @@
 jest.mock('@/lib/prisma', () => ({
-  prisma: { competitionLeaderboardEntry: { findMany: jest.fn() }, game: { findMany: jest.fn() } },
+  prisma: {
+    competitionLeaderboardEntry: { findMany: jest.fn() },
+    gameEvent: { findMany: jest.fn() },
+    game: { findMany: jest.fn() },
+  },
 }));
 jest.mock('@/lib/history/club-identity', () => ({ getClubFamily: jest.fn(), getClubTeamIndex: jest.fn() }));
 import { prisma } from '@/lib/prisma';
 import { getClubFamily, getClubTeamIndex } from '@/lib/history/club-identity';
-import { clubAllTimeTopScorers, clubTopOpponents } from '@/lib/stats-qa/aggregations';
+import { clubAllTimeTopScorers, leagueAllTimeTopScorers, clubTopOpponents } from '@/lib/stats-qa/aggregations';
 
-it('folds TOP_SCORERS by canonical player across seasons, desc', async () => {
+it('folds club GOAL events by canonical player, desc', async () => {
   (getClubFamily as jest.Mock).mockResolvedValue({ teamIds: ['t1', 't2'], nameHe: 'הפועל ב"ש' });
-  (prisma.competitionLeaderboardEntry.findMany as jest.Mock).mockResolvedValue([
-    // Same real player under two per-season Player rows → must merge under canonical 'P1'.
-    { playerId: 'p1a', playerNameHe: 'ברדה', value: 50, player: { canonicalPlayerId: 'P1', nameHe: 'ברדה', canonicalPlayer: { nameHe: 'אליניב ברדה' } } },
-    { playerId: 'p1b', playerNameHe: 'א. ברדה', value: 44, player: { canonicalPlayerId: 'P1', nameHe: 'א. ברדה', canonicalPlayer: { nameHe: 'אליניב ברדה' } } },
-    // A player that is its own canonical head (canonicalPlayerId null) → keyed by own id.
-    { playerId: 'p2', playerNameHe: 'אוחיון', value: 71, player: { canonicalPlayerId: null, nameHe: 'אוחיון', canonicalPlayer: null } },
+  // Each row is one goal event. The same real player appears under two per-season
+  // Player rows (p1a/p1b) sharing canonical 'P1' → must count as one scorer.
+  (prisma.gameEvent.findMany as jest.Mock).mockResolvedValue([
+    { playerId: 'p1a', player: { canonicalPlayerId: 'P1', nameHe: 'סהר', canonicalPlayer: { nameHe: 'בן סהר' } } },
+    { playerId: 'p1a', player: { canonicalPlayerId: 'P1', nameHe: 'סהר', canonicalPlayer: { nameHe: 'בן סהר' } } },
+    { playerId: 'p1b', player: { canonicalPlayerId: 'P1', nameHe: 'ב. סהר', canonicalPlayer: { nameHe: 'בן סהר' } } },
+    { playerId: 'p2', player: { canonicalPlayerId: null, nameHe: 'אחר', canonicalPlayer: null } },
   ]);
   const rows = await clubAllTimeTopScorers('api-563', 6);
-  expect(prisma.competitionLeaderboardEntry.findMany).toHaveBeenCalledWith(
-    expect.objectContaining({ where: { category: 'TOP_SCORERS', teamId: { in: ['t1', 't2'] } } })
+  expect(prisma.gameEvent.findMany).toHaveBeenCalledWith(
+    expect.objectContaining({ where: expect.objectContaining({ type: { in: ['GOAL', 'PENALTY_GOAL'] }, teamId: { in: ['t1', 't2'] } }) })
   );
-  // 50 + 44 fold into one canonical row (94), beating the 71 row; display name + link use the canonical head.
-  expect(rows[0]).toEqual({ playerId: 'P1', nameHe: 'אליניב ברדה', goals: 94 });
-  expect(rows[1]).toEqual({ playerId: 'p2', nameHe: 'אוחיון', goals: 71 });
-  expect(rows).toHaveLength(2);
+  expect(rows[0]).toEqual({ playerId: 'P1', nameHe: 'בן סהר', goals: 3 });
+  expect(rows[1]).toEqual({ playerId: 'p2', nameHe: 'אחר', goals: 1 });
+});
+
+it('folds league TOP_SCORERS leaderboard rows by canonical player, desc', async () => {
+  (prisma.competitionLeaderboardEntry.findMany as jest.Mock).mockResolvedValue([
+    { playerId: 'p1a', playerNameHe: 'מכנס', value: 70, player: { canonicalPlayerId: 'P1', nameHe: 'מכנס', canonicalPlayer: { nameHe: 'עודד מכנס' } } },
+    { playerId: 'p1b', playerNameHe: 'ע. מכנס', value: 50, player: { canonicalPlayerId: 'P1', nameHe: 'ע. מכנס', canonicalPlayer: { nameHe: 'עודד מכנס' } } },
+    { playerId: null, playerNameHe: 'שחקן ישן', value: 90, player: null },
+  ]);
+  const rows = await leagueAllTimeTopScorers(6);
+  expect(rows[0]).toEqual({ playerId: 'P1', nameHe: 'עודד מכנס', goals: 120 });
+  expect(rows[1]).toEqual({ playerId: null, nameHe: 'שחקן ישן', goals: 90 });
 });
 
 it('tallies wins/draws/losses per opponent club, deduped by clubKey', async () => {
