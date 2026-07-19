@@ -5,27 +5,31 @@ export default async function OnThisDayCard() {
   const data = await getOnThisDay().catch((e) => { console.error('[on-this-day]', e); return null; });
   if (!data || (!data.match && data.birthdays.length === 0)) return null;
   return (
-    <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">📅 היום בהיסטוריה</p>
+    <>
       {data.match ? (
-        <Link href={`/games/${data.match.gameId}`} className="mt-2 block rounded-xl bg-stone-50 p-3 transition hover:bg-stone-100">
-          <p className="text-base font-black text-stone-900">
-            {data.match.homeName} {data.match.homeScore}–{data.match.awayScore} {data.match.awayName}
-          </p>
-          <p className="mt-1 text-xs text-stone-500">
-            לפני {data.match.yearsAgo} שנים
-            {data.match.competitionName ? ` · ${data.match.competitionName}` : ''}
-            {' · '}
-            {new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium' }).format(new Date(data.match.dateISO))}
-          </p>
-        </Link>
+        <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">📅 היום בהיסטוריה</p>
+          <Link href={`/games/${data.match.gameId}`} className="mt-2 block rounded-xl bg-stone-50 p-3 transition hover:bg-stone-100">
+            <p className="text-base font-black text-stone-900">
+              {data.match.homeName} {data.match.homeScore}–{data.match.awayScore} {data.match.awayName}
+            </p>
+            <p className="mt-1 text-xs text-stone-500">
+              לפני {data.match.yearsAgo} שנים
+              {data.match.competitionName ? ` · ${data.match.competitionName}` : ''}
+              {' · '}
+              {new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium' }).format(new Date(data.match.dateISO))}
+            </p>
+          </Link>
+        </section>
       ) : null}
       {data.birthdays.length ? (
-        <p className="mt-3 text-sm text-stone-700">
-          <span className="font-bold">🎂 ימי הולדת היום:</span>{' '}
-          {data.birthdays.map((b) => `${b.nameHe} (בן ${b.age})`).join(' · ')}
-        </p>
+        <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">🎂 ימי הולדת היום</p>
+          <p className="mt-2 text-sm text-stone-700">
+            {data.birthdays.map((b) => `${b.nameHe} (בן ${b.age})`).join(' · ')}
+          </p>
+        </section>
       ) : null}
-    </section>
+    </>
   );
 }
