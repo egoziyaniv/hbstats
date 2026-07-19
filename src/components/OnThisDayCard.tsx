@@ -6,7 +6,7 @@ export default async function OnThisDayCard() {
   if (!data || (!data.match && data.birthdays.length === 0)) return null;
   return (
     <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">📅 היום לפני X שנים</p>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">📅 היום בהיסטוריה</p>
       {data.match ? (
         <Link href={`/games/${data.match.gameId}`} className="mt-2 block rounded-xl bg-stone-50 p-3 transition hover:bg-stone-100">
           <p className="text-base font-black text-stone-900">
@@ -22,7 +22,8 @@ export default async function OnThisDayCard() {
       ) : null}
       {data.birthdays.length ? (
         <p className="mt-3 text-sm text-stone-700">
-          🎂 {data.birthdays.map((b) => `${b.nameHe} (${b.age})`).join(' · ')}
+          <span className="font-bold">🎂 ימי הולדת היום:</span>{' '}
+          {data.birthdays.map((b) => `${b.nameHe} (בן ${b.age})`).join(' · ')}
         </p>
       ) : null}
     </section>

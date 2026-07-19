@@ -82,7 +82,7 @@ export default function HomeScreen() {
         ) : null}
 
         {data.onThisDay ? (
-          <Section title="היום לפני X שנים">
+          <Section title="היום בהיסטוריה">
             <Card>
               {data.onThisDay.match ? (
                 <Pressable onPress={() => router.push(`/games/${data.onThisDay!.match!.gameId}` as any)}>
@@ -93,7 +93,7 @@ export default function HomeScreen() {
               ) : null}
               {data.onThisDay.birthdays.length ? (
                 <Text style={{ color: theme.ink[500], fontSize: 12, marginTop: data.onThisDay.match ? 6 : 0, textAlign: 'right', writingDirection: 'rtl' }}>
-                  🎂 {data.onThisDay.birthdays.map((b) => `${b.nameHe} (${b.age})`).join(' · ')}
+                  🎂 ימי הולדת היום: {data.onThisDay.birthdays.map((b) => `${b.nameHe} (בן ${b.age})`).join(' · ')}
                 </Text>
               ) : null}
             </Card>
