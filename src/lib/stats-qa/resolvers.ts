@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { StatAnswer, ResolveCtx } from './types';
-import { clubAllTimeTopScorers, leagueAllTimeTopScorers, clubTopOpponents, topRivalries } from './aggregations';
+import { clubAllTimeTopScorers, clubTopOpponents, topRivalries } from './aggregations';
+import { LEAGUE_ALL_TIME_SCORERS } from '@/lib/history/all-time-scorers';
 import { getClubHonors, getAllHonors } from '@/lib/history/club-honors';
 import { getSeasonsSpine } from '@/lib/history/seasons-spine';
 import { buildAllTimeTable } from '@/lib/history/all-time-table';
@@ -68,7 +69,12 @@ export const clubTopScorerResolver = async (ctx: ResolveCtx): Promise<StatAnswer
   scorerCard(await clubAllTimeTopScorers(ctx.clubKey!, 6), 'מבוסס אירועי משחק (2006 ואילך)');
 
 export const leagueTopScorerResolver = async (): Promise<StatAnswer> =>
-  scorerCard(await leagueAllTimeTopScorers(6), 'מבוסס לוחות מובילים עונתיים');
+  // Curated authoritative all-time list — the season leaderboards are incomplete
+  // pre-2000 (see all-time-scorers.ts).
+  scorerCard(
+    LEAGUE_ALL_TIME_SCORERS.slice(0, 6).map((s) => ({ playerId: null, nameHe: s.nameHe, goals: s.goals })),
+    'רשימת 38 מלכי השערים ההיסטוריים בליגה',
+  );
 
 export const clubTopOpponentResolver = async (ctx: ResolveCtx): Promise<StatAnswer> => {
   const rows = await clubTopOpponents(ctx.clubKey!, 6);
