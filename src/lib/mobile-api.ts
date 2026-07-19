@@ -449,10 +449,14 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
         orderBy: { dateTime: 'desc' },
       })
     : null;
+  // A followed team's genuine last game is shown as-is, NOT filtered by the
+  // competition preference: it's already scoped to the team the user cares
+  // about, and applying the pref would perversely hide an important cup game
+  // (e.g. the Super Cup, comp 659) in favour of a force-surfaced friendly
+  // (comp 667) for a league-only follower. The pref still applies to the
+  // no-team fallback below.
   const lastGame =
-    (teamScopedLastGame && gameMatchesPreferredCompetition(teamScopedLastGame, selectedCompetitionApiIds)
-      ? teamScopedLastGame
-      : null) ||
+    teamScopedLastGame ||
     lastGamesRaw
       .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
       .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
