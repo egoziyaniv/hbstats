@@ -127,16 +127,16 @@ function mapTelegramMessage(message: {
   publishedAt: Date | null;
   text: string;
 }) {
+  // Shape MUST match shared NewsCard { id, source, team, imageUrl, preview,
+  // publishedAt, url } — the mobile news screen + home render item.preview / item.team.
   return {
     id: message.id,
     source: message.sourceLabel,
-    teamLabel: message.teamLabel,
-    url: message.url,
+    team: message.teamLabel || null,
     imageUrl: message.imageUrl || null,
+    preview: truncateText(message.text.replace(/\s+/g, ' ').trim(), 160),
     publishedAt: message.publishedAt ? message.publishedAt.toISOString() : null,
-    title: truncateText(message.text.replace(/\s+/g, ' ').trim(), 80),
-    previewText: truncateText(message.text, 160),
-    fullText: message.text,
+    url: message.url,
   };
 }
 
@@ -662,13 +662,11 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
       news: telegramMessages.slice(0, 5).map((message) => ({
         id: message.id,
         source: message.sourceLabel,
-        teamLabel: message.teamLabel,
-        url: message.url,
+        team: message.teamLabel || null,
         imageUrl: message.imageUrl || null,
+        preview: truncateText(message.text.replace(/\s+/g, ' ').trim(), 160),
         publishedAt: message.publishedAt ? message.publishedAt.toISOString() : null,
-        title: truncateText(message.text.replace(/\s+/g, ' ').trim(), 80),
-        previewText: truncateText(message.text, 160),
-        fullText: message.text,
+        url: message.url,
       })),
     },
     // Null only when there is nothing at all — birthdays alone still render
