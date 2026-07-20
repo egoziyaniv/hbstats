@@ -398,7 +398,12 @@ export default async function PlayerPage({
           return map;
         }, new Map<string, AggregatedStatRow>())
         .values()
-    ).sort((left, right) => right.seasonName.localeCompare(left.seasonName) || left.competitionName.localeCompare(right.competitionName));
+    )
+      // Drop frameworks the player didn't actually appear in (all-zero rows) —
+      // e.g. a top-division player showing an empty "Liga Leumit" row because
+      // the club fields a reserve/second-division side.
+      .filter((row) => row.gamesPlayed > 0 || row.minutesPlayed > 0 || row.goals > 0 || row.assists > 0)
+      .sort((left, right) => right.seasonName.localeCompare(left.seasonName) || left.competitionName.localeCompare(right.competitionName));
   }
 
   const aggregatedStats = buildAggregatedStats(seasonPlayers);

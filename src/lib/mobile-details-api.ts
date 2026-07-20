@@ -1031,7 +1031,11 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
         gamesPlayed: number;
       }>())
       .values()
-  ).sort((left, right) => right.seasonName.localeCompare(left.seasonName) || left.competitionName.localeCompare(right.competitionName));
+  )
+    // Drop frameworks the player didn't actually appear in (all-zero rows) —
+    // e.g. a top-division player showing an empty "Liga Leumit" row.
+    .filter((row) => row.gamesPlayed > 0 || row.minutesPlayed > 0 || row.goals > 0 || row.assists > 0)
+    .sort((left, right) => right.seasonName.localeCompare(left.seasonName) || left.competitionName.localeCompare(right.competitionName));
 
   const uploads = linkedPlayers
     .flatMap((player) => player.uploads)
