@@ -484,10 +484,13 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   const upcomingByCompetition = nextGamesRaw.filter((game) =>
     gameMatchesPreferredCompetition(game, selectedCompetitionApiIds)
   );
-  const nextGame =
-    upcomingByCompetition.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] ||
-    upcomingByCompetition[0] ||
-    null;
+  // When a team is selected, surface only THAT team's next game (any competition,
+  // like the last-game card) — never fall back to another club's upcoming
+  // friendly. Without a team (anonymous / no favourites) keep the first upcoming
+  // game in the league-scope.
+  const nextGame = selectedTeamIds.length
+    ? nextGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
+    : upcomingByCompetition[0] || null;
   // The take:24 window over ALL clubs' completed games can drop a selected
   // team's real last game once ≥24 other-club games are newer (busy season /
   // pre-season friendlies). When a team is selected, query ITS last completed

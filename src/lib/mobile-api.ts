@@ -431,10 +431,11 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
   const upcomingByCompetition = nextGamesRaw.filter((game) =>
     gameMatchesPreferredCompetition(game, selectedCompetitionApiIds)
   );
-  const nextGame =
-    upcomingByCompetition.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] ||
-    upcomingByCompetition[0] ||
-    null;
+  // Team selected → only that team's next game (any competition), never another
+  // club's upcoming friendly; otherwise the first upcoming game in league-scope.
+  const nextGame = selectedTeamIds.length
+    ? nextGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
+    : upcomingByCompetition[0] || null;
   // The take:24 window over ALL clubs' completed games can drop a selected
   // team's real last game once ≥24 other-club games are newer. When a team is
   // selected, query ITS last completed game directly so lastMatch is accurate.
