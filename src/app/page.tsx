@@ -94,10 +94,11 @@ function gameMatchesPreferredCompetition(
 ) {
   if (!selectedCompetitionApiIds.length || !game) return true;
   const competitionApiFootballId = game.game?.competition?.apiFootballId ?? game.competition?.apiFootballId ?? null;
-  // Always surface pre-season CLUB FRIENDLIES (667): they're the only content in
-  // the summer gap and aren't a "favorite competition" anyone selects, so the
-  // preference filter would otherwise hide them.
-  if (competitionApiFootballId === 667) return true;
+  // Always surface pre-season CLUB FRIENDLIES (667) and Israeli teams' European
+  // ties (Champions League 2 / Europa 3 / Conference 848): these aren't a
+  // "favorite competition" anyone ticks, so a league-only follower would
+  // otherwise never see e.g. HBS's Champions League qualifier.
+  if (competitionApiFootballId !== null && [667, 2, 3, 848].includes(competitionApiFootballId)) return true;
   return competitionApiFootballId !== null && selectedCompetitionApiIds.includes(competitionApiFootballId);
 }
 

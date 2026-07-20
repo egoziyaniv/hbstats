@@ -53,6 +53,10 @@ function gameMatchesPreferredCompetition(
 ) {
   if (!selectedCompetitionApiIds.length || !game) return true;
   const competitionApiFootballId = game.game?.competition?.apiFootballId ?? game.competition?.apiFootballId ?? null;
+  // Always surface pre-season friendlies (667) + Israeli teams' European ties
+  // (Champions League 2 / Europa 3 / Conference 848) — a league-only follower
+  // still wants to see e.g. HBS's Champions League qualifier.
+  if (competitionApiFootballId !== null && [667, 2, 3, 848].includes(competitionApiFootballId)) return true;
   return competitionApiFootballId !== null && selectedCompetitionApiIds.includes(competitionApiFootballId);
 }
 
