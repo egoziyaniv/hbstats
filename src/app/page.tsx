@@ -699,6 +699,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
                     <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">חוץ</div>
                   </div>
                 </div>
+                {heroGame.status === 'SCHEDULED' ? (
+                  <div className="mt-3 text-[11px] font-bold text-white/70">לקראת המשחק · כושר, פציעות ותצוגה ←</div>
+                ) : null}
               </div>
             </Link>
           </div>

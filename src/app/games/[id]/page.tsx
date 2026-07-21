@@ -14,6 +14,8 @@ import GameRatingForm from '@/components/GameRatingForm';
 import { H2HPanel } from '@/components/H2HPanel';
 import { LiveMomentumBar } from '@/components/LiveMomentumBar';
 import { PredictedLineupPanel } from '@/components/PredictedLineupPanel';
+import { MatchPreviewSection } from '@/components/MatchPreviewSection';
+import { buildMatchPreview, type MatchPreview } from '@/lib/match-preview';
 import { SofascoreMatchStatsPanel } from '@/components/SofascoreMatchStatsPanel';
 
 const eventLabels: Record<string, string> = {
@@ -132,6 +134,9 @@ export default async function GamePage({
       ])
     : null;
 
+  // Pre-match "לקראת המשחק" preview: recent form + injuries/suspensions + AI summary.
+  const matchPreview: MatchPreview | null = isPreMatch ? await buildMatchPreview(game) : null;
+
   // Player of the match — highest-rated player from either team (starter or sub).
   const allRatedPlayers = [
     ...homeLineup.starters, ...homeLineup.substitutes,
@@ -224,6 +229,7 @@ export default async function GamePage({
         h2hSummary={h2hSummary}
         ratingPlayers={ratingPlayers}
         predictedLineups={predictedLineups}
+        matchPreview={matchPreview}
         predictedFormation={predictedFormation}
         isLoggedIn={!!currentUser}
         hasDetailedStats={hasDetailedStats}
@@ -422,6 +428,7 @@ function PremierGameView({
   h2hSummary,
   ratingPlayers,
   predictedLineups,
+  matchPreview,
   predictedFormation,
   isLoggedIn,
   hasDetailedStats,
@@ -439,6 +446,7 @@ function PremierGameView({
   h2hSummary: import('@/lib/h2h').H2HSummary | null;
   ratingPlayers: Array<{ playerId: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; position: string | null; side: 'home' | 'away' }>;
   predictedLineups: [import('@/lib/predicted-lineup').PredictedPlayer[], import('@/lib/predicted-lineup').PredictedPlayer[]] | null;
+  matchPreview: MatchPreview | null;
   predictedFormation: import('@/lib/predicted-lineup').FormationId;
   isLoggedIn: boolean;
   hasDetailedStats: boolean;
@@ -535,6 +543,12 @@ function PremierGameView({
               homeTeamName={homeTeamName}
               awayTeamName={awayTeamName}
             />
+          </div>
+        ) : null}
+
+        {selectedTab === 'overview' && matchPreview ? (
+          <div className="mb-6">
+            <MatchPreviewSection preview={matchPreview} homeName={homeTeamName} awayName={awayTeamName} />
           </div>
         ) : null}
 
