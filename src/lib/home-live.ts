@@ -31,6 +31,10 @@ export type HomepageLiveSnapshot = {
   homeTeamName: string;
   awayTeamName: string;
   scoreLabel: string;
+  // Separate numeric scores (RTL-safe rendering needs them apart, not as the
+  // combined scoreLabel). Optional: only the API-Football snapshot mapper sets them.
+  homeScore?: number | null;
+  awayScore?: number | null;
   eventCount: number;
   gameHref: string;
   events: HomepageLiveEvent[];
@@ -617,6 +621,8 @@ function mapSnapshotToHomepage(snapshot: any): HomepageLiveSnapshot {
     homeTeamName: snapshot.homeTeamNameHe || snapshot.homeTeamNameEn || 'קבוצת בית',
     awayTeamName: snapshot.awayTeamNameHe || snapshot.awayTeamNameEn || 'קבוצת חוץ',
     scoreLabel: `${snapshot.homeScore ?? 0} - ${snapshot.awayScore ?? 0}`,
+    homeScore: snapshot.homeScore ?? null,
+    awayScore: snapshot.awayScore ?? null,
     eventCount: snapshot.eventCount ?? 0,
     gameHref: snapshot.game?.id ? `/games/${snapshot.game.id}` : '/games',
     events: normalizeLiveEvents(snapshot.rawJson),

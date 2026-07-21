@@ -492,6 +492,20 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   const nextGame = selectedTeamIds.length
     ? nextGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
     : upcomingByCompetition[0] || null;
+  // A game in progress RIGHT NOW takes priority over the next scheduled game as
+  // the hero. Crucial for European away ties (e.g. Beer Sheva at Víkingur): the
+  // live game is a real fixture in our DB (status ONGOING) but isn't in the
+  // Israel-filtered live feed, so without this the hero jumped ahead to the
+  // return leg — making a live AWAY game look like an upcoming HOME game.
+  const ongoingGamesRaw = await prisma.game.findMany({
+    where: { status: 'ONGOING' },
+    include: { homeTeam: true, awayTeam: true, competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } }, prediction: true, season: { select: { name: true } } },
+    orderBy: [{ dateTime: 'asc' }],
+    take: 24,
+  });
+  const liveGame = selectedTeamIds.length
+    ? ongoingGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
+    : ongoingGamesRaw.filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
   // The take:24 window over ALL clubs' completed games can drop a selected
   // team's real last game once ≥24 other-club games are newer (busy season /
   // pre-season friendlies). When a team is selected, query ITS last completed
@@ -653,8 +667,17 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   const featuredTelegramMessage = telegramMessages[0] || null;
   const telegramFeedMessages = featuredTelegramMessage ? telegramMessages.slice(1) : telegramMessages;
 
-  const heroGame = nextGame || lastGame;
+  const heroGame = liveGame || nextGame || lastGame;
   const heroCompleted = heroGame?.status === 'COMPLETED';
+  const heroLive = heroGame?.status === 'ONGOING';
+  // The Game row's score isn't refreshed for European ties (matchday-live only
+  // covers Israeli comps), but the live snapshot is (~55s). Prefer it for a
+  // fresh scoreline + live minute in the hero.
+  const heroLiveItem = heroLive && heroGame
+    ? initialLiveItems.find((it) => it.gameHref === `/games/${heroGame.id}`) || null
+    : null;
+  const heroHomeScore = heroLiveItem?.homeScore ?? heroGame?.homeScore ?? 0;
+  const heroAwayScore = heroLiveItem?.awayScore ?? heroGame?.awayScore ?? 0;
 
   return (
     <div className="min-h-screen">
@@ -680,12 +703,14 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
                     <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">בית</div>
                   </div>
                   <div className="flex flex-col items-center">
-                    {heroCompleted ? (
+                    {heroCompleted || heroLive ? (
                       <div className="rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm ring-1 ring-white/10">
                         <div className="text-3xl font-black tabular-nums text-white md:text-4xl">
-                          {heroGame.homeScore ?? 0}<span className="mx-2 text-white/25">–</span>{heroGame.awayScore ?? 0}
+                          {heroLive ? heroHomeScore : heroGame.homeScore ?? 0}<span className="mx-2 text-white/25">–</span>{heroLive ? heroAwayScore : heroGame.awayScore ?? 0}
                         </div>
-                        <div className="mt-0.5 text-center text-[9px] font-bold tracking-widest text-emerald-300">סיום</div>
+                        <div className={`mt-0.5 text-center text-[9px] font-bold tracking-widest ${heroLive ? 'animate-pulse text-yellow-300' : 'text-emerald-300'}`}>
+                          {heroLive ? (heroLiveItem?.minuteLabel || 'חי') : 'סיום'}
+                        </div>
                       </div>
                     ) : (
                       <div className="rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm ring-1 ring-white/10">
