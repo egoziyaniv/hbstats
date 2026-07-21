@@ -34,6 +34,9 @@ const GAME_ID = arg('game', process.env.SS_GAME || null);
 const URL_ARG = arg('url', process.env.SS_URL || null);
 let EVENT_ID = arg('event', process.env.SS_EVENT || null);
 const DRY = process.argv.includes('--dry') || process.env.SS_DRY === '1';
+// Materialize ONLY the team statistics (skip lineup import) — used to enrich a
+// game whose lineups already came from a better source (e.g. API-Football).
+const STATS_ONLY = process.argv.includes('--stats-only');
 
 let FC_KEY = process.env.FIRECRAWL_API_KEY;
 if (!FC_KEY) {
@@ -127,6 +130,40 @@ async function resolveEventId(game, pageUrl) {
   return match ? String(match.id) : null;
 }
 
+// Flatten Sofascore's /statistics response (period "ALL") into our
+// SofascoreMatchStats payload shape: [{section, label, home, away}] with the
+// English group/label kept (the display panel translates known keys to Hebrew).
+function buildStatsPayload(statsApi) {
+  const periods = statsApi && Array.isArray(statsApi.statistics) ? statsApi.statistics : [];
+  const all = periods.find((p) => p.period === 'ALL') || periods[0];
+  if (!all || !Array.isArray(all.groups)) return [];
+  const out = [];
+  for (const g of all.groups) {
+    for (const it of (g.statisticsItems || [])) {
+      if (it.home == null && it.away == null) continue;
+      out.push({
+        section: g.groupName || 'Other',
+        label: it.name || '',
+        home: String(it.home ?? ''),
+        away: String(it.away ?? ''),
+      });
+    }
+  }
+  return out;
+}
+
+async function materializeStats(gameId, statsApi) {
+  const payload = buildStatsPayload(statsApi);
+  if (!payload.length) { console.log('  · no team statistics in Sofascore response'); return 0; }
+  await prisma.sofascoreMatchStats.upsert({
+    where: { gameId },
+    create: { gameId, payload, scrapedAt: new Date() },
+    update: { payload, scrapedAt: new Date() },
+  });
+  console.log(`  ✓ materialized ${payload.length} team-stat rows into SofascoreMatchStats`);
+  return payload.length;
+}
+
 // Build a surname-token index for one club's players (all seasons, most-recent
 // first). Sofascore gives full English names; our nameEn is abbreviated
 // ("O. Marciano") but lastNameEn/firstNameEn hold the full parts, so we match
@@ -216,6 +253,20 @@ async function main() {
 
   console.log(`Fetching Sofascore via Firecrawl (stealth) …`);
   const data = await fetchViaFirecrawl(EVENT_ID, pageUrl);
+
+  // Stats-only: materialize team statistics and stop (leave lineups untouched —
+  // used when a better lineup source already populated the game).
+  if (STATS_ONLY) {
+    if (DRY) {
+      console.log('[dry-run] stats payload preview:');
+      console.log(JSON.stringify(buildStatsPayload(data.statistics).slice(0, 8), null, 2));
+    } else {
+      await materializeStats(GAME_ID, data.statistics);
+    }
+    await prisma.$disconnect();
+    return;
+  }
+
   const lineups = data.lineups;
   if (!lineups || (!lineups.home?.players?.length && !lineups.away?.players?.length)) {
     console.error('No lineups returned from Sofascore for this event.');
@@ -277,7 +328,7 @@ async function main() {
 
   // Team statistics — only present for some matches; fill when available.
   if (data.statistics) {
-    console.log('  (statistics available — not yet materialized; lineups only for now)');
+    await materializeStats(GAME_ID, data.statistics);
   }
   await prisma.$disconnect();
 }
