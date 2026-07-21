@@ -248,10 +248,15 @@ async function projectFixtureToGame(game, raw, lookups) {
     for (const entry of allEntries) {
       const playerInfo = entry.player || {};
       const playerId = findPlayer(playerInfo.id);
-      if (!playerId) continue;
+      // Store the row even when the player isn't in our DB (e.g. a foreign
+      // European opponent whose squad we don't track) — the API name goes in
+      // participantName so the opponent's XI still renders. Dropping it lost
+      // the whole away/foreign lineup.
       await prisma.gameLineupEntry.create({
         data: {
-          gameId: game.id, teamId: sideTeamId, playerId, role: entry.role,
+          gameId: game.id, teamId: sideTeamId, playerId: playerId || null,
+          participantName: playerInfo.name || null,
+          role: entry.role,
           jerseyNumber: playerInfo.number ?? null, positionName: playerInfo.pos ?? null,
         },
       }).catch((e) => console.error(`    LINEUP err: ${e.message?.split('\n').slice(0, 6).join(' | ')}`));
@@ -267,7 +272,12 @@ async function projectFixtureToGame(game, raw, lookups) {
     if (!teamId) continue;
     const playerId = findPlayer(ev.player?.id);
     const relatedPlayerId = findPlayer(ev.assist?.id);
-    if (!playerId) continue;
+    // Keep the event even when the player isn't in our DB (foreign opponent):
+    // store the API name in participantName so the goal / card still shows.
+    // Previously a missing playerId dropped the event — losing the opponent's
+    // goals entirely (a 2-1 looked like a lone goal).
+    const playerName = ev.player?.name || null;
+    const assistName = ev.assist?.name || null;
 
     const sideTag = teamId === game.homeTeamId ? 'home' : 'away';
     if (ev.type === 'subst') {
@@ -275,14 +285,14 @@ async function projectFixtureToGame(game, raw, lookups) {
       const subInPlayer = findPlayer(ev.assist?.id) || playerId;
       const subOutPlayer = playerId;
       await prisma.gameEvent.create({
-        data: { gameId: game.id, team: sideTag, teamId, playerId: subInPlayer, type: 'SUBSTITUTION_IN', minute: ev.time?.elapsed ?? 0, extraMinute: ev.time?.extra ?? null, relatedPlayerId: subOutPlayer },
+        data: { gameId: game.id, team: sideTag, teamId, playerId: subInPlayer || null, participantName: assistName || playerName, type: 'SUBSTITUTION_IN', minute: ev.time?.elapsed ?? 0, extraMinute: ev.time?.extra ?? null, relatedPlayerId: subOutPlayer || null, relatedParticipantName: playerName },
       }).catch((e) => console.error(`    SUB_IN err: ${e.message?.split('\n')[0]}`));
       await prisma.gameEvent.create({
-        data: { gameId: game.id, team: sideTag, teamId, playerId: subOutPlayer, type: 'SUBSTITUTION_OUT', minute: ev.time?.elapsed ?? 0, extraMinute: ev.time?.extra ?? null, relatedPlayerId: subInPlayer },
+        data: { gameId: game.id, team: sideTag, teamId, playerId: subOutPlayer || null, participantName: playerName, type: 'SUBSTITUTION_OUT', minute: ev.time?.elapsed ?? 0, extraMinute: ev.time?.extra ?? null, relatedPlayerId: subInPlayer || null, relatedParticipantName: assistName || playerName },
       }).catch((e) => console.error(`    SUB_OUT err: ${e.message?.split('\n')[0]}`));
     } else {
       await prisma.gameEvent.create({
-        data: { gameId: game.id, team: sideTag, teamId, playerId, type: evType, minute: ev.time?.elapsed ?? 0, extraMinute: ev.time?.extra ?? null, relatedPlayerId: relatedPlayerId || null },
+        data: { gameId: game.id, team: sideTag, teamId, playerId: playerId || null, participantName: playerName, type: evType, minute: ev.time?.elapsed ?? 0, extraMinute: ev.time?.extra ?? null, relatedPlayerId: relatedPlayerId || null, relatedParticipantName: assistName },
       }).catch((e) => console.error(`    ${evType} err: ${e.message?.split('\n')[0]}`));
     }
   }
