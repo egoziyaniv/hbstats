@@ -20,7 +20,7 @@ import { theme } from '@/design-system/theme';
 import { PlayerMatchStatsSheet } from '@/design-system/PlayerMatchStatsSheet';
 import { GameRatingSheet } from '@/design-system/GameRatingSheet';
 import { useGamePlayerStats } from '@/hooks/useGamePlayerStats';
-import type { MatchEvent } from '@shared/types/mobile-api';
+import type { MatchEvent, MatchPreviewApi, MatchPreviewFormItem, MatchPreviewSidelinedItem } from '@shared/types/mobile-api';
 
 type MatchTabId = 'overview' | 'events' | 'stats' | 'lineups';
 
@@ -216,6 +216,16 @@ export default function MatchScreen() {
       >
         {tab === 'overview' ? (
           <>
+            {/* Pre-match preview — form + injuries/suspensions + AI, only for
+                not-yet-started games (matches the web "לקראת המשחק" block). */}
+            {data.preview ? (
+              <PreMatchBlock
+                preview={data.preview}
+                homeName={homeTeam.nameHe}
+                awayName={awayTeam.nameHe}
+                onGamePress={(gid) => router.push(`/games/${gid}` as any)}
+              />
+            ) : null}
             {/* Top stats highlights */}
             {data.matchStats ? (
               <Card>
@@ -450,6 +460,88 @@ function RatingBadge({ rating }: { rating: number }) {
     <View style={{ backgroundColor: bg, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, minWidth: 32, alignItems: 'center' }}>
       <Text style={{ fontSize: 11, fontWeight: '800', color: 'white' }}>{rating.toFixed(1)}</Text>
     </View>
+  );
+}
+
+// ---------- Pre-match preview ("לקראת המשחק") ----------
+
+const FORM_LETTER: Record<MatchPreviewFormItem['result'], string> = { W: 'נ', D: 'ת', L: 'ה' };
+const formColor = (r: MatchPreviewFormItem['result']) =>
+  r === 'W' ? theme.result.win : r === 'D' ? theme.result.draw : theme.result.loss;
+
+function PreMatchForm({ items, onGamePress }: { items: MatchPreviewFormItem[]; onGamePress: (id: string) => void }) {
+  if (!items.length) return <Text style={{ fontSize: 11, color: theme.ink[500], textAlign: 'right' }}>אין נתונים</Text>;
+  // items are newest-first; rtlRow packs the first (newest) to the right.
+  return (
+    <View style={{ flexDirection: rtlRow(), gap: 4 }}>
+      {items.map((f) => (
+        <Pressable
+          key={f.gameId}
+          onPress={() => onGamePress(f.gameId)}
+          style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: formColor(f.result), alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ color: 'white', fontSize: 12, fontWeight: '800' }}>{FORM_LETTER[f.result]}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function PreMatchSidelined({ items }: { items: MatchPreviewSidelinedItem[] }) {
+  if (!items.length) return <Text style={{ fontSize: 11, color: theme.ink[500], textAlign: 'right' }}>אין נפקדים ידועים</Text>;
+  return (
+    <View style={{ gap: 4 }}>
+      {items.map((s, i) => (
+        <View key={i} style={{ flexDirection: rtlRow(), alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+          <Text style={{ fontSize: 12 }}>{s.kind === 'suspension' ? '🟥' : '🩹'}</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: theme.ink[900], textAlign: 'right' }} numberOfLines={1}>{s.nameHe}</Text>
+          <Text style={{ fontSize: 10.5, color: theme.ink[500], textAlign: 'right' }}>· {s.typeHe}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function PreMatchBlock({
+  preview,
+  homeName,
+  awayName,
+  onGamePress,
+}: {
+  preview: MatchPreviewApi;
+  homeName: string;
+  awayName: string;
+  onGamePress: (id: string) => void;
+}) {
+  const sides = [
+    { name: homeName, form: preview.form.home, out: preview.sidelined.home },
+    { name: awayName, form: preview.form.away, out: preview.sidelined.away },
+  ];
+  return (
+    <Card>
+      <Section title="לקראת המשחק">
+        {preview.aiSummary ? (
+          <View style={{ backgroundColor: '#fffbeb', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }}>
+            <Text style={{ fontSize: 13, lineHeight: 20, color: theme.ink[700], textAlign: 'right', writingDirection: 'rtl' }}>
+              {preview.aiSummary}
+            </Text>
+          </View>
+        ) : null}
+        <View style={{ flexDirection: rtlRow(), gap: 12 }}>
+          {sides.map((side) => (
+            <View key={side.name} style={{ flex: 1, backgroundColor: theme.ink[50], borderRadius: 14, padding: 12 }}>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: theme.ink[900], textAlign: 'center', marginBottom: 8 }} numberOfLines={1}>
+                {side.name}
+              </Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'right', marginBottom: 4 }}>כושר אחרון</Text>
+              <PreMatchForm items={side.form} onGamePress={onGamePress} />
+              <Text style={{ fontSize: 10, fontWeight: '700', color: theme.ink[500], textAlign: 'right', marginTop: 10, marginBottom: 4 }}>נפקדים</Text>
+              <PreMatchSidelined items={side.out} />
+            </View>
+          ))}
+        </View>
+      </Section>
+    </Card>
   );
 }
 

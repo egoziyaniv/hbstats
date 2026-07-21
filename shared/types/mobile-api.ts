@@ -438,6 +438,25 @@ export interface SofascoreMatchStat {
   awayExtra: string | null;
 }
 
+// Pre-match ("לקראת המשחק") preview — mirrors src/lib/match-preview.ts (JSON-safe).
+export interface MatchPreviewFormItem {
+  gameId: string;
+  result: 'W' | 'D' | 'L';
+  scoreHe: string;        // "2 - 1" from this team's perspective
+  opponentHe: string;
+  dateISO: string;
+}
+export interface MatchPreviewSidelinedItem {
+  nameHe: string;
+  typeHe: string;
+  kind: 'injury' | 'suspension';
+}
+export interface MatchPreviewApi {
+  form: { home: MatchPreviewFormItem[]; away: MatchPreviewFormItem[] };
+  sidelined: { home: MatchPreviewSidelinedItem[]; away: MatchPreviewSidelinedItem[] };
+  aiSummary: string | null;
+}
+
 export interface MatchPayload {
   match: {
     id: string;
@@ -458,6 +477,8 @@ export interface MatchPayload {
   sofascoreStats: SofascoreMatchStat[];
   h2h: H2H | null;
   predicted: { home: PredictedLineupPlayerSummary[]; away: PredictedLineupPlayerSummary[] } | null;
+  /** Pre-match preview (form + injuries/suspensions + AI). Null unless SCHEDULED. */
+  preview: MatchPreviewApi | null;
 }
 
 // ---------- Team ----------

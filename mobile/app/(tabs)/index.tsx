@@ -97,10 +97,17 @@ export default function HomeScreen() {
             <Card>
               <View style={{ gap: 6 }}>
                 {data.onThisDay.birthdays.map((b) => (
-                  <Text key={b.playerId} style={{ fontSize: 13, textAlign: 'right', writingDirection: 'rtl' }}>
-                    <Text style={{ color: theme.ink[900], fontWeight: '800' }}>{b.nameHe}</Text>
-                    <Text style={{ color: theme.ink[500] }}>{`  בן ${b.age}${b.currentTeam ? ` · ${b.currentTeam.nameHe}` : ''}`}</Text>
-                  </Text>
+                  // Deterministic RTL: a row packed from the right (rtlRow + default
+                  // flex-start) puts the bold name on the right and the meta to its
+                  // left. A nested <Text> here lost the parent's textAlign → rendered left.
+                  <View key={b.playerId} style={{ flexDirection: rtlRow(), alignItems: 'baseline', flexWrap: 'wrap', gap: 6 }}>
+                    <Text style={{ color: theme.ink[900], fontWeight: '800', fontSize: 13, textAlign: 'right' }}>
+                      {b.nameHe}
+                    </Text>
+                    <Text style={{ color: theme.ink[500], fontSize: 13, textAlign: 'right' }}>
+                      {`בן ${b.age}${b.currentTeam ? ` · ${b.currentTeam.nameHe}` : ''}`}
+                    </Text>
+                  </View>
                 ))}
               </View>
             </Card>

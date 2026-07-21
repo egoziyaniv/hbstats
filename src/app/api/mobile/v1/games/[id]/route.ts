@@ -238,9 +238,35 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     })),
     h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
     predicted: await buildPredictedBlock(raw),
+    preview: await buildPreviewBlock(raw),
   };
 
   return NextResponse.json(payload);
+}
+
+/** Pre-match ("לקראת המשחק") block — recent form + injuries/suspensions + AI
+ *  summary. Only for not-yet-started matches; mirrors the web game page. */
+async function buildPreviewBlock(
+  raw: NonNullable<Awaited<ReturnType<typeof import('@/lib/mobile-details-api').getMobileGamePayload>>>,
+): Promise<import('@shared/types/mobile-api').MatchPreviewApi | null> {
+  if (raw.game.status !== 'SCHEDULED') return null;
+  const prisma = (await import('@/lib/prisma')).default;
+  const g = await prisma.game.findUnique({
+    where: { id: raw.game.id },
+    select: {
+      id: true,
+      seasonId: true,
+      dateTime: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      homeTeam: { select: { nameHe: true, nameEn: true } },
+      awayTeam: { select: { nameHe: true, nameEn: true } },
+      competition: { select: { nameHe: true, nameEn: true } },
+    },
+  });
+  if (!g) return null;
+  const { buildMatchPreview } = await import('@/lib/match-preview');
+  return buildMatchPreview(g);
 }
 
 async function buildPredictedBlock(raw: NonNullable<Awaited<ReturnType<typeof import('@/lib/mobile-details-api').getMobileGamePayload>>>) {
