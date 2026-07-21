@@ -208,12 +208,16 @@ function buildEntries(sideData, teamId, lookup, coachName) {
     const name = e.player?.name || e.player?.shortName || 'שחקן';
     const jersey = parseInt(e.jerseyNumber ?? e.shirtNumber ?? e.player?.jerseyNumber, 10);
     const pos = e.position || e.player?.position || null;
+    // Per-player match rating (0-10). Sofascore nests it under statistics.rating
+    // for games it rates; absent for many lower-tier fixtures.
+    const rating = typeof e.statistics?.rating === 'number' ? e.statistics.rating : null;
     entries.push({
       role: e.substitute ? 'SUBSTITUTE' : 'STARTER',
       participantType: 'PLAYER',
       participantName: name,
       jerseyNumber: Number.isFinite(jersey) ? jersey : null,
       positionName: pos ? (POS_HE[pos] || pos) : null,
+      rating,
       formation,
       teamId,
       playerId: linkPlayer(lookup, name),
@@ -309,7 +313,7 @@ async function main() {
   for (const [label, side, teamId] of [['HOME', lineups.home, game.homeTeamId], ['AWAY', lineups.away, game.awayTeamId]]) {
     console.log(`\n${label} (${label === 'HOME' ? game.homeTeam.nameHe : game.awayTeam.nameHe}) — ${side?.formation || '?'}`);
     for (const e of entries.filter((x) => x.teamId === teamId && x.role !== 'COACH')) {
-      console.log(`  ${e.role === 'STARTER' ? '⚽' : '🔁'} #${e.jerseyNumber ?? '?'} ${e.positionName || ''} ${e.participantName} ${e.playerId ? '→ ' + e.playerId : '(unlinked)'}`);
+      console.log(`  ${e.role === 'STARTER' ? '⚽' : '🔁'} #${e.jerseyNumber ?? '?'} ${e.positionName || ''} ${e.participantName}${e.rating != null ? ` [★${e.rating}]` : ''} ${e.playerId ? '→ ' + e.playerId : '(unlinked)'}`);
     }
   }
 
