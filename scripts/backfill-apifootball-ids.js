@@ -39,7 +39,9 @@ const prisma = new PrismaClient();
 })();
 
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
-const SEASON_YEAR = parseInt(arg('season', '2026'), 10);
+// Israeli season runs Aug-May; from July (month 6) the new season year starts.
+function defaultSeasonYear() { const now = new Date(); return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1; }
+const SEASON_YEAR = arg('season') ? parseInt(arg('season'), 10) : defaultSeasonYear();
 const TEAM_FILTER = arg('team') ? parseInt(arg('team'), 10) : null;
 const EXECUTE = process.argv.includes('--execute');
 const KEY = process.env.API_FOOTBALL_KEY;
@@ -62,8 +64,12 @@ async function main() {
   console.log(`=== backfill-apifootball-ids — season=${SEASON_YEAR}${TEAM_FILTER ? ` team=${TEAM_FILTER}` : ''} ${EXECUTE ? '(EXECUTE)' : '(DRY RUN)'} ===\n`);
   const season = await prisma.season.findFirst({ where: { year: SEASON_YEAR }, select: { id: true } });
   if (!season) { console.error(`No ${SEASON_YEAR} season`); process.exit(1); }
+  // With --team: that one team. Without: all current Ligat Ha'al teams (avoids
+  // fetching squads for the dozens of foreign European opponents in the season).
   const teams = await prisma.team.findMany({
-    where: { seasonId: season.id, apiFootballId: TEAM_FILTER ? TEAM_FILTER : { not: null } },
+    where: TEAM_FILTER
+      ? { seasonId: season.id, apiFootballId: TEAM_FILTER }
+      : { seasonId: season.id, apiFootballId: { not: null }, standings: { some: { competitionId: 'comp_liga_haal' } } },
     select: { id: true, nameHe: true, nameEn: true, apiFootballId: true },
   });
   console.log(`Teams in scope: ${teams.length}\n`);

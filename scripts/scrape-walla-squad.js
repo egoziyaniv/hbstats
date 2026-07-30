@@ -28,6 +28,9 @@ const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ?
 const EXECUTE = process.argv.includes('--execute');
 const ALL = process.argv.includes('--all');
 const TEAM = arg('team') ? parseInt(arg('team'), 10) : null;
+// Israeli season runs Aug-May; from July (month 6) the new season year starts.
+function defaultSeasonYear() { const now = new Date(); return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1; }
+const SEASON_YEAR = arg('season') ? parseInt(arg('season'), 10) : defaultSeasonYear();
 
 // Walla team id → our apiFootballId (Ligat Ha'al 2026/27; from walla-squads memory)
 const WALLA_TO_AF = {
@@ -70,7 +73,7 @@ async function fetchWallaSquad(wallaId) {
 async function reconcileTeam(af) {
   const wallaId = AF_TO_WALLA[af];
   if (!wallaId) { console.log(`  no Walla id for af=${af}`); return; }
-  const team = await prisma.team.findFirst({ where: { apiFootballId: af, season: { year: 2026 } }, select: { id: true, nameHe: true } });
+  const team = await prisma.team.findFirst({ where: { apiFootballId: af, season: { year: SEASON_YEAR } }, select: { id: true, nameHe: true } });
   if (!team) return;
   const squad = await fetchWallaSquad(wallaId);
   // ONLY current-squad players (apiFootballId set) — avoids old/departed rows
