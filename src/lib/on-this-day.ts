@@ -60,8 +60,13 @@ type CandidateGame = {
   roundNameEn: string | null;
   homeTeam: { id: string; nameHe: string; apiFootballId: number | null };
   awayTeam: { id: string; nameHe: string; apiFootballId: number | null };
-  competition: { nameHe: string | null } | null;
+  competition: { nameHe: string | null; apiFootballId: number | null } | null;
 };
+
+// UEFA club competitions (Champions/Europa/Conference League) — a European
+// night for an Israeli club is rare and memorable, so it outranks a routine
+// domestic game of the same date (but not a genuine final).
+const EUROPEAN_COMP_API_IDS = new Set([2, 3, 848]);
 
 function isDerby(a: string, b: string): boolean {
   return DERBY_PAIRS.some(
@@ -87,6 +92,9 @@ export function pickAnniversaryMatch(
     // "Quarter-finals", "Semi-finals", "8th Finals", "5th Place Final" etc.
     if (/^finals?$/i.test((g.roundNameEn || '').trim())) score += 100;
     if (isDerby(g.homeTeam.nameHe, g.awayTeam.nameHe)) score += 50;
+    // A European (CL/EL/ECL) game is a notable occasion — surface it on its
+    // anniversary over a routine domestic match.
+    if (g.competition?.apiFootballId != null && EUROPEAN_COMP_API_IDS.has(g.competition.apiFootballId)) score += 45;
     if (yearsAgo % 10 === 0 || yearsAgo === 25) score += 20;
     // Personalisation: a game involving the viewer's favourite team wins over a
     // generic higher-scoring one, but not over a genuine final.
@@ -128,7 +136,7 @@ export async function getOnThisDay(now = new Date(), favoriteTeamApiIds: number[
         id: true, dateTime: true, homeScore: true, awayScore: true, roundNameEn: true,
         homeTeam: { select: { id: true, nameHe: true, apiFootballId: true } },
         awayTeam: { select: { id: true, nameHe: true, apiFootballId: true } },
-        competition: { select: { nameHe: true } },
+        competition: { select: { nameHe: true, apiFootballId: true } },
       },
     });
     const picked = pickAnniversaryMatch(candidates, now, favoriteTeamApiIds);

@@ -26,7 +26,7 @@ const mkGame = (over: Record<string, unknown> = {}) => ({
   roundNameEn: 'Round 12',
   homeTeam: { id: 'a', nameHe: 'מכבי חיפה', apiFootballId: 100 },
   awayTeam: { id: 'b', nameHe: 'הפועל תל אביב', apiFootballId: 200 },
-  competition: { nameHe: 'ליגת העל' },
+  competition: { nameHe: 'ליגת העל', apiFootballId: 383 },
   ...over,
 });
 
@@ -42,8 +42,8 @@ describe('pickAnniversaryMatch scoring', () => {
   it('prefers a derby over an ordinary game with equal goals', () => {
     const derby = mkGame({
       id: 'derby',
-      homeTeam: { id: 'a', nameHe: 'מכבי תל אביב' },
-      awayTeam: { id: 'b', nameHe: 'הפועל תל אביב' },
+      homeTeam: { id: 'a', nameHe: 'מכבי תל אביב', apiFootballId: 100 },
+      awayTeam: { id: 'b', nameHe: 'הפועל תל אביב', apiFootballId: 200 },
     });
     const plain = mkGame({ id: 'plain' });
     expect(pickAnniversaryMatch([plain, derby], now)!.id).toBe('derby');
@@ -61,6 +61,14 @@ describe('pickAnniversaryMatch scoring', () => {
     const g1 = mkGame({ id: 'g1', homeScore: 2, awayScore: 1 });
     const g2 = mkGame({ id: 'g2', homeScore: 3, awayScore: 3 });
     expect(pickAnniversaryMatch([g1, g2], now)!.id).toBe('g2');
+  });
+
+  it('surfaces a European game over a routine domestic game of the same date', () => {
+    // A famous European night (e.g. Beer Sheva 3-2 Inter): 25 + 45 = 70,
+    // beats a 3-3 domestic goalfest (30).
+    const euro = mkGame({ id: 'euro', homeScore: 3, awayScore: 2, competition: { nameHe: 'הליגה האירופית', apiFootballId: 3 } });
+    const domestic = mkGame({ id: 'domestic', homeScore: 3, awayScore: 3 });
+    expect(pickAnniversaryMatch([domestic, euro], now)!.id).toBe('euro');
   });
 
   it('returns null on empty input', () => {
