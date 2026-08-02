@@ -14,6 +14,7 @@ import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
 import { getCurrentSeasonStartYear, getHomepageLiveSnapshots, getIsraeliTeamApiFootballIds } from '@/lib/home-live';
 import HomeLivePanel from '@/components/HomeLivePanel';
 import OnThisDayCard from '@/components/OnThisDayCard';
+import { HeroMatchCarousel, type HeroSlide } from '@/components/HeroMatchCarousel';
 import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
@@ -682,70 +683,48 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   const telegramFeedMessages = featuredTelegramMessage ? telegramMessages.slice(1) : telegramMessages;
 
   const heroGame = liveGame || nextGame || lastGame;
-  const heroCompleted = heroGame?.status === 'COMPLETED';
-  const heroLive = heroGame?.status === 'ONGOING';
-  // The Game row's score isn't refreshed for European ties (matchday-live only
-  // covers Israeli comps), but the live snapshot is (~55s). Prefer it for a
-  // fresh scoreline + live minute in the hero.
-  const heroLiveItem = heroLive && heroGame
-    ? initialLiveItems.find((it) => it.gameHref === `/games/${heroGame.id}`) || null
-    : null;
-  const heroHomeScore = heroLiveItem?.homeScore ?? heroGame?.homeScore ?? 0;
-  const heroAwayScore = heroLiveItem?.awayScore ?? heroGame?.awayScore ?? 0;
+
+  // Rotating hero: live Israeli games first, then the soonest ranked upcoming
+  // games (already Israeli-filtered + preference-ranked), deduped. Live scores
+  // come from the fresh snapshot (the Game row isn't refreshed for European ties).
+  const liveIsraeliGames = ongoingGamesRaw
+    .filter(involvesIsraeliTeam)
+    .sort((a, b) => prefRank(a) - prefRank(b) || +new Date(a.dateTime) - +new Date(b.dateTime));
+  const buildHeroSlide = (g: {
+    id: string; status: string; dateTime: Date; homeScore: number | null; awayScore: number | null;
+    homeTeam: { nameHe: string | null; nameEn: string }; awayTeam: { nameHe: string | null; nameEn: string };
+    competition: { nameHe: string | null; nameEn: string; apiFootballId: number | null } | null;
+    season?: { name: string } | null;
+  }): HeroSlide => {
+    const isLive = g.status === 'ONGOING';
+    const isCompleted = g.status === 'COMPLETED';
+    const liveItem = isLive ? initialLiveItems.find((it) => it.gameHref === `/games/${g.id}`) || null : null;
+    return {
+      id: g.id,
+      status: g.status,
+      label: isLive ? 'משחק חי' : isCompleted ? 'משחק אחרון' : 'המשחק הבא',
+      seasonName: g.season?.name ?? latestSeason.name,
+      competitionName: getCompetitionDisplayName(g.competition),
+      homeName: getTeamLabel(g.homeTeam),
+      awayName: getTeamLabel(g.awayTeam),
+      homeScore: (isLive ? liveItem?.homeScore ?? g.homeScore : g.homeScore) ?? 0,
+      awayScore: (isLive ? liveItem?.awayScore ?? g.awayScore : g.awayScore) ?? 0,
+      minuteLabel: isLive ? liveItem?.minuteLabel || 'חי' : null,
+      dateLabel: formatDate(g.dateTime, true),
+      showScore: isLive || isCompleted,
+      showTeaser: g.status === 'SCHEDULED',
+    };
+  };
+  const heroSourcePool = [...liveIsraeliGames, ...rankedUpcoming];
+  const heroSourceDeduped = heroSourcePool.filter((g, idx) => heroSourcePool.findIndex((x) => x.id === g.id) === idx).slice(0, 6);
+  const heroSlides: HeroSlide[] = heroSourceDeduped.length
+    ? heroSourceDeduped.map(buildHeroSlide)
+    : lastGame ? [buildHeroSlide(lastGame)] : [];
 
   return (
     <div className="min-h-screen">
-      {/* ── HERO: Featured Match ── */}
-      {heroGame ? (
-        <section className="hero-featured-match relative overflow-hidden">
-          <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-3">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`h-1.5 w-1.5 rounded-full ${heroGame.status === 'ONGOING' ? 'animate-pulse bg-yellow-300' : heroCompleted ? 'bg-emerald-300' : 'bg-white/50'}`} />
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">
-                  {heroGame.status === 'ONGOING' ? 'משחק חי' : heroCompleted ? 'משחק אחרון' : 'המשחק הבא'}
-                </span>
-              </div>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/50">{(heroGame as { season?: { name: string } }).season?.name ?? latestSeason.name}</span>
-            </div>
-            <Link href={`/games/${heroGame.id}`} className="block">
-              <div className="text-center">
-                <div className="text-[10px] font-medium text-white/35">{getCompetitionDisplayName(heroGame.competition)}</div>
-                <div className="mt-2 flex items-center justify-center gap-6 md:gap-12">
-                  <div className="min-w-[90px] text-center">
-                    <div className="text-lg font-black text-white md:text-2xl leading-tight">{getTeamLabel(heroGame.homeTeam)}</div>
-                    <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">בית</div>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    {heroCompleted || heroLive ? (
-                      <div className="rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm ring-1 ring-white/10">
-                        <div className="text-3xl font-black tabular-nums text-white md:text-4xl">
-                          {heroLive ? heroHomeScore : heroGame.homeScore ?? 0}<span className="mx-2 text-white/25">–</span>{heroLive ? heroAwayScore : heroGame.awayScore ?? 0}
-                        </div>
-                        <div className={`mt-0.5 text-center text-[9px] font-bold tracking-widest ${heroLive ? 'animate-pulse text-yellow-300' : 'text-emerald-300'}`}>
-                          {heroLive ? (heroLiveItem?.minuteLabel || 'חי') : 'סיום'}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm ring-1 ring-white/10">
-                        <div className="text-2xl font-black text-white md:text-3xl">VS</div>
-                        <div className="mt-0.5 text-center text-[10px] text-white/50">{formatDate(heroGame.dateTime, true)}</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-[90px] text-center">
-                    <div className="text-lg font-black text-white md:text-2xl leading-tight">{getTeamLabel(heroGame.awayTeam)}</div>
-                    <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">חוץ</div>
-                  </div>
-                </div>
-                {heroGame.status === 'SCHEDULED' ? (
-                  <div className="mt-3 text-[11px] font-bold text-white/70">לקראת המשחק · כושר, פציעות ותצוגה ←</div>
-                ) : null}
-              </div>
-            </Link>
-          </div>
-        </section>
-      ) : null}
+      {/* ── HERO: rotating featured matches (live + soonest upcoming, ranked) ── */}
+      <HeroMatchCarousel slides={heroSlides} />
 
       {/* ── Team/League selector ── */}
       <HomeFilterBar teams={seasonTeams} selectedTeamIds={selectedTeamIds} />

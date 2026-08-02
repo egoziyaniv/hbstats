@@ -178,6 +178,13 @@ html:not([data-theme="modern"]) .navbar-link-active {
   width: max-content;
 }
 
+/* ── Hero carousel slide fade ────────────────────────────────────────────── */
+@keyframes hero-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-slide-fade { animation: hero-fade 0.45s ease; }
+
 .ticker-bar:hover .ticker-track {
   animation-play-state: paused;
 }
