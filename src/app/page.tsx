@@ -11,7 +11,7 @@ import {
   type TelegramChannelMessage,
 } from '@/lib/telegram';
 import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
-import { getCurrentSeasonStartYear, getHomepageLiveSnapshots } from '@/lib/home-live';
+import { getCurrentSeasonStartYear, getHomepageLiveSnapshots, getIsraeliTeamApiFootballIds } from '@/lib/home-live';
 import HomeLivePanel from '@/components/HomeLivePanel';
 import OnThisDayCard from '@/components/OnThisDayCard';
 import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
@@ -479,19 +479,33 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   // Find suspended players: red card in current or previous round, OR 5th/9th yellow
   const goalMinutesData = goalMinutesRaw.map((row) => ({ name: row.bucket, goals: Number(row.goals) }));
 
-  // Prefer the favorite team's next game; if it has none upcoming (e.g. Beer
-  // Sheva's CL-qualifier opponent isn't drawn yet), fall back to the soonest
-  // game of any team so the hero never reverts to an old result.
-  const upcomingByCompetition = nextGamesRaw.filter((game) =>
-    gameMatchesPreferredCompetition(game, selectedCompetitionApiIds)
-  );
-  // When a team is selected, surface only THAT team's next game (any competition,
-  // like the last-game card) — never fall back to another club's upcoming
-  // friendly. Without a team (anonymous / no favourites) keep the first upcoming
-  // game in the league-scope.
+  // Only surface games that involve an Israeli team. A foreign-vs-foreign
+  // European qualifier (e.g. Celje vs Ararat-Armenia) our feeds pull in is
+  // noise on an Israeli site. All domestic games are Israeli-vs-Israeli, so
+  // this only drops those foreign European fixtures.
+  const israeliApiIds = await getIsraeliTeamApiFootballIds();
+  const involvesIsraeliTeam = (g: { homeTeam?: { apiFootballId: number | null } | null; awayTeam?: { apiFootballId: number | null } | null } | null | undefined) =>
+    !!g && ((g.homeTeam?.apiFootballId != null && israeliApiIds.has(g.homeTeam.apiFootballId)) ||
+            (g.awayTeam?.apiFootballId != null && israeliApiIds.has(g.awayTeam.apiFootballId)));
+  const inSelectedLeague = (g: { competition?: { apiFootballId: number | null } | null } | null | undefined) =>
+    selectedCompetitionApiIds.length > 0 && g?.competition?.apiFootballId != null && selectedCompetitionApiIds.includes(g.competition.apiFootballId);
+  // Preference rank: the user's selected team(s) first, then their selected
+  // league(s), then any other Israeli game (incl. Israeli teams' European ties).
+  // Ties broken by soonest kickoff.
+  const prefRank = (g: { homeTeamId: string; awayTeamId: string; competition?: { apiFootballId: number | null } | null }) => {
+    if (selectedTeamIds.length && gameMatchesPreferredTeam(g, selectedTeamIds)) return 0;
+    if (inSelectedLeague(g)) return 1;
+    return 2;
+  };
+  const rankedUpcoming = nextGamesRaw
+    .filter(involvesIsraeliTeam)
+    .sort((a, b) => prefRank(a) - prefRank(b) || +new Date(a.dateTime) - +new Date(b.dateTime));
+  // A team follower keeps their team's next game as the hero (falling back to
+  // its last game below if none is upcoming); everyone else gets the best-ranked
+  // Israeli game (selected league first, then soonest).
   const nextGame = selectedTeamIds.length
-    ? nextGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
-    : upcomingByCompetition[0] || null;
+    ? rankedUpcoming.find((game) => gameMatchesPreferredTeam(game, selectedTeamIds)) || null
+    : rankedUpcoming[0] || null;
   // A game in progress RIGHT NOW takes priority over the next scheduled game as
   // the hero. Crucial for European away ties (e.g. Beer Sheva at Víkingur): the
   // live game is a real fixture in our DB (status ONGOING) but isn't in the
@@ -503,9 +517,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
     orderBy: [{ dateTime: 'asc' }],
     take: 24,
   });
-  const liveGame = selectedTeamIds.length
-    ? ongoingGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
-    : ongoingGamesRaw.filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] || null;
+  const liveGame = ongoingGamesRaw
+    .filter(involvesIsraeliTeam)
+    .sort((a, b) => prefRank(a) - prefRank(b) || +new Date(a.dateTime) - +new Date(b.dateTime))[0] || null;
   // The take:24 window over ALL clubs' completed games can drop a selected
   // team's real last game once ≥24 other-club games are newer (busy season /
   // pre-season friendlies). When a team is selected, query ITS last completed
@@ -548,7 +562,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
     ? nextRoundGamesRaw
         .filter((game) => game.seasonId === nextGame.seasonId)
         .filter((game) => (nextRoundCompetitionId ? game.competitionId === nextRoundCompetitionId : true) && getRoundLabel(game) === nextRoundLabel)
-        .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))
+        .filter(involvesIsraeliTeam)
     : [];
   // Sort: favorite team games first, then by date
   const nextRoundGames = nextRoundGamesAll.sort((a, b) => {

@@ -430,16 +430,27 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
     getOnThisDay(new Date(), storedUser?.favoriteTeamApiIds || []).catch((e) => { console.error('[on-this-day]', e); return null; }),
   ]);
 
-  // Prefer the favorite team's next game; fall back to the soonest game of any
-  // team so the hero never reverts to an old result (mirrors the web home).
-  const upcomingByCompetition = nextGamesRaw.filter((game) =>
-    gameMatchesPreferredCompetition(game, selectedCompetitionApiIds)
-  );
-  // Team selected → only that team's next game (any competition), never another
-  // club's upcoming friendly; otherwise the first upcoming game in league-scope.
+  // Only surface Israeli-team games (a foreign-vs-foreign European qualifier our
+  // feeds pull in is noise), and rank the user's selected team(s) first, then
+  // their selected league(s), then any other Israeli game. Mirrors the web home.
+  const involvesIsraeliTeam = (g: { homeTeam?: { apiFootballId: number | null } | null; awayTeam?: { apiFootballId: number | null } | null }) =>
+    (g.homeTeam?.apiFootballId != null && israeliTeamApiIds.has(g.homeTeam.apiFootballId)) ||
+    (g.awayTeam?.apiFootballId != null && israeliTeamApiIds.has(g.awayTeam.apiFootballId));
+  const inSelectedLeague = (g: { competition?: { apiFootballId: number | null } | null }) =>
+    selectedCompetitionApiIds.length > 0 && g.competition?.apiFootballId != null && selectedCompetitionApiIds.includes(g.competition.apiFootballId);
+  const prefRank = (g: { homeTeamId: string; awayTeamId: string; competition?: { apiFootballId: number | null } | null }) => {
+    if (selectedTeamIds.length && gameMatchesPreferredTeam(g, selectedTeamIds)) return 0;
+    if (inSelectedLeague(g)) return 1;
+    return 2;
+  };
+  const rankedUpcoming = nextGamesRaw
+    .filter(involvesIsraeliTeam)
+    .sort((a, b) => prefRank(a) - prefRank(b) || +new Date(a.dateTime) - +new Date(b.dateTime));
+  // A team follower keeps their team's next game; everyone else gets the
+  // best-ranked Israeli game (selected league first, then soonest).
   const nextGame = selectedTeamIds.length
-    ? nextGamesRaw.filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))[0] || null
-    : upcomingByCompetition[0] || null;
+    ? rankedUpcoming.find((game) => gameMatchesPreferredTeam(game, selectedTeamIds)) || null
+    : rankedUpcoming[0] || null;
   // The take:24 window over ALL clubs' completed games can drop a selected
   // team's real last game once ≥24 other-club games are newer. When a team is
   // selected, query ITS last completed game directly so lastMatch is accurate.
@@ -485,8 +496,7 @@ export async function getMobileHomePayload(searchParams?: MobileSearchParams) {
   const nextRoundGames = nextGame
     ? nextRoundGamesRaw
         .filter((game) => (nextRoundCompetitionId ? game.competitionId === nextRoundCompetitionId : true) && getRoundLabel(game) === nextRoundLabel)
-        .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
-        .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))
+        .filter(involvesIsraeliTeam)
         .slice(0, 6)
     : [];
 
