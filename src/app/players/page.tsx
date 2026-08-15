@@ -306,7 +306,14 @@ export default async function PlayersPage({
       return {
         ...player,
         stat,
-        isZeroStatPlayer: !hasSeasonStats && !seasonalEvidencePlayerIds.has(player.id),
+        // Pre-kickoff, current-season squad members have no match stats yet.
+        // Treat an API-synced squad member (apiFootballId set) in the current
+        // season as visible so the full published roster shows; stale departed
+        // entries (no apiFootballId, no stats/evidence) still stay hidden.
+        isZeroStatPlayer:
+          !hasSeasonStats &&
+          !seasonalEvidencePlayerIds.has(player.id) &&
+          !(selectedSeason?.year === getCurrentSeasonStartYear() && player.apiFootballId != null),
       };
     })
     .filter((player) => (displayZeroStatPlayers ? true : !player.isZeroStatPlayer))
