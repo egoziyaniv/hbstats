@@ -4,6 +4,7 @@ import { derivePlayerDeepStats } from '@/lib/deep-stats';
 import { getDisplayMode } from '@/lib/display-mode';
 import { getDisplayZeroStatPlayersSetting } from '@/lib/player-zero-stat-settings';
 import { formatPlayerName } from '@/lib/player-display';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 import prisma from '@/lib/prisma';
 import { PlayerPhoto } from '@/components/MediaImage';
 
@@ -104,7 +105,10 @@ export default async function PlayersPage({
     orderBy: { nameHe: 'asc' },
   });
 
-  const selectedSeasonId = searchParams?.season || seasons.find((season) => season.year <= 2025)?.id || seasons[0]?.id;
+  // Default to the current season (squads are populated pre-kickoff via the API
+  // squad sync, unlike standings/stats which wait for real league play). Bounded
+  // by getCurrentSeasonStartYear so a not-yet-real future season is skipped.
+  const selectedSeasonId = searchParams?.season || seasons.find((season) => season.year <= getCurrentSeasonStartYear())?.id || seasons[0]?.id;
   const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
   const selectedCompetitionId = searchParams?.competitionId || DEFAULT_COMPETITION_ID;
   const filterByCompetition = selectedCompetitionId !== 'all';
