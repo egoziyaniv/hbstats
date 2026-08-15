@@ -9,4 +9,7 @@ cd /home/hbs/hbstats || exit 1
 echo "=== $(date -u +%FT%TZ) cron-squad-names ==="
 /usr/bin/node scripts/backfill-apifootball-ids.js --execute
 /usr/bin/node scripts/scrape-walla-squad.js --all --execute
+# Remove players left stale in an old team after a transfer (only when confirmed
+# in another Israeli team's current squad + no game data — never on mere absence).
+/usr/bin/node scripts/prune-departed-squad.js --league all --execute
 echo "=== done ==="
