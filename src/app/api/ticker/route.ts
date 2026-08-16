@@ -21,8 +21,11 @@ export async function GET() {
     awayTeam: { select: { nameHe: true, nameEn: true } },
   };
 
+  // Only count a game as live if it kicked off within the last 5h — a game left
+  // stuck ONGOING (e.g. a postponed fixture never resolved) must not show as live.
+  const liveWindowStart = new Date(now.getTime() - 5 * 60 * 60 * 1000);
   const [live, recent, upcoming] = await Promise.all([
-    prisma.game.findMany({ where: { status: 'ONGOING', ...seasonFilter }, include: teams, take: 6 }),
+    prisma.game.findMany({ where: { status: 'ONGOING', ...seasonFilter, dateTime: { gte: liveWindowStart } }, include: teams, take: 6 }),
     prisma.game.findMany({ where: { status: 'COMPLETED', ...seasonFilter }, orderBy: { dateTime: 'desc' }, include: teams, take: 8 }),
     prisma.game.findMany({ where: { status: 'SCHEDULED', ...seasonFilter, dateTime: { gte: now } }, orderBy: { dateTime: 'asc' }, include: teams, take: 4 }),
   ]);

@@ -512,8 +512,13 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
   // live game is a real fixture in our DB (status ONGOING) but isn't in the
   // Israel-filtered live feed, so without this the hero jumped ahead to the
   // return leg — making a live AWAY game look like an upcoming HOME game.
+  // Guard against a stale ONGOING status: a game only counts as "live" if it
+  // kicked off within the last 5h (a real match, incl. ET/pens, is well under
+  // that). Games left stuck ONGOING (e.g. a postponed fixture that was never
+  // resolved to its final result) must never show as live.
+  const liveWindowStart = new Date(now.getTime() - 5 * 60 * 60 * 1000);
   const ongoingGamesRaw = await prisma.game.findMany({
-    where: { status: 'ONGOING' },
+    where: { status: 'ONGOING', dateTime: { gte: liveWindowStart } },
     include: { homeTeam: true, awayTeam: true, competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } }, prediction: true, season: { select: { name: true } } },
     orderBy: [{ dateTime: 'asc' }],
     take: 24,
