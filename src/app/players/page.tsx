@@ -316,6 +316,10 @@ export default async function PlayersPage({
           !(selectedSeason?.year === getCurrentSeasonStartYear() && player.apiFootballId != null),
       };
     })
+    // Hide players marked departed (left the club mid-window — e.g. a transfer
+    // abroad the API squad lags on). Their record + game history (goals etc.)
+    // are preserved; they're just not shown in the current-squad directory.
+    .filter((player) => !(player.additionalInfo as { departed?: boolean } | null)?.departed)
     .filter((player) => (displayZeroStatPlayers ? true : !player.isZeroStatPlayer))
     .sort((left, right) => {
       if (left.isZeroStatPlayer !== right.isZeroStatPlayer) {
