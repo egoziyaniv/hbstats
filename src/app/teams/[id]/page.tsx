@@ -51,6 +51,8 @@ async function buildContractExpiry(
 
   const byYear = new Map<number, ContractPlayer[]>();
   for (const p of players) {
+    // A player who left the club has no relevant contract — skip him here.
+    if ((p.additionalInfo as { departed?: boolean } | null)?.departed) continue;
     let until = readContractUntil(p.additionalInfo);
     if (!until && p.canonicalPlayerId) until = readContractUntil(canonicalById.get(p.canonicalPlayerId));
     if (!until) continue;

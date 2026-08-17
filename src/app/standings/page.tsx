@@ -136,19 +136,22 @@ export default async function StandingsPage({
   searchParams?: { season?: string; view?: string; round?: string; competition?: string; phase?: string };
 }) {
   const displayMode = await getDisplayMode(searchParams?.view);
-  const seasons = await prisma.season.findMany({
+  const currentSeasonStartYear = getCurrentSeasonStartYear();
+  const allSeasons = await prisma.season.findMany({
     orderBy: { year: 'desc' },
   });
+  // Hide seasons that haven't started yet (e.g. a 2027-28 row created only to
+  // hold upcoming European fixtures) — they carry no league table and aren't
+  // relevant yet. Keep the season currently underway and every past one.
+  const seasons = allSeasons.filter((s) => s.year <= currentSeasonStartYear);
 
-  // Default to the latest season that has actually started — skip a future
-  // season (e.g. one created only to hold upcoming European fixtures) that has
-  // no league table yet. All seasons remain selectable via the dropdown.
-  // Default to the newest season with real league play (skips a pre-season
-  // upcoming year that only holds fixtures/friendlies).
+  // Default to the season currently underway (e.g. 2026-27) so the table opens
+  // on the live campaign; fall back to the newest season with real league play,
+  // then the most recent available.
   const defaultDisplaySeasonId = await getDefaultDisplaySeasonId();
   const defaultSeason =
+    seasons.find((s) => s.year === currentSeasonStartYear) ||
     seasons.find((s) => s.id === defaultDisplaySeasonId) ||
-    seasons.find((s) => s.year <= getCurrentSeasonStartYear()) ||
     seasons[0];
   const selectedSeasonId = searchParams?.season || defaultSeason?.id || null;
   const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || defaultSeason || null;

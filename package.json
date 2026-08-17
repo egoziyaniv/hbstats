@@ -1,6 +1,6 @@
 {
   "name": "soccer-league-management",
-  "version": "0.24.21",
+  "version": "0.24.22",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3100",
