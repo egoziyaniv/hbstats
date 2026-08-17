@@ -542,6 +542,8 @@ export default async function PlayerPage({
     );
   }
 
+  const isDeparted = !!(displayPlayerEntry?.additionalInfo as { departed?: boolean } | null)?.departed;
+
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -549,7 +551,12 @@ export default async function PlayerPage({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-5">
               {displayPhoto ? (
-                <img src={displayPhoto} alt={playerDisplayName} className="h-28 w-28 rounded-full border border-stone-200 bg-white object-cover" />
+                <div className="relative shrink-0">
+                  <img src={displayPhoto} alt={playerDisplayName} className={`h-28 w-28 rounded-full border border-stone-200 bg-white object-cover ${isDeparted ? 'opacity-70 grayscale' : ''}`} />
+                  {isDeparted ? (
+                    <span className="absolute inset-x-0 bottom-0 mx-auto w-fit rounded-full bg-stone-900/85 px-2.5 py-0.5 text-[10px] font-black tracking-wide text-white shadow">עזב</span>
+                  ) : null}
+                </div>
               ) : null}
               <div>
                 <h1 className="text-3xl font-black text-stone-900">{playerDisplayName}</h1>
@@ -603,12 +610,18 @@ export default async function PlayerPage({
             <div className="mt-4 space-y-3 text-sm">
               <StatRow label="עמדה נוכחית" value={displayPlayerEntry.position || 'לא צוין'} />
               <StatRow label="לאום" value={canonicalPlayer.nationalityHe || canonicalPlayer.nationalityEn || 'לא צוין'} />
-              {flashscoreExtras.marketValue ? (
-                <StatRow label="שווי שוק" value={flashscoreExtras.marketValue} />
-              ) : null}
-              {flashscoreExtras.contractUntil ? (
-                <StatRow label="חוזה עד" value={formatBirthDate(new Date(flashscoreExtras.contractUntil))} />
-              ) : null}
+              {isDeparted ? (
+                <StatRow label="סטטוס" value="עבר קבוצה · לא בסגל הנוכחי" />
+              ) : (
+                <>
+                  {flashscoreExtras.marketValue ? (
+                    <StatRow label="שווי שוק" value={flashscoreExtras.marketValue} />
+                  ) : null}
+                  {flashscoreExtras.contractUntil ? (
+                    <StatRow label="חוזה עד" value={formatBirthDate(new Date(flashscoreExtras.contractUntil))} />
+                  ) : null}
+                </>
+              )}
               <StatRow label="קבוצות בקריירה" value={String(new Set(linkedPlayers.map((player) => player.teamId)).size)} />
               <StatRow label="עונות במערכת" value={String(new Set(linkedPlayers.map((player) => player.team.seasonId)).size)} />
               <StatRow label="תמונות נוספות" value={String(uploads.length)} />
@@ -943,6 +956,9 @@ function PremierPlayerView({
     { label: 'עבירות שסחט', value: formatMetric(apiStats.foulsDrawn) },
   ];
 
+  // Left the club (flagged departed) — show it instead of an active contract.
+  const isDeparted = !!displayPlayerEntry?.additionalInfo?.departed;
+
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -951,11 +967,16 @@ function PremierPlayerView({
             <div className="hero-featured-match overflow-hidden rounded-2xl">
               <div className="p-6">
                 <div className="flex items-end gap-5">
-                  {displayPhoto ? (
-                    <img src={displayPhoto} alt={playerDisplayName} className="h-36 w-28 object-cover drop-shadow-[0_14px_30px_rgba(15,23,42,0.18)]" />
-                  ) : (
-                    <div className="flex h-32 w-24 items-center justify-center rounded-2xl bg-white/20 text-xs font-black text-white/70">ללא תמונה</div>
-                  )}
+                  <div className="relative shrink-0">
+                    {displayPhoto ? (
+                      <img src={displayPhoto} alt={playerDisplayName} className={`h-36 w-28 object-cover drop-shadow-[0_14px_30px_rgba(15,23,42,0.18)] ${isDeparted ? 'opacity-70 grayscale' : ''}`} />
+                    ) : (
+                      <div className="flex h-32 w-24 items-center justify-center rounded-2xl bg-white/20 text-xs font-black text-white/70">ללא תמונה</div>
+                    )}
+                    {isDeparted ? (
+                      <span className="absolute inset-x-0 bottom-1 mx-auto w-fit rounded-full bg-stone-900/85 px-2.5 py-0.5 text-[10px] font-black tracking-wide text-white shadow">עזב</span>
+                    ) : null}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-lg font-medium text-white/90">{displayFirstHe}</div>
                     <h1 className="text-5xl font-black leading-none text-white">{displayLastHe}</h1>
@@ -972,7 +993,12 @@ function PremierPlayerView({
                         לא זמין — {currentSidelined.typeHe || currentSidelined.typeEn}
                       </div>
                     ) : null}
-                    {(flashscorePremier.marketValue || flashscorePremier.contractUntil) ? (
+                    {isDeparted ? (
+                      <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-500/25 px-3 py-1 text-xs font-black text-amber-50">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                        עבר קבוצה · לא בסגל הנוכחי
+                      </div>
+                    ) : (flashscorePremier.marketValue || flashscorePremier.contractUntil) ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
                         {flashscorePremier.marketValue ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/25 px-3 py-1 text-emerald-50">
