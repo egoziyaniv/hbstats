@@ -20,6 +20,7 @@
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer-core');
 const { PrismaClient } = require('@prisma/client');
+const { ifaFetchMany, ifaFetchOne } = require('./ifa-firecrawl');
 
 const prisma = new PrismaClient();
 const SOURCE = 'footballOrgIl';
@@ -61,56 +62,24 @@ function cleanName(str) {
   return str.replace(/^(קבוצה|שם השחקן|שם הקבוצה|מיקום|תאריך|משחק|מגרש|שעה|תוצאה)\s*/g, '').trim();
 }
 
-// ── HTTP helpers (Puppeteer-based to bypass Cloudflare WAF) ──
-let _browser = null;
-let _page = null;
-
-async function ensureBrowser() {
-  if (_browser && _page) return;
-  _browser = await puppeteer.launch({
-    executablePath: CHROME_PATH,
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
-  });
-  _page = await _browser.newPage();
-  await _page.setUserAgent(UA);
-  await _page.setExtraHTTPHeaders({ 'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7' });
-  // Warm-up: visit homepage so Cloudflare cookies are set on the page context.
-  try { await _page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 }); } catch {}
-}
-
-async function closeBrowser() {
-  try { if (_browser) await _browser.close(); } catch {}
-  _browser = null;
-  _page = null;
-}
+// ── HTTP helpers (Firecrawl stealth) ──────────────────
+// IFA is behind Cloudflare, which 403s our datacenter IP even via a real
+// browser. Firecrawl's stealth proxy renders IFA from a residential IP with the
+// challenge solved, and we same-origin fetch the ASMX endpoints / content pages
+// from inside that page (see scripts/ifa-firecrawl.js). Fail-soft: a Firecrawl
+// error (e.g. no credits) yields '' so the scraper finds no data and continues,
+// exactly as it did before this rewrite.
+async function ensureBrowser() { /* no-op — transport is Firecrawl now */ }
+async function closeBrowser() { /* no-op */ }
 
 async function curlGet(url) {
-  await ensureBrowser();
-  return await _page.evaluate(async (u) => {
-    const r = await fetch(u, {
-      headers: { 'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7' },
-      credentials: 'include',
-    });
-    return await r.text();
-  }, url);
+  const r = await ifaFetchOne({ url });
+  return r && r.status === 200 ? r.body : '';
 }
 
 async function curlPost(url, body, contentType) {
-  await ensureBrowser();
-  return await _page.evaluate(async (u, b, ct) => {
-    const r = await fetch(u, {
-      method: 'POST',
-      headers: {
-        'Content-Type': ct,
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept-Language': 'he-IL,he;q=0.9',
-      },
-      body: b,
-      credentials: 'include',
-    });
-    return await r.text();
-  }, url, body, contentType);
+  const r = await ifaFetchOne({ url, method: 'POST', body, contentType });
+  return r && r.status === 200 ? r.body : '';
 }
 
 async function fetchPage(path) {
@@ -125,6 +94,22 @@ function unescapeHtml(str) {
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&').replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+}
+
+// Parse a raw ASMX response body into a cheerio instance. Handles both the
+// JSON POST shape (`{d:{HtmlData}}` / `{d:'<html>'}`) and the XML GET shape
+// (`<HtmlData>…</HtmlData>`). Returns null when there is no HTML payload.
+function parseAsmxHtml(bodyText) {
+  if (!bodyText) return null;
+  try {
+    const parsed = JSON.parse(bodyText);
+    const d = parsed && parsed.d !== undefined ? parsed.d : parsed;
+    if (d && d.HtmlData) return cheerio.load(d.HtmlData);
+    if (typeof d === 'string' && d.includes('<')) return cheerio.load(d);
+  } catch { /* not JSON — try XML below */ }
+  const m = bodyText.match(/<HtmlData>([\s\S]*)<\/HtmlData>/);
+  if (m) return cheerio.load(unescapeHtml(m[1]));
+  return null;
 }
 
 async function fetchAjax(method, params) {
@@ -384,15 +369,28 @@ async function discoverGameIds(leagueId, sid) {
 
   for (const { box, minRound, maxRound, title } of boxes) {
     const startRound = minRound || 1;
-    let emptyCount = 0;
+    const lastRound = maxRound + 2;
+    const rounds = [];
+    for (let round = startRound; round <= lastRound; round++) rounds.push(round);
 
-    for (let round = startRound; round <= maxRound + 2; round++) {
-      await sleep(DELAY / 2); // Shorter delay for API calls
-
-      const $ = await fetchAjax('LeagueGamesList', {
+    // Fetch every round for this box in ONE Firecrawl render. Each render costs
+    // a credit and re-solves Cloudflare, so batching turns ~30 round requests
+    // per box into a single call.
+    const responses = await ifaFetchMany(rounds.map((round) => ({
+      url: `${BASE}/Components.asmx/LeagueGamesList`,
+      method: 'POST',
+      body: JSON.stringify({
         league_id: leagueId, season_id: String(sid),
         box, round_id: String(round), componentTitle: title,
-      });
+      }),
+      contentType: 'application/json; charset=utf-8',
+    })));
+
+    let emptyCount = 0;
+    for (let i = 0; i < rounds.length; i++) {
+      const round = rounds[i];
+      const resp = responses[i];
+      const $ = resp && resp.status === 200 ? parseAsmxHtml(resp.body) : null;
 
       if (!$ || !$('a[href*="game_id="]').length) {
         emptyCount++;
