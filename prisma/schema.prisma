@@ -313,6 +313,20 @@ model SofascoreTeamStats {
 // Per-match Sofascore stats from the #tab:statistics view: shots breakdown,
 // duels, passes, defending, goalkeeping (~40 metrics per side). One row per
 // game so re-runs upsert by gameId.
+model FotmobMatchData {
+  id          String   @id @default(cuid())
+  gameId      String   @unique
+  fotmobId    String?
+  shotmap     Json? // [{isHome, player, min, outcome, xg, xgot, situation, shotType, px, py}]
+  momentum    Json? // { data:[{minute,value}], goals:[{minute,isHome,player}] }
+  playerStats Json? // [{isHome, name, rating, minutes, goals, assists, xg, xa, xgxa, shots, chancesCreated, defActions, isGK}]
+  matchInfo   Json? // { attendance, stadium:{name,city,capacity,surface}, referee, weather:{temperature,description,...} }
+  scrapedAt   DateTime @default(now())
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("fotmob_match_data")
+}
+
 model SofascoreMatchStats {
   id        String   @id @default(cuid())
   gameId    String   @unique
@@ -498,6 +512,7 @@ model Game {
   gamePlayerStats     GamePlayerStats[]
   matchRatings        PlayerMatchRating[]
   sofascoreMatchStats SofascoreMatchStats?
+  fotmobData          FotmobMatchData?
   awayTeam            Team                     @relation("AwayTeam", fields: [awayTeamId], references: [id])
   competition         Competition?             @relation(fields: [competitionId], references: [id])
   homeTeam            Team                     @relation("HomeTeam", fields: [homeTeamId], references: [id])

@@ -1,0 +1,234 @@
+'use strict';
+/**
+ * scrape-fotmob.js — pull rich match data from fotmob.com for a game or a
+ * team's season. FotMob's `/api/matchDetails` needs a signed token (404 without
+ * it), BUT the match PAGE is plain-curl accessible from our server (HTTP 200,
+ * no Cloudflare, no token) and embeds the whole match object in the Next.js
+ * `__NEXT_DATA__` script — including the data no other source gives us for
+ * these ties: per-shot xG/xGOT, per-player FotMob rating + xG + xA, minute-by-
+ * minute momentum, attendance + weather. No Firecrawl credits needed.
+ *
+ * Stores FotmobMatchData (shotmap / momentum / playerStats / matchInfo, all
+ * oriented to OUR home/away) and fills GameStatistics.homeXg/awayXg (team xG =
+ * sum of shot xG) so the game page's xG row finally populates.
+ *
+ * Usage:
+ *   node scripts/scrape-fotmob.js --game <gameId> --match <fotmobMatchId> [--dry]
+ *   node scripts/scrape-fotmob.js --game <gameId> --url <fotmob-match-url> [--dry]
+ *   node scripts/scrape-fotmob.js --team 563 --season 2026 [--limit N] [--dry]
+ */
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
+const GAME_ID = arg('game', null);
+const MATCH_ID = arg('match', null);
+const URL_ARG = arg('url', null);
+const TEAM_AF = parseInt(arg('team', '0'), 10) || null;
+const SEASON = parseInt(arg('season', '0'), 10) || null;
+const LIMIT = parseInt(arg('limit', '0'), 10) || null;
+const DRY = process.argv.includes('--dry');
+
+// our Team.apiFootballId → FotMob team id
+const AF_TO_FM = { 563: 9754 };
+const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchNextData(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en' } });
+  if (res.status !== 200) throw new Error(`HTTP ${res.status} for ${url}`);
+  const html = await res.text();
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) throw new Error('no __NEXT_DATA__');
+  return JSON.parse(m[1]);
+}
+
+const OUTCOME = (eventType, isBlocked) => {
+  const t = String(eventType || '').toLowerCase();
+  if (t === 'goal') return 'goal';
+  if (t.includes('save') || t === 'attemptsaved') return 'save';
+  if (t === 'post' || t.includes('woodwork')) return 'post';
+  if (isBlocked || t.includes('block')) return 'block';
+  return 'miss';
+};
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : (typeof v === 'string' && v !== '' && !isNaN(+v) ? +v : null));
+
+function extract(nd) {
+  const pp = nd.props.pageProps;
+  const c = pp.content || {};
+  const g = pp.general || {};
+  const mf = c.matchFacts || {};
+  const fmHomeId = g.homeTeam?.id;
+  return { c, g, mf, fmHomeId };
+}
+
+// Normalize + store one match. `flip` = FotMob home is OUR away.
+async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
+  const { c, mf } = extract(nd);
+
+  // ── shotmap (px/py: OUR home attacks right) ──
+  const rawShots = c.shotmap?.shots || (Array.isArray(c.shotmap) ? c.shotmap : []) || [];
+  const shotmap = rawShots.map((s) => {
+    const ourHome = (s.teamId === fmHomeId) !== flip;
+    const fx = num(s.x); const fy = num(s.y);
+    return {
+      isHome: ourHome,
+      player: s.playerName || '',
+      min: s.min ?? null,
+      outcome: OUTCOME(s.eventType, s.isBlocked),
+      xg: num(s.expectedGoals),
+      xgot: num(s.expectedGoalsOnTarget),
+      situation: s.situation || null,
+      shotType: s.shotType || null,
+      // mirror so OUR home attacks the right goal regardless of FotMob's side
+      px: fx == null ? null : (flip ? fx : 100 - fx),
+      py: fy,
+    };
+  }).filter((s) => s.px != null && s.py != null);
+
+  // ── momentum (positive = OUR home) + goal markers ──
+  const rawMom = c.momentum?.main?.data || c.momentum?.data || [];
+  const momData = rawMom.map((d) => ({ minute: d.minute, value: flip ? -(d.value || 0) : (d.value || 0) }));
+  const goalEvents = ((mf.events?.events || (Array.isArray(mf.events) ? mf.events : [])) || [])
+    .filter((e) => String(e.type).toLowerCase() === 'goal')
+    .map((e) => ({ minute: e.time ?? e.timeStr ?? null, isHome: (!!e.isHome) !== flip, player: e.player?.name || '' }));
+
+  // ── player stats ──
+  const st = (key, group) => group?.[key]?.stat?.value ?? null;
+  const playerStats = Object.values(c.playerStats || {}).map((p) => {
+    const top = (p.stats || []).find((x) => x.key === 'top_stats')?.stats || {};
+    return {
+      isHome: (p.teamId === fmHomeId) !== flip,
+      name: p.name || '',
+      isGK: !!p.isGoalkeeper,
+      rating: st('FotMob rating', top),
+      minutes: st('Minutes played', top),
+      goals: st('Goals', top),
+      assists: st('Assists', top),
+      xg: st('Expected goals (xG)', top),
+      xgot: st('Expected goals on target (xGOT)', top),
+      xa: st('Expected assists (xA)', top),
+      xgxa: st('xG + xA', top),
+      shots: st('Total shots', top),
+      chancesCreated: st('Chances created', top),
+      defActions: st('Defensive actions', top),
+    };
+  }).filter((p) => p.rating != null || p.minutes != null);
+
+  // ── match info ──
+  const ib = mf.infoBox || {};
+  const w = c.weather || {};
+  const matchInfo = {
+    attendance: num(ib.Attendance),
+    stadium: ib.Stadium ? { name: ib.Stadium.name, city: ib.Stadium.city, country: ib.Stadium.country, capacity: ib.Stadium.capacity, surface: ib.Stadium.surface } : null,
+    referee: ib.Referee ? { name: ib.Referee.text, country: ib.Referee.country } : null,
+    weather: (w.temperature != null || w.description) ? { temperature: w.temperature ?? null, description: w.description || w.defaultTitle || null, iconCode: w.iconCode ?? null, windSpeed: w.windSpeed ?? null, humidity: w.relativeHumidity ?? null } : null,
+  };
+
+  // ── team xG (sum of shot xG per side) ──
+  const sumXg = (home) => {
+    const v = shotmap.filter((s) => s.isHome === home && s.xg != null).reduce((a, s) => a + s.xg, 0);
+    return shotmap.some((s) => s.isHome === home && s.xg != null) ? Math.round(v * 100) / 100 : null;
+  };
+  const homeXg = sumXg(true); const awayXg = sumXg(false);
+
+  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
+  if (DRY) return;
+
+  await prisma.fotmobMatchData.upsert({
+    where: { gameId },
+    create: { gameId, fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, matchInfo },
+    update: { fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, matchInfo, scrapedAt: new Date() },
+  });
+  if (homeXg != null && awayXg != null) {
+    await prisma.gameStatistics.upsert({ where: { gameId }, create: { gameId, homeXg, awayXg }, update: { homeXg, awayXg } });
+  }
+}
+
+async function resolveFlip(game, fmHomeId, trackedAf) {
+  const fmTracked = AF_TO_FM[trackedAf];
+  const ourHomeTracked = game.homeTeam.apiFootballId === trackedAf;
+  const fmHomeTracked = fmHomeId === fmTracked;
+  return ourHomeTracked !== fmHomeTracked;
+}
+
+// Collect {id, date} fixtures from a FotMob team OVERVIEW page. The fixtures
+// live in the Next.js SWR `fallback` (key team-<id>), each shaped
+// {id, status:{utcTime}, opponent:{name}}.
+function collectFixtures(nd) {
+  const out = new Map();
+  const visit = (o, depth) => {
+    if (!o || typeof o !== 'object' || depth > 8) return;
+    if (Array.isArray(o)) { for (const x of o) visit(x, depth + 1); return; }
+    const id = o.id;
+    const t = o.status?.utcTime;
+    if (id && t && (o.opponent || o.home || o.away)) {
+      const d = new Date(t).toISOString().slice(0, 10);
+      if (!out.has(d)) out.set(d, { id: String(id), date: d });
+    }
+    for (const k of Object.keys(o)) visit(o[k], depth + 1);
+  };
+  visit(nd.props.pageProps.fallback || nd.props.pageProps, 0);
+  return [...out.values()];
+}
+
+async function main() {
+  console.log(`=== scrape-fotmob ${DRY ? '(DRY)' : ''} ===`);
+
+  if (GAME_ID) {
+    const game = await prisma.game.findUnique({ where: { id: GAME_ID }, select: { id: true, homeTeam: { select: { apiFootballId: true } }, awayTeam: { select: { apiFootballId: true } } } });
+    if (!game) { console.error('game not found'); process.exit(1); }
+    const trackedAf = AF_TO_FM[game.homeTeam.apiFootballId] ? game.homeTeam.apiFootballId : game.awayTeam.apiFootballId;
+    if (!MATCH_ID && !URL_ARG) { console.error('pass --match <fotmobId> or --url'); process.exit(1); }
+    const nd = MATCH_ID ? await fetchNextData(`https://www.fotmob.com/match/${MATCH_ID}`) : await fetchNextData(URL_ARG);
+    const { fmHomeId } = extract(nd);
+    const fotmobId = MATCH_ID || nd.props.pageProps.general?.matchId;
+    const flip = await resolveFlip(game, fmHomeId, trackedAf);
+    await importMatch(GAME_ID, fotmobId, nd, flip, fmHomeId);
+    await prisma.$disconnect();
+    return;
+  }
+
+  if (TEAM_AF && SEASON) {
+    const fmTeam = AF_TO_FM[TEAM_AF];
+    if (!fmTeam) { console.error(`no FotMob id for af=${TEAM_AF}`); process.exit(1); }
+    const s = await prisma.season.findFirst({ where: { year: SEASON }, select: { id: true } });
+    const teams = await prisma.team.findMany({ where: { apiFootballId: TEAM_AF, seasonId: s.id }, select: { id: true } });
+    const teamIds = teams.map((t) => t.id);
+    let games = await prisma.game.findMany({
+      where: { seasonId: s.id, status: 'COMPLETED', OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }] },
+      select: { id: true, dateTime: true, homeTeam: { select: { apiFootballId: true, nameHe: true } }, awayTeam: { select: { apiFootballId: true, nameHe: true } } },
+      orderBy: { dateTime: 'desc' },
+    });
+    if (LIMIT) games = games.slice(0, LIMIT);
+    console.log(`  ${games.length} completed games; resolving FotMob fixtures for team ${fmTeam}...`);
+    const teamNd = await fetchNextData(`https://www.fotmob.com/teams/${fmTeam}/overview`).catch(() => null);
+    const fixtures = teamNd ? collectFixtures(teamNd) : [];
+    const byDate = new Map(fixtures.map((f) => [f.date, f]));
+    console.log(`  found ${fixtures.length} FotMob fixtures`);
+    let ok = 0, miss = 0;
+    for (const gm of games) {
+      const target = gm.dateTime ? new Date(gm.dateTime).toISOString().slice(0, 10) : null;
+      const fx = target ? byDate.get(target) : null;
+      const label = `${gm.homeTeam.nameHe} vs ${gm.awayTeam.nameHe} (${target})`;
+      if (!fx) { console.log(`  · SKIP ${label} — no FotMob fixture on that date`); miss++; continue; }
+      try {
+        const nd = await fetchNextData(`https://www.fotmob.com/match/${fx.id}`);
+        const { fmHomeId } = extract(nd);
+        const trackedAf = TEAM_AF;
+        const flip = await resolveFlip(gm, fmHomeId, trackedAf);
+        await importMatch(gm.id, fx.id, nd, flip, fmHomeId);
+        ok++;
+      } catch (e) { console.log(`  ✗ ${label}: ${e.message}`); }
+      await sleep(600);
+    }
+    console.log(`Done. imported=${ok} skipped=${miss}`);
+    await prisma.$disconnect();
+    return;
+  }
+
+  console.error('Pass --game <id> --match <fotmobId>, or --team <af> --season <year>.');
+  process.exit(1);
+}
+
+main().catch(async (e) => { console.error('FATAL', e.message); await prisma.$disconnect(); process.exit(1); });

@@ -18,6 +18,9 @@ import { MatchPreviewSection } from '@/components/MatchPreviewSection';
 import { buildMatchPreview, type MatchPreview } from '@/lib/match-preview';
 import { SofascoreMatchStatsPanel } from '@/components/SofascoreMatchStatsPanel';
 import { ShotMap } from '@/components/ShotMap';
+import { MomentumChart } from '@/components/MomentumChart';
+import { PlayerRatingsTable } from '@/components/PlayerRatingsTable';
+import { MatchInfoCard } from '@/components/MatchInfoCard';
 
 const eventLabels: Record<string, string> = {
   GOAL: 'שער',
@@ -51,6 +54,7 @@ export default async function GamePage({
       competition: true,
       gameStats: true,
       sofascoreMatchStats: true,
+      fotmobData: true,
       referee: {
         select: {
           id: true,
@@ -651,9 +655,32 @@ function PremierGameView({
               </PremierPanel>
             ) : null}
 
-            {game.sofascoreMatchStats?.shotmap && Array.isArray(game.sofascoreMatchStats.shotmap) && game.sofascoreMatchStats.shotmap.length ? (
+            {game.fotmobData?.matchInfo ? (
+              <MatchInfoCard info={game.fotmobData.matchInfo as any} />
+            ) : null}
+
+            {game.fotmobData?.shotmap && Array.isArray(game.fotmobData.shotmap) && game.fotmobData.shotmap.length ? (
               <ShotMap
-                shots={game.sofascoreMatchStats.shotmap as any[]}
+                shots={game.fotmobData.shotmap as any[]}
+                homeName={game.homeTeam.nameHe || game.homeTeam.nameEn || ''}
+                awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
+                homeXg={game.gameStats?.homeXg ?? null}
+                awayXg={game.gameStats?.awayXg ?? null}
+              />
+            ) : null}
+
+            {game.fotmobData?.momentum && (game.fotmobData.momentum as any)?.data?.length ? (
+              <MomentumChart
+                data={(game.fotmobData.momentum as any).data}
+                goals={(game.fotmobData.momentum as any).goals}
+                homeName={game.homeTeam.nameHe || game.homeTeam.nameEn || ''}
+                awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
+              />
+            ) : null}
+
+            {game.fotmobData?.playerStats && Array.isArray(game.fotmobData.playerStats) && game.fotmobData.playerStats.length ? (
+              <PlayerRatingsTable
+                players={game.fotmobData.playerStats as any[]}
                 homeName={game.homeTeam.nameHe || game.homeTeam.nameEn || ''}
                 awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
               />
