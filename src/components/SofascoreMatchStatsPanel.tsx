@@ -95,7 +95,7 @@ export function SofascoreMatchStatsPanel({ stats }: { stats: Stat[] }) {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-indigo-200 bg-gradient-to-bl from-indigo-50 to-white p-3 text-xs text-indigo-900">
-        סטטיסטיקה מפורטת מ-Sofascore — שמאל = קבוצת חוץ · ימין = קבוצת בית
+        שמאל = קבוצת חוץ · ימין = קבוצת בית
       </div>
       {Array.from(sections.entries()).map(([section, rows]) => (
         <div key={section}>

@@ -304,7 +304,7 @@ export default function MatchScreen() {
               </Card>
             )}
             {data.sofascoreStats && data.sofascoreStats.length > 0 ? (
-              <Section title="סטטיסטיקה מפורטת — Sofascore">
+              <Section title="סטטיסטיקה מפורטת">
                 <SofascoreMatchStatsPanel stats={data.sofascoreStats} />
               </Section>
             ) : null}

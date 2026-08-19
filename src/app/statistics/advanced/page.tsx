@@ -124,7 +124,7 @@ export default async function AdvancedStatsPage({ searchParams }: { searchParams
     <main className="mx-auto max-w-7xl px-4 py-8" dir="rtl">
       <header className="mb-6">
         <h1 className="text-3xl font-black text-stone-900">סטטיסטיקה מתקדמת</h1>
-        <p className="mt-1 text-sm text-stone-500">מבוסס על נתוני API-Football פר-משחק. מסירות מפתח, דו-קרבות, דריבלים מוצלחים.</p>
+        <p className="mt-1 text-sm text-stone-500">מבוסס על נתונים פר-משחק. מסירות מפתח, דו-קרבות, דריבלים מוצלחים.</p>
       </header>
 
       <div className="mb-3 flex flex-wrap gap-2">

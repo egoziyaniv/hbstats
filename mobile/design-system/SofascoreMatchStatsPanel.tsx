@@ -114,7 +114,7 @@ export function SofascoreMatchStatsPanel({ stats }: { stats: SofascoreMatchStat[
         }}
       >
         <Text style={{ fontSize: 11, color: '#3730a3', textAlign: 'center' }}>
-          סטטיסטיקה מפורטת מ-Sofascore — שמאל = קבוצת חוץ · ימין = קבוצת בית
+          שמאל = קבוצת חוץ · ימין = קבוצת בית
         </Text>
       </View>
       {Array.from(sections.entries()).map(([section, rows]) => (

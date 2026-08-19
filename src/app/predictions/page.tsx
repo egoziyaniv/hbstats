@@ -276,8 +276,8 @@ export default async function PredictionsPage({
         {/* API Predictions table */}
         {predictionRows.length > 0 ? (
           <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-black text-slate-900">תחזיות API</h2>
-            <p className="mt-1 text-sm text-slate-500">תחזיות שנמשכו מ-API-Football עם אחוזים לכל תוצאה.</p>
+            <h2 className="text-xl font-black text-slate-900">תחזיות</h2>
+            <p className="mt-1 text-sm text-slate-500">תחזיות עם אחוזים לכל תוצאה.</p>
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-right text-sm">
                 <thead>

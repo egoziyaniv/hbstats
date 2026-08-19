@@ -121,7 +121,6 @@ export function ShotMap({ shots, homeName, awayName }: { shots: ShotMapShot[]; h
     <section className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">מפת בעיטות</h2>
-        <span className="text-xs font-semibold text-stone-400">Sofascore</span>
       </div>
 
       {/* per-team summary */}

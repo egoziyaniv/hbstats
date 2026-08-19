@@ -646,7 +646,7 @@ function PremierGameView({
             </section>
 
             {game.sofascoreMatchStats?.payload && Array.isArray(game.sofascoreMatchStats.payload) ? (
-              <PremierPanel title="סטטיסטיקה מפורטת — Sofascore">
+              <PremierPanel title="סטטיסטיקה מפורטת">
                 <SofascoreMatchStatsPanel stats={game.sofascoreMatchStats.payload as any[]} />
               </PremierPanel>
             ) : null}

@@ -77,7 +77,7 @@ export function GoalTypePanel({ data }: { data: GoalTypeResult }) {
 
 export function XgOverTimePanel({ points }: { points: XgPoint[] }) {
   if (points.length === 0) {
-    return <p className="text-sm text-stone-500">אין נתוני xG זמינים — Flashscore לא הביא xG למשחקים אלו.</p>;
+    return <p className="text-sm text-stone-500">אין נתוני xG זמינים למשחקים אלו.</p>;
   }
   const maxXg = Math.max(...points.flatMap((p) => [p.ourXg, p.oppXg]), 1);
   return (

@@ -58,10 +58,9 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-lg font-black text-stone-900">צד שלישי</h2>
-            <p>אנחנו שואבים נתוני כדורגל ציבוריים מהמקורות הבאים, ללא העברת פרטים אישיים שלך:</p>
+            <p>אנחנו מרכזים נתוני כדורגל ציבוריים מספקי מידע ספורטיביים ומקורות פומביים, ללא העברת פרטים אישיים שלך:</p>
             <ul className="list-inside list-disc space-y-2 mt-2">
-              <li>API-Football (api-sports.io) — נתוני משחקים ושחקנים.</li>
-              <li>Walla Sport, football.org.il, Flashscore, Sport5 — נתונים סרוקים פומבית.</li>
+              <li>ספקי נתוני ספורט ומקורות מידע ציבוריים — נתוני משחקים, קבוצות ושחקנים.</li>
               <li>Apple Push Notification Service — אם תפעיל התראות בעתיד.</li>
             </ul>
           </section>

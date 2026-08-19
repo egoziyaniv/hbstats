@@ -354,7 +354,7 @@ export default async function StatisticsInsightsPage({
         </div>
         <section className="modern-card rounded-2xl border border-stone-200/80 bg-white p-5 text-sm text-stone-600 shadow-sm">
           <p>
-            <strong>הערות:</strong> אחוז שערים בבעיטות חופשיות / נגיחות וממוצע קהל ביתי זמינים רק עד 2019/20 (מקור Walla, לא מתעדכן).
+            <strong>הערות:</strong> אחוז שערים בבעיטות חופשיות / נגיחות וממוצע קהל ביתי זמינים רק עד 2019/20 (לא מתעדכן).
             כל יתר הסטטיסטיקות מחושבות בזמן אמת מנתוני המשחקים והאירועים.
           </p>
         </section>

@@ -32,7 +32,7 @@ function parsePercent(value: string | undefined): number | null {
 
 export function SofascoreStatsPanel({ payload }: { payload: SofascoreStatsPayload | null }) {
   if (!payload || Object.keys(payload).length === 0) {
-    return <p className="text-sm text-stone-500">אין נתוני Sofascore עדכניים. ירוץ אוטומטית בסבב הסקרייפינג הבא.</p>;
+    return <p className="text-sm text-stone-500">אין נתונים נוספים זמינים כרגע.</p>;
   }
 
   const totalGoals = parseInteger(payload['Goals scored']) ?? 0;
