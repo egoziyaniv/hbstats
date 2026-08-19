@@ -17,6 +17,7 @@ import { PredictedLineupPanel } from '@/components/PredictedLineupPanel';
 import { MatchPreviewSection } from '@/components/MatchPreviewSection';
 import { buildMatchPreview, type MatchPreview } from '@/lib/match-preview';
 import { SofascoreMatchStatsPanel } from '@/components/SofascoreMatchStatsPanel';
+import { ShotMap } from '@/components/ShotMap';
 
 const eventLabels: Record<string, string> = {
   GOAL: 'שער',
@@ -648,6 +649,14 @@ function PremierGameView({
               <PremierPanel title="סטטיסטיקה מפורטת — Sofascore">
                 <SofascoreMatchStatsPanel stats={game.sofascoreMatchStats.payload as any[]} />
               </PremierPanel>
+            ) : null}
+
+            {game.sofascoreMatchStats?.shotmap && Array.isArray(game.sofascoreMatchStats.shotmap) && game.sofascoreMatchStats.shotmap.length ? (
+              <ShotMap
+                shots={game.sofascoreMatchStats.shotmap as any[]}
+                homeName={game.homeTeam.nameHe || game.homeTeam.nameEn || ''}
+                awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
+              />
             ) : null}
           </>
         ) : null}

@@ -317,6 +317,7 @@ model SofascoreMatchStats {
   id        String   @id @default(cuid())
   gameId    String   @unique
   payload   Json // array of {section, label, home, away[, homePct, awayPct]}
+  shotmap   Json? // array of shots: {isHome, player, min, outcome, situation, bodyPart, x, y, goalMouth:{y,z,loc}}
   matchUrl  String? // Sofascore URL we scraped from, for debugging
   scrapedAt DateTime @default(now())
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
