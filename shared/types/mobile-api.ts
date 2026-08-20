@@ -438,6 +438,52 @@ export interface SofascoreMatchStat {
   awayExtra: string | null;
 }
 
+// FotMob-sourced rich match data (xG, shot map, momentum, player ratings,
+// attendance/weather). All oriented to home/away (home attacks right in px).
+export interface FotmobShot {
+  isHome: boolean;
+  player: string;
+  min: number | null;
+  outcome: string; // goal | save | miss | block | post
+  xg: number | null;
+  xgot: number | null;
+  situation: string | null;
+  shotType: string | null;
+  px: number; // 0-100 left→right (home attacks right)
+  py: number; // 0-100
+}
+export interface FotmobMomentumPoint { minute: number; value: number }
+export interface FotmobGoalMarker { minute: number | null; isHome: boolean; player: string }
+export interface FotmobPlayerRating {
+  isHome: boolean;
+  name: string;
+  isGK: boolean;
+  rating: number | null;
+  minutes: number | null;
+  goals: number | null;
+  assists: number | null;
+  xg: number | null;
+  xa: number | null;
+  xgxa: number | null;
+  shots: number | null;
+  chancesCreated: number | null;
+  defActions: number | null;
+}
+export interface FotmobMatchInfo {
+  attendance?: number | null;
+  stadium?: { name?: string; city?: string; country?: string; capacity?: number | null; surface?: string | null } | null;
+  referee?: { name?: string; country?: string } | null;
+  weather?: { temperature?: number | null; description?: string | null; iconCode?: number | null; windSpeed?: number | null; humidity?: number | null } | null;
+}
+export interface FotmobData {
+  shotmap: FotmobShot[];
+  momentum: { data: FotmobMomentumPoint[]; goals: FotmobGoalMarker[] } | null;
+  playerStats: FotmobPlayerRating[];
+  matchInfo: FotmobMatchInfo | null;
+  homeXg: number | null;
+  awayXg: number | null;
+}
+
 // Pre-match ("לקראת המשחק") preview — mirrors src/lib/match-preview.ts (JSON-safe).
 export interface MatchPreviewFormItem {
   gameId: string;
@@ -475,6 +521,7 @@ export interface MatchPayload {
   lineups: { home: Lineup; away: Lineup };
   matchStats: MatchStats | null;
   sofascoreStats: SofascoreMatchStat[];
+  fotmob: FotmobData | null;
   h2h: H2H | null;
   predicted: { home: PredictedLineupPlayerSummary[]; away: PredictedLineupPlayerSummary[] } | null;
   /** Pre-match preview (form + injuries/suspensions + AI). Null unless SCHEDULED. */

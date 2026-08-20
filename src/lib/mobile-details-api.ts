@@ -684,6 +684,7 @@ export async function getMobileGamePayload(gameId: string) {
       competition: true,
       gameStats: true,
       sofascoreMatchStats: true,
+      fotmobData: true,
       events: {
         include: {
           player: true,
@@ -799,6 +800,16 @@ export async function getMobileGamePayload(gameId: string) {
             homeExtra?: string | null; awayExtra?: string | null;
           }>)
         : [],
+      fotmob: game.fotmobData
+        ? {
+            shotmap: Array.isArray(game.fotmobData.shotmap) ? (game.fotmobData.shotmap as unknown[]) : [],
+            momentum: (game.fotmobData.momentum as { data?: unknown[]; goals?: unknown[] } | null) ?? null,
+            playerStats: Array.isArray(game.fotmobData.playerStats) ? (game.fotmobData.playerStats as unknown[]) : [],
+            matchInfo: (game.fotmobData.matchInfo as unknown) ?? null,
+            homeXg: game.gameStats?.homeXg ?? null,
+            awayXg: game.gameStats?.awayXg ?? null,
+          }
+        : null,
     },
     h2h: await buildMobileH2H(game.homeTeamId, game.awayTeamId, game.id),
     xg: {

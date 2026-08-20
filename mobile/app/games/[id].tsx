@@ -12,6 +12,10 @@ import { absoluteImage } from '@/lib/config';
 import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { SofascoreMatchStatsPanel } from '@/design-system/SofascoreMatchStatsPanel';
+import { ShotMap } from '@/design-system/ShotMap';
+import { MomentumChart } from '@/design-system/MomentumChart';
+import { PlayerRatingsTable } from '@/design-system/PlayerRatingsTable';
+import { MatchInfoCard } from '@/design-system/MatchInfoCard';
 import { LiveDot } from '@/design-system/LiveDot';
 import { TabBar } from '@/design-system/TabBar';
 import { BackButton } from '@/design-system/BackButton';
@@ -306,6 +310,41 @@ export default function MatchScreen() {
             {data.sofascoreStats && data.sofascoreStats.length > 0 ? (
               <Section title="סטטיסטיקה מפורטת">
                 <SofascoreMatchStatsPanel stats={data.sofascoreStats} />
+              </Section>
+            ) : null}
+
+            {data.fotmob?.matchInfo ? (
+              <Section title="פרטי המשחק">
+                <MatchInfoCard info={data.fotmob.matchInfo} />
+              </Section>
+            ) : null}
+
+            {data.fotmob?.shotmap && data.fotmob.shotmap.length > 0 ? (
+              <Section title="מפת בעיטות">
+                <ShotMap
+                  shots={data.fotmob.shotmap}
+                  homeName={data.homeTeam.nameHe}
+                  awayName={data.awayTeam.nameHe}
+                  homeXg={data.fotmob.homeXg}
+                  awayXg={data.fotmob.awayXg}
+                />
+              </Section>
+            ) : null}
+
+            {data.fotmob?.momentum && data.fotmob.momentum.data.length > 0 ? (
+              <Section title="מומנטום">
+                <MomentumChart
+                  data={data.fotmob.momentum.data}
+                  goals={data.fotmob.momentum.goals}
+                  homeName={data.homeTeam.nameHe}
+                  awayName={data.awayTeam.nameHe}
+                />
+              </Section>
+            ) : null}
+
+            {data.fotmob?.playerStats && data.fotmob.playerStats.length > 0 ? (
+              <Section title="דירוגי שחקנים">
+                <PlayerRatingsTable players={data.fotmob.playerStats} />
               </Section>
             ) : null}
           </>

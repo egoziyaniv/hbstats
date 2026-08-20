@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getMobileGamePayload } from '@/lib/mobile-details-api';
-import type { MatchPayload, MatchStatus, MatchEvent, Lineup, LineupPlayer, MatchStats } from '@shared/types/mobile-api';
+import type { MatchPayload, MatchStatus, MatchEvent, Lineup, LineupPlayer, MatchStats, FotmobData } from '@shared/types/mobile-api';
 import type { TeamHeader } from '@shared/types/common';
 
 export const dynamic = 'force-dynamic';
@@ -236,6 +236,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       homeExtra: s.homeExtra ?? null,
       awayExtra: s.awayExtra ?? null,
     })),
+    fotmob: ((raw.sections as { fotmob?: FotmobData | null }).fotmob ?? null),
     h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
     predicted: await buildPredictedBlock(raw),
     preview: await buildPreviewBlock(raw),
