@@ -52,6 +52,8 @@ const OUTCOME = (eventType, isBlocked) => {
   return 'miss';
 };
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : (typeof v === 'string' && v !== '' && !isNaN(+v) ? +v : null));
+const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[.'`-]/g, ' ').replace(/\s+/g, ' ').trim();
+const tokens = (s) => norm(s).split(' ').filter(Boolean);
 
 function extract(nd) {
   const pp = nd.props.pageProps;
@@ -65,6 +67,27 @@ function extract(nd) {
 // Normalize + store one match. `flip` = FotMob home is OUR away.
 async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   const { c, mf } = extract(nd);
+
+  // Map FotMob's English player names to our Hebrew names (surname token +
+  // first initial, diacritic-insensitive) using the two clubs' rosters. Foreign
+  // opponents we don't have stay in English.
+  const gm = await prisma.game.findUnique({ where: { id: gameId }, select: { homeTeamId: true, awayTeamId: true } });
+  const roster = gm ? await prisma.player.findMany({ where: { teamId: { in: [gm.homeTeamId, gm.awayTeamId] } }, select: { nameEn: true, nameHe: true } }) : [];
+  const nameIdx = new Map();
+  for (const p of roster) {
+    if (!p.nameEn || !p.nameHe) continue;
+    const tk = tokens(p.nameEn);
+    if (!tk.length || !tk[0]) continue;
+    const key = `${tk[tk.length - 1]}|${tk[0][0]}`;
+    if (!nameIdx.has(key)) nameIdx.set(key, new Set());
+    nameIdx.get(key).add(p.nameHe);
+  }
+  const toHe = (en) => {
+    const tk = tokens(en);
+    if (!tk.length || !tk[0]) return en;
+    const cands = nameIdx.get(`${tk[tk.length - 1]}|${tk[0][0]}`);
+    return cands && cands.size === 1 ? [...cands][0] : en;
+  };
 
   // ── shotmap (px/py: OUR home attacks right) ──
   const rawShots = c.shotmap?.shots || (Array.isArray(c.shotmap) ? c.shotmap : []) || [];
@@ -80,9 +103,10 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
       xgot: num(s.expectedGoalsOnTarget),
       situation: s.situation || null,
       shotType: s.shotType || null,
-      // mirror so OUR home attacks the right goal regardless of FotMob's side
-      px: fx == null ? null : (flip ? fx : 100 - fx),
-      py: fy,
+      // FotMob normalises every shot to attack x≈100. Put OUR home on the right
+      // (px=fx) and OUR away on the left (mirror both axes).
+      px: fx == null ? null : (ourHome ? fx : 100 - fx),
+      py: fy == null ? null : (ourHome ? fy : 100 - fy),
     };
   }).filter((s) => s.px != null && s.py != null);
 
@@ -99,7 +123,7 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
     const top = (p.stats || []).find((x) => x.key === 'top_stats')?.stats || {};
     return {
       isHome: (p.teamId === fmHomeId) !== flip,
-      name: p.name || '',
+      name: toHe(p.name || ''),
       isGK: !!p.isGoalkeeper,
       rating: st('FotMob rating', top),
       minutes: st('Minutes played', top),
