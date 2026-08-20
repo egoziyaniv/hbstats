@@ -2,13 +2,15 @@
 /**
  * matchday-live.js — near-real-time matchday refresh.
  *
- * Designed for a frequent cron (e.g. every 10 min). It does REAL work only when
- * an Israeli fixture is in the live window (kickoff − PRE_MIN .. full-time +
- * POST_HOURS); otherwise it exits instantly with zero API calls. When a fixture
- * is in-window it runs the FAST matchday-update pass — API-Football lineups /
- * events / statistics / status → canonical, with every Puppeteer scrape
- * disabled — so lineups appear around kickoff and the box score fills within
- * minutes of the final whistle, instead of waiting for the nightly full run.
+ * Designed for a 30-min cron. It does REAL work only when an Israeli-team
+ * fixture is in the live window (kickoff − PRE_MIN .. kickoff + POST_HOURS ≈ 2h
+ * before kickoff .. ~3h after full-time); otherwise it exits instantly with zero
+ * API calls. Covers Israeli domestic (comp_*) AND Israeli teams' European /
+ * friendly ties. When a fixture is in-window it runs the FAST matchday-update
+ * pass — API-Football lineups / events / statistics / status → canonical, with
+ * every Puppeteer scrape disabled — so lineups appear pre-kickoff and the box
+ * score fills within minutes of the final whistle, plus a free FotMob pass (xG /
+ * shot map / momentum / player ratings / attendance) for mapped clubs.
  *
  * The nightly heavy matchday-update (cron-matchday.sh) still backfills the
  * slow sources afterwards: IFA (Hebrew events/lineups/refs), FootyStats (xG),
@@ -43,17 +45,26 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const DRY = process.argv.includes('--dry-run');
-const PRE_MIN = 75;      // start refreshing this long before kickoff (lineups)
-const POST_HOURS = 4;    // keep refreshing this long after kickoff (final stats settle)
+const PRE_MIN = 120;     // start 2h before kickoff (predicted / confirmed lineups)
+const POST_HOURS = 5;    // keep going ~5h after kickoff (≈ 3h after a normal FT)
 
 async function main() {
   const now = new Date();
   const from = new Date(now.getTime() - POST_HOURS * 3600 * 1000);
   const to = new Date(now.getTime() + PRE_MIN * 60 * 1000);
 
-  // Israeli competitions use canonical `comp_*` ids; friendlies/euro use cuids.
-  const games = await prisma.game.findMany({
-    where: { dateTime: { gte: from, lte: to }, competitionId: { startsWith: 'comp_' } },
+  // Israeli clubs = teams that appear in an Israeli-competition (comp_*) standing.
+  const israeliTeams = await prisma.team.findMany({
+    where: { apiFootballId: { not: null }, standings: { some: { competition: { id: { startsWith: 'comp_' } } } } },
+    select: { apiFootballId: true },
+    distinct: ['apiFootballId'],
+  });
+  const israeliApiIds = new Set(israeliTeams.map((t) => t.apiFootballId));
+
+  // Any in-window fixture in an Israeli competition (comp_*) OR involving an
+  // Israeli club — the latter picks up European / friendly ties (cuid comp ids).
+  const inWindow = await prisma.game.findMany({
+    where: { dateTime: { gte: from, lte: to } },
     select: {
       id: true, dateTime: true, status: true, competitionId: true,
       homeTeam: { select: { nameHe: true, apiFootballId: true } },
@@ -61,6 +72,11 @@ async function main() {
     },
     orderBy: { dateTime: 'asc' },
   });
+  const games = inWindow.filter((g) =>
+    (g.competitionId && g.competitionId.startsWith('comp_')) ||
+    (g.homeTeam.apiFootballId != null && israeliApiIds.has(g.homeTeam.apiFootballId)) ||
+    (g.awayTeam.apiFootballId != null && israeliApiIds.has(g.awayTeam.apiFootballId))
+  );
 
   if (!games.length) {
     console.log(`[${now.toISOString()}] no Israeli fixture in window — skip (0 API calls)`);
@@ -84,6 +100,17 @@ async function main() {
       '--no-footystats', '--no-walla', '--no-ifa', '--no-sofascore', '--no-merge',
     ], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
     if (r.status !== 0) { failed++; console.error(`  ✗ matchday-update failed for ${d}`); }
+  }
+
+  // FotMob pass (free — no Cloudflare / token / Firecrawl credits): xG, shot map,
+  // momentum, player ratings, attendance/weather for in-window games whose club
+  // has a FotMob mapping. Keep FM_TEAMS in sync with scrape-fotmob.js AF_TO_FM.
+  const FM_TEAMS = new Set([563]);
+  for (const g of games) {
+    if (!FM_TEAMS.has(g.homeTeam.apiFootballId) && !FM_TEAMS.has(g.awayTeam.apiFootballId)) continue;
+    console.log(`\n→ FotMob: ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe}`);
+    const r = spawnSync('node', ['scripts/scrape-fotmob.js', '--game', g.id], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+    if (r.status !== 0) console.error('  ✗ FotMob failed (continuing)');
   }
 
   // Cup / Super Cup fixtures API-Football doesn't cover: pull from Sofascore

@@ -200,13 +200,23 @@ async function main() {
   console.log(`=== scrape-fotmob ${DRY ? '(DRY)' : ''} ===`);
 
   if (GAME_ID) {
-    const game = await prisma.game.findUnique({ where: { id: GAME_ID }, select: { id: true, homeTeam: { select: { apiFootballId: true } }, awayTeam: { select: { apiFootballId: true } } } });
+    const game = await prisma.game.findUnique({ where: { id: GAME_ID }, select: { id: true, dateTime: true, homeTeam: { select: { apiFootballId: true } }, awayTeam: { select: { apiFootballId: true } } } });
     if (!game) { console.error('game not found'); process.exit(1); }
     const trackedAf = AF_TO_FM[game.homeTeam.apiFootballId] ? game.homeTeam.apiFootballId : game.awayTeam.apiFootballId;
-    if (!MATCH_ID && !URL_ARG) { console.error('pass --match <fotmobId> or --url'); process.exit(1); }
-    const nd = MATCH_ID ? await fetchNextData(`https://www.fotmob.com/match/${MATCH_ID}`) : await fetchNextData(URL_ARG);
+    let matchId = MATCH_ID;
+    if (!matchId && !URL_ARG) {
+      // auto-resolve the FotMob match id from the tracked team's overview, by date
+      const trackedFm = AF_TO_FM[trackedAf];
+      if (!trackedFm) { console.error('no FotMob team id for this game — pass --match'); process.exit(1); }
+      const target = game.dateTime ? new Date(game.dateTime).toISOString().slice(0, 10) : null;
+      const teamNd = await fetchNextData(`https://www.fotmob.com/teams/${trackedFm}/overview`).catch(() => null);
+      const fx = teamNd ? collectFixtures(teamNd).find((f) => f.date === target) : null;
+      if (!fx) { console.error('could not resolve FotMob match by date — pass --match'); process.exit(1); }
+      matchId = fx.id;
+    }
+    const nd = matchId ? await fetchNextData(`https://www.fotmob.com/match/${matchId}`) : await fetchNextData(URL_ARG);
     const { fmHomeId } = extract(nd);
-    const fotmobId = MATCH_ID || nd.props.pageProps.general?.matchId;
+    const fotmobId = matchId || nd.props.pageProps.general?.matchId;
     const flip = await resolveFlip(game, fmHomeId, trackedAf);
     await importMatch(GAME_ID, fotmobId, nd, flip, fmHomeId);
     await prisma.$disconnect();
