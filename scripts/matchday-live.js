@@ -105,7 +105,7 @@ async function main() {
   // FotMob pass (free — no Cloudflare / token / Firecrawl credits): xG, shot map,
   // momentum, player ratings, attendance/weather for in-window games whose club
   // has a FotMob mapping. Keep FM_TEAMS in sync with scrape-fotmob.js AF_TO_FM.
-  const FM_TEAMS = new Set([563]);
+  const FM_TEAMS = new Set([657, 4481, 563, 2253, 4486, 4488, 4489, 4501, 4510, 4195, 4505, 4495, 604, 6181]);
   for (const g of games) {
     if (!FM_TEAMS.has(g.homeTeam.apiFootballId) && !FM_TEAMS.has(g.awayTeam.apiFootballId)) continue;
     console.log(`\n→ FotMob: ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe}`);

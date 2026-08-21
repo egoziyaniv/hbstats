@@ -29,8 +29,13 @@ const SEASON = parseInt(arg('season', '0'), 10) || null;
 const LIMIT = parseInt(arg('limit', '0'), 10) || null;
 const DRY = process.argv.includes('--dry');
 
-// our Team.apiFootballId → FotMob team id
-const AF_TO_FM = { 563: 9754 };
+// our Team.apiFootballId → FotMob team id (Ligat Ha'al clubs; resolved from
+// FotMob league 127). Keep in sync with FM_TEAMS in matchday-live.js.
+const AF_TO_FM = {
+  657: 8173, 4481: 8718, 563: 9754, 2253: 8301, 4486: 459591, 4488: 9755,
+  4489: 89753, 4501: 10181, 4510: 2095, 4195: 10185, 4505: 1832, 4495: 7929,
+  604: 7855, 6181: 543580,
+};
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
