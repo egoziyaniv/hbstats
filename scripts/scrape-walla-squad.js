@@ -94,6 +94,21 @@ async function reconcileTeam(af) {
     const { w, sc } = bestWforO.get(o.id);
     if (w && sc >= THRESH && bestOforW.get(w.entityId)?.o?.id === o.id) pairs.push({ o, w, score: sc });
   }
+  // Second pass — SURNAME match for abbreviated first names. API-Football gives
+  // "A. Dezent"; the full-name score misses Walla's "גיא דזנט", but the surname
+  // ("דזנט") is unambiguous within the team. Accept only when exactly one
+  // still-unmatched Walla player shares the surname.
+  const lastHe = (s) => { const t = heTokens(s); return t.length ? t[t.length - 1] : ''; };
+  const surnameHe = (o) => lastHe(translateName('', o.lastNameEn || (o.nameEn || '').split(/\s+/).slice(1).join(' '), o.nameEn));
+  const matchedO = new Set(pairs.map((p) => p.o.id));
+  const matchedW2 = new Set(pairs.map((p) => p.w.entityId));
+  for (const o of ours) {
+    if (matchedO.has(o.id)) continue;
+    const sn = surnameHe(o);
+    if (sn.length < 2) continue;
+    const cand = squad.filter((w) => !matchedW2.has(w.entityId) && sim(sn, lastHe(w.nameHe)) >= 0.8);
+    if (cand.length === 1) { pairs.push({ o, w: cand[0], score: 0.8, bySurname: true }); matchedO.add(o.id); matchedW2.add(cand[0].entityId); }
+  }
   let changed = 0;
   for (const { o, w, score } of pairs) {
     const cur = (o.nameHe || '').trim();
