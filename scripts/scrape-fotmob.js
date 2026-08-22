@@ -149,7 +149,8 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   const statGroups = c.stats?.Periods?.All?.stats || [];
   const teamStats = [];
   const gsMap = {};
-  const GS_KEY = { BallPossesion: 'Possession', total_shots: 'ShotsTotal', ShotsOnTarget: 'ShotsOnTarget', corners: 'Corners', fouls: 'Fouls', Offsides: 'Offsides', yellow_cards: 'YellowCards', red_cards: 'RedCards' };
+  // maps to GameStatistics fields home<gk>/away<gk> — note TeamPossession (not Possession)
+  const GS_KEY = { BallPossesion: 'TeamPossession', total_shots: 'ShotsTotal', ShotsOnTarget: 'ShotsOnTarget', corners: 'Corners', fouls: 'Fouls', Offsides: 'Offsides', yellow_cards: 'YellowCards', red_cards: 'RedCards' };
   for (const grp of statGroups) {
     for (const it of (grp.stats || [])) {
       let hv = it.stats && it.stats[0], av = it.stats && it.stats[1];
