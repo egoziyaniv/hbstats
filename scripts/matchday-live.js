@@ -113,6 +113,21 @@ async function main() {
     if (r.status !== 0) console.error('  ✗ FotMob failed (continuing)');
   }
 
+  // Sofascore stats + shot map (Firecrawl, ~1 credit/game). Sofascore covers the
+  // Israeli league with a 46-metric panel + shot map that FotMob and API-Football
+  // lack for these games. Run ONCE per game post-FT — skip once a shotmap is
+  // stored — so it's ~1 credit/game/matchday, not every 30 min.
+  if (process.env.FIRECRAWL_API_KEY) {
+    for (const g of games) {
+      if (g.status !== 'COMPLETED') continue;
+      const have = await prisma.sofascoreMatchStats.findUnique({ where: { gameId: g.id }, select: { shotmap: true } });
+      if (have && Array.isArray(have.shotmap) && have.shotmap.length) continue;
+      console.log(`\n→ Sofascore stats+shotmap: ${g.homeTeam.nameHe} v ${g.awayTeam.nameHe}`);
+      const r = spawnSync('node', ['scripts/scrape-sofascore-shotmap.js', '--game', g.id], { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+      if (r.status !== 0) console.error('  ✗ Sofascore stats failed (continuing)');
+    }
+  }
+
   // Cup / Super Cup fixtures API-Football doesn't cover: pull from Sofascore
   // (event id resolved from a team's schedule; ~2 Firecrawl calls each). League
   // lineups come from API-Football, so skip those; only Sofascore-mapped clubs

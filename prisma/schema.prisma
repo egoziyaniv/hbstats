@@ -320,6 +320,7 @@ model FotmobMatchData {
   shotmap     Json? // [{isHome, player, min, outcome, xg, xgot, situation, shotType, px, py}]
   momentum    Json? // { data:[{minute,value}], goals:[{minute,isHome,player}] }
   playerStats Json? // [{isHome, name, rating, minutes, goals, assists, xg, xa, xgxa, shots, chancesCreated, defActions, isGK}]
+  teamStats   Json? // [{section, label, home, away}] — full team stats panel
   matchInfo   Json? // { attendance, stadium:{name,city,capacity,surface}, referee, weather:{temperature,description,...} }
   scrapedAt   DateTime @default(now())
   game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)

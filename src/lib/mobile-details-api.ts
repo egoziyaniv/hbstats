@@ -805,11 +805,13 @@ export async function getMobileGamePayload(gameId: string) {
             shotmap: Array.isArray(game.fotmobData.shotmap) ? (game.fotmobData.shotmap as unknown[]) : [],
             momentum: (game.fotmobData.momentum as { data?: unknown[]; goals?: unknown[] } | null) ?? null,
             playerStats: Array.isArray(game.fotmobData.playerStats) ? (game.fotmobData.playerStats as unknown[]) : [],
+            teamStats: Array.isArray(game.fotmobData.teamStats) ? (game.fotmobData.teamStats as unknown[]) : [],
             matchInfo: (game.fotmobData.matchInfo as unknown) ?? null,
             homeXg: game.gameStats?.homeXg ?? null,
             awayXg: game.gameStats?.awayXg ?? null,
           }
         : null,
+      sofascoreShotmap: Array.isArray(game.sofascoreMatchStats?.shotmap) ? (game.sofascoreMatchStats!.shotmap as unknown[]) : [],
     },
     h2h: await buildMobileH2H(game.homeTeamId, game.awayTeamId, game.id),
     xg: {

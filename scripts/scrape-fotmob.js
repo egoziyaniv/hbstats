@@ -144,6 +144,23 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
     };
   }).filter((p) => p.rating != null || p.minutes != null);
 
+  // ── team stats (full panel + mapped into GameStatistics) ──
+  const numify = (v) => { if (v == null) return null; if (typeof v === 'number') return v; const m = String(v).match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
+  const statGroups = c.stats?.Periods?.All?.stats || [];
+  const teamStats = [];
+  const gsMap = {};
+  const GS_KEY = { BallPossesion: 'Possession', total_shots: 'ShotsTotal', ShotsOnTarget: 'ShotsOnTarget', corners: 'Corners', fouls: 'Fouls', Offsides: 'Offsides', yellow_cards: 'YellowCards', red_cards: 'RedCards' };
+  for (const grp of statGroups) {
+    for (const it of (grp.stats || [])) {
+      let hv = it.stats && it.stats[0], av = it.stats && it.stats[1];
+      if (hv == null && av == null) continue; // group header row
+      if (flip) { const t = hv; hv = av; av = t; }
+      teamStats.push({ section: grp.title || 'Other', label: it.title || it.key, home: String(hv ?? ''), away: String(av ?? '') });
+      const gk = GS_KEY[it.key];
+      if (gk && gsMap[`home${gk}`] === undefined) { gsMap[`home${gk}`] = numify(hv); gsMap[`away${gk}`] = numify(av); }
+    }
+  }
+
   // ── match info ──
   const ib = mf.infoBox || {};
   const w = c.weather || {};
@@ -161,16 +178,19 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   };
   const homeXg = sumXg(true); const awayXg = sumXg(false);
 
-  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
+  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} teamStats=${teamStats.length} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
   if (DRY) return;
 
   await prisma.fotmobMatchData.upsert({
     where: { gameId },
-    create: { gameId, fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, matchInfo },
-    update: { fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, matchInfo, scrapedAt: new Date() },
+    create: { gameId, fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo },
+    update: { fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo, scrapedAt: new Date() },
   });
-  if (homeXg != null && awayXg != null) {
-    await prisma.gameStatistics.upsert({ where: { gameId }, create: { gameId, homeXg, awayXg }, update: { homeXg, awayXg } });
+  const statsData = { ...gsMap };
+  if (homeXg != null) statsData.homeXg = homeXg;
+  if (awayXg != null) statsData.awayXg = awayXg;
+  if (Object.keys(statsData).length) {
+    await prisma.gameStatistics.upsert({ where: { gameId }, create: { gameId, ...statsData }, update: statsData });
   }
 }
 

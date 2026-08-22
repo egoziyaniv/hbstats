@@ -479,6 +479,7 @@ export interface FotmobData {
   shotmap: FotmobShot[];
   momentum: { data: FotmobMomentumPoint[]; goals: FotmobGoalMarker[] } | null;
   playerStats: FotmobPlayerRating[];
+  teamStats: SofascoreMatchStat[]; // full team-stats panel (same shape as sofascoreStats)
   matchInfo: FotmobMatchInfo | null;
   homeXg: number | null;
   awayXg: number | null;
@@ -522,6 +523,7 @@ export interface MatchPayload {
   matchStats: MatchStats | null;
   sofascoreStats: SofascoreMatchStat[];
   fotmob: FotmobData | null;
+  sofascoreShotmap: FotmobShot[]; // Sofascore shot map — used when FotMob has none (league games)
   h2h: H2H | null;
   predicted: { home: PredictedLineupPlayerSummary[]; away: PredictedLineupPlayerSummary[] } | null;
   /** Pre-match preview (form + injuries/suspensions + AI). Null unless SCHEDULED. */

@@ -237,6 +237,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       awayExtra: s.awayExtra ?? null,
     })),
     fotmob: ((raw.sections as { fotmob?: FotmobData | null }).fotmob ?? null),
+    sofascoreShotmap: ((raw.sections as { sofascoreShotmap?: MatchPayload['sofascoreShotmap'] }).sofascoreShotmap ?? []),
     h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
     predicted: await buildPredictedBlock(raw),
     preview: await buildPreviewBlock(raw),

@@ -140,6 +140,10 @@ export default function MatchScreen() {
 
   const { match, homeTeam, awayTeam, events } = data;
   const isLive = match.status === 'live';
+  // detailed stats: Sofascore panel if present, else FotMob's team stats.
+  const detailedStats = data.sofascoreStats?.length ? data.sofascoreStats : (data.fotmob?.teamStats ?? []);
+  // shot map: FotMob (with xG) if present, else Sofascore's (league games).
+  const shotmapShots = data.fotmob?.shotmap?.length ? data.fotmob.shotmap : (data.sofascoreShotmap ?? []);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas.start }}>
@@ -307,9 +311,9 @@ export default function MatchScreen() {
                 </Text>
               </Card>
             )}
-            {data.sofascoreStats && data.sofascoreStats.length > 0 ? (
+            {detailedStats.length > 0 ? (
               <Section title="סטטיסטיקה מפורטת">
-                <SofascoreMatchStatsPanel stats={data.sofascoreStats} />
+                <SofascoreMatchStatsPanel stats={detailedStats} />
               </Section>
             ) : null}
 
@@ -319,14 +323,14 @@ export default function MatchScreen() {
               </Section>
             ) : null}
 
-            {data.fotmob?.shotmap && data.fotmob.shotmap.length > 0 ? (
+            {shotmapShots.length > 0 ? (
               <Section title="מפת בעיטות">
                 <ShotMap
-                  shots={data.fotmob.shotmap}
+                  shots={shotmapShots}
                   homeName={data.homeTeam.nameHe}
                   awayName={data.awayTeam.nameHe}
-                  homeXg={data.fotmob.homeXg}
-                  awayXg={data.fotmob.awayXg}
+                  homeXg={data.fotmob?.homeXg ?? null}
+                  awayXg={data.fotmob?.awayXg ?? null}
                 />
               </Section>
             ) : null}

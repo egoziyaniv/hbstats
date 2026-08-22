@@ -649,25 +649,35 @@ function PremierGameView({
               </PremierPanel>
             </section>
 
-            {game.sofascoreMatchStats?.payload && Array.isArray(game.sofascoreMatchStats.payload) ? (
-              <PremierPanel title="סטטיסטיקה מפורטת">
-                <SofascoreMatchStatsPanel stats={game.sofascoreMatchStats.payload as any[]} />
-              </PremierPanel>
-            ) : null}
+            {(() => {
+              const detailed = (Array.isArray(game.sofascoreMatchStats?.payload) && game.sofascoreMatchStats!.payload.length
+                ? game.sofascoreMatchStats!.payload
+                : (Array.isArray(game.fotmobData?.teamStats) ? game.fotmobData!.teamStats : [])) as any[];
+              return detailed.length ? (
+                <PremierPanel title="סטטיסטיקה מפורטת">
+                  <SofascoreMatchStatsPanel stats={detailed} />
+                </PremierPanel>
+              ) : null;
+            })()}
 
             {game.fotmobData?.matchInfo ? (
               <MatchInfoCard info={game.fotmobData.matchInfo as any} />
             ) : null}
 
-            {game.fotmobData?.shotmap && Array.isArray(game.fotmobData.shotmap) && game.fotmobData.shotmap.length ? (
-              <ShotMap
-                shots={game.fotmobData.shotmap as any[]}
-                homeName={game.homeTeam.nameHe || game.homeTeam.nameEn || ''}
-                awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
-                homeXg={game.gameStats?.homeXg ?? null}
-                awayXg={game.gameStats?.awayXg ?? null}
-              />
-            ) : null}
+            {(() => {
+              const shots = (Array.isArray(game.fotmobData?.shotmap) && game.fotmobData!.shotmap.length
+                ? game.fotmobData!.shotmap
+                : (Array.isArray(game.sofascoreMatchStats?.shotmap) ? game.sofascoreMatchStats!.shotmap : [])) as any[];
+              return shots.length ? (
+                <ShotMap
+                  shots={shots}
+                  homeName={game.homeTeam.nameHe || game.homeTeam.nameEn || ''}
+                  awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
+                  homeXg={game.gameStats?.homeXg ?? null}
+                  awayXg={game.gameStats?.awayXg ?? null}
+                />
+              ) : null;
+            })()}
 
             {game.fotmobData?.momentum && (game.fotmobData.momentum as any)?.data?.length ? (
               <MomentumChart

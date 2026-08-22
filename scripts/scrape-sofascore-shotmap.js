@@ -75,20 +75,30 @@ function buildStatsPayload(statsApi, flip) {
   return out;
 }
 
+// Emit the SAME normalized shape the ShotMap component uses (px/py 0-100 with
+// our home attacking the right goal). Sofascore normalises every shot to attack
+// x≈0, so our home → px=100-x, our away → px=x (mirror y). No per-shot xG.
+const BODY_TO_TYPE = { head: 'Header', 'left-foot': 'Left footed shot', 'right-foot': 'Right footed shot' };
 function buildShotmap(shotApi, flip) {
   const shots = shotApi && Array.isArray(shotApi.shotmap) ? shotApi.shotmap : [];
-  return shots.map((s) => ({
-    isHome: flip ? !s.isHome : !!s.isHome,
-    player: (s.player && (s.player.name || s.player.shortName)) || '',
-    min: s.time ?? null,
-    outcome: s.shotType || 'miss', // goal | save | miss | block | post
-    goalType: s.goalType || null,
-    situation: s.situation || null,
-    bodyPart: s.bodyPart || null,
-    x: s.playerCoordinates ? s.playerCoordinates.x : null,
-    y: s.playerCoordinates ? s.playerCoordinates.y : null,
-    goalMouth: s.goalMouthCoordinates ? { y: s.goalMouthCoordinates.y, z: s.goalMouthCoordinates.z, loc: s.goalMouthLocation || null } : null,
-  })).filter((s) => s.x != null && s.y != null);
+  return shots.map((s) => {
+    const ourHome = flip ? !s.isHome : !!s.isHome;
+    const x = s.playerCoordinates ? s.playerCoordinates.x : null;
+    const y = s.playerCoordinates ? s.playerCoordinates.y : null;
+    if (x == null || y == null) return null;
+    return {
+      isHome: ourHome,
+      player: (s.player && (s.player.name || s.player.shortName)) || '',
+      min: s.time ?? null,
+      outcome: s.shotType || 'miss', // goal | save | miss | block | post
+      xg: null,
+      xgot: null,
+      situation: s.situation || null,
+      shotType: BODY_TO_TYPE[s.bodyPart] || null,
+      px: ourHome ? 100 - x : x,
+      py: ourHome ? y : 100 - y,
+    };
+  }).filter(Boolean);
 }
 
 // Load our completed games for a tracked team + season, with both teams' AF ids.
