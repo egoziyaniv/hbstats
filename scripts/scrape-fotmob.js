@@ -77,22 +77,24 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   // first initial, diacritic-insensitive) using the two clubs' rosters. Foreign
   // opponents we don't have stay in English.
   const gm = await prisma.game.findUnique({ where: { id: gameId }, select: { homeTeamId: true, awayTeamId: true } });
-  const roster = gm ? await prisma.player.findMany({ where: { teamId: { in: [gm.homeTeamId, gm.awayTeamId] } }, select: { nameEn: true, nameHe: true } }) : [];
-  const nameIdx = new Map();
+  const roster = gm ? await prisma.player.findMany({ where: { teamId: { in: [gm.homeTeamId, gm.awayTeamId] } }, select: { nameEn: true, nameHe: true, id: true, teamId: true } }) : [];
+  const nameIdx = new Map(); // key -> [{nameHe, id, teamId}]
   for (const p of roster) {
     if (!p.nameEn || !p.nameHe) continue;
     const tk = tokens(p.nameEn);
     if (!tk.length || !tk[0]) continue;
     const key = `${tk[tk.length - 1]}|${tk[0][0]}`;
-    if (!nameIdx.has(key)) nameIdx.set(key, new Set());
-    nameIdx.get(key).add(p.nameHe);
+    if (!nameIdx.has(key)) nameIdx.set(key, []);
+    nameIdx.get(key).push({ nameHe: p.nameHe, id: p.id, teamId: p.teamId });
   }
-  const toHe = (en) => {
+  const matchPlayer = (en, teamId) => {
     const tk = tokens(en);
-    if (!tk.length || !tk[0]) return en;
-    const cands = nameIdx.get(`${tk[tk.length - 1]}|${tk[0][0]}`);
-    return cands && cands.size === 1 ? [...cands][0] : en;
+    if (!tk.length || !tk[0]) return { name: en, playerId: null };
+    let cands = nameIdx.get(`${tk[tk.length - 1]}|${tk[0][0]}`) || [];
+    if (teamId) { const scoped = cands.filter((c) => c.teamId === teamId); if (scoped.length) cands = scoped; }
+    return cands.length === 1 ? { name: cands[0].nameHe, playerId: cands[0].id } : { name: en, playerId: null };
   };
+  const toHe = (en) => matchPlayer(en, null).name;
 
   // ── shotmap (px/py: OUR home attacks right) ──
   const rawShots = c.shotmap?.shots || (Array.isArray(c.shotmap) ? c.shotmap : []) || [];
@@ -179,7 +181,46 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   };
   const homeXg = sumXg(true); const awayXg = sumXg(false);
 
-  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} teamStats=${teamStats.length} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
+  // ── lineups (XI + subs + coach) — mapped to our teams, names→Hebrew+playerId
+  //    where possible. Filled only when the game has no starters yet (below). ──
+  const lu = c.lineup || {};
+  const ourTeamIdFor = (fmKey) => {
+    const ourHome = (fmKey === 'homeTeam') !== flip; // FotMob home → our home unless flip
+    return gm ? (ourHome ? gm.homeTeamId : gm.awayTeamId) : null;
+  };
+  const gridFor = (starters) => {
+    const rnd = (y) => Math.round((y == null ? 0.5 : y) * 100) / 100;
+    const ys = [...new Set(starters.map((s) => rnd(s.verticalLayout && s.verticalLayout.y)))].sort((a, b) => a - b);
+    const g = new Map(); const byRow = {};
+    for (const s of starters) { const r = ys.indexOf(rnd(s.verticalLayout && s.verticalLayout.y)) + 1; (byRow[r] = byRow[r] || []).push(s); }
+    for (const r of Object.keys(byRow)) {
+      byRow[r].sort((a, b) => ((a.verticalLayout && a.verticalLayout.x) || 0.5) - ((b.verticalLayout && b.verticalLayout.x) || 0.5))
+        .forEach((s, i) => g.set(s.id, `${r}:${i + 1}`));
+    }
+    return g;
+  };
+  const jersey = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+  const lineupEntries = [];
+  for (const fmKey of ['homeTeam', 'awayTeam']) {
+    const t = lu[fmKey]; const teamId = ourTeamIdFor(fmKey);
+    if (!t || !teamId) continue;
+    const formation = t.formation || null;
+    const starters = Array.isArray(t.starters) ? t.starters : [];
+    const grid = gridFor(starters);
+    for (const s of starters) {
+      const mp = matchPlayer(s.name || '', teamId);
+      lineupEntries.push({ gameId, teamId, role: 'STARTER', participantName: mp.name, playerId: mp.playerId, jerseyNumber: jersey(s.shirtNumber), formation, positionGrid: grid.get(s.id) || null, rating: s.performance && typeof s.performance.rating === 'number' ? s.performance.rating : null });
+    }
+    (Array.isArray(t.subs) ? t.subs : []).forEach((s, i) => {
+      const mp = matchPlayer(s.name || '', teamId);
+      lineupEntries.push({ gameId, teamId, role: 'SUBSTITUTE', participantName: mp.name, playerId: mp.playerId, jerseyNumber: jersey(s.shirtNumber), formation, positionGrid: `b${i}`, rating: null });
+    });
+    if (t.coach && t.coach.name) {
+      lineupEntries.push({ gameId, teamId, role: 'COACH', participantName: t.coach.name, playerId: null, jerseyNumber: null, formation: null, positionGrid: null, rating: null });
+    }
+  }
+
+  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} teamStats=${teamStats.length} lineup=${lineupEntries.length} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
   if (DRY) return;
 
   await prisma.fotmobMatchData.upsert({
@@ -192,6 +233,15 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   if (awayXg != null) statsData.awayXg = awayXg;
   if (Object.keys(statsData).length) {
     await prisma.gameStatistics.upsert({ where: { gameId }, create: { gameId, ...statsData }, update: statsData });
+  }
+  // Lineups: fill only when the game has no starters yet (API-Football gives none
+  // for the Israeli league; don't clobber a better source that already filled it).
+  if (lineupEntries.length) {
+    const existing = await prisma.gameLineupEntry.count({ where: { gameId, role: 'STARTER' } });
+    if (existing === 0) {
+      await prisma.gameLineupEntry.deleteMany({ where: { gameId } });
+      await prisma.gameLineupEntry.createMany({ data: lineupEntries, skipDuplicates: true });
+    }
   }
 }
 
