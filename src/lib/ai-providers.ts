@@ -111,7 +111,7 @@ export async function chatWithClaude(apiKey: string, messages: ChatMessage[]): P
 
 // ─── OpenAI ───
 
-export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[]): Promise<string> {
+export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[], model = 'gpt-4o'): Promise<string> {
   const client = new OpenAI({ apiKey });
 
   const openaiTools: OpenAI.ChatCompletionTool[] = toolDefinitions.map((t) => ({
@@ -129,12 +129,18 @@ export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[]): P
   ];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 1024,
+    // Reasoning models (gpt-5.x / o-series) reject max_tokens and, in
+    // chat/completions, refuse function tools unless reasoning is off. So we
+    // send max_completion_tokens (also valid for gpt-4o) and add
+    // reasoning_effort:'none' only for those models (gpt-4o rejects it).
+    const params = {
+      model,
+      max_completion_tokens: 1024,
       tools: openaiTools,
       messages: openaiMessages,
-    });
+    } as OpenAI.ChatCompletionCreateParamsNonStreaming;
+    if (/^(gpt-5|o[1-9])/.test(model)) (params as unknown as Record<string, unknown>).reasoning_effort = 'none';
+    const response = await client.chat.completions.create(params);
 
     const choice = response.choices[0];
     if (!choice) return 'לא הצלחתי לייצר תשובה.';

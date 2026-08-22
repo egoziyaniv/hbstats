@@ -114,7 +114,7 @@ async function aiSummary(
       `ושחקנים חסרים אם יש. עובדות: ${facts}`;
     const messages = [{ role: 'user' as const, content: prompt }];
     const text = (settings.provider === 'openai'
-      ? await chatWithOpenAI(apiKey, messages)
+      ? await chatWithOpenAI(apiKey, messages, 'gpt-5.6-luna')
       : await chatWithClaude(apiKey, messages)).trim();
     const result = text || null;
     summaryMemo.set(memoKey, result);
