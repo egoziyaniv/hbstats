@@ -258,7 +258,12 @@ export default async function StandingsPage({
   // numbers in playoff games (e.g., "Relegation Group - 32") legitimately exceed the played
   // count of upper-playoff teams. Don't treat that as stale.
   const hasPlayoffGroupInfo = competitionStandings.some((s) => isChampionshipGroup(s.groupNameEn) || isRelegationGroup(s.groupNameEn));
-  const hasOutdatedStandings = !hasPlayoffGroupInfo && maxRoundInGames > maxRoundInStandings;
+  // Also stale when MORE league games are completed than the stored standings
+  // reflect — API-Football's standings feed lags within a round, so a team that
+  // just played (e.g. Maccabi TA won today) would otherwise show 0 until the
+  // feed catches up. Comparing games (2 team-rows each) catches within-round lag.
+  const gamesInStandings = hasStoredStandings ? Math.round(competitionStandings.reduce((a, s) => a + (s.played || 0), 0) / 2) : 0;
+  const hasOutdatedStandings = !hasPlayoffGroupInfo && (maxRoundInGames > maxRoundInStandings || completedLeagueGames.length > gamesInStandings);
   const isPlayoffSeason = hasStoredStandings && !hasOutdatedStandings && competitionStandings.some(
     (s) => isChampionshipGroup(s.groupNameEn) || isRelegationGroup(s.groupNameEn)
   );
@@ -592,9 +597,7 @@ export default async function StandingsPage({
                     <div key={r.id} className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs">
                       <span className="font-black text-red-700">▼ {Math.abs(r.pointsAdjustment)}</span>
                       <span className="font-semibold text-stone-700">{getDisplayTeamName(r.team)}</span>
-                      {r.pointsAdjustmentNoteHe ? (
-                        <span className="text-stone-500">— {r.pointsAdjustmentNoteHe}</span>
-                      ) : null}
+                      <span className="text-stone-500">— הורדו לקבוצה {Math.abs(r.pointsAdjustment)} נקודות ליגה</span>
                     </div>
                   ))}
               </div>
@@ -902,9 +905,7 @@ function PremierStandingsView({
                     <div key={r.id} className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs">
                       <span className="font-black text-red-700">▼ {Math.abs(r.pointsAdjustment)}</span>
                       <span className="font-semibold text-stone-700">{getDisplayTeamName(r.team)}</span>
-                      {r.pointsAdjustmentNoteHe ? (
-                        <span className="text-stone-500">— {r.pointsAdjustmentNoteHe}</span>
-                      ) : null}
+                      <span className="text-stone-500">— הורדו לקבוצה {Math.abs(r.pointsAdjustment)} נקודות ליגה</span>
                     </div>
                   ))}
               </div>
