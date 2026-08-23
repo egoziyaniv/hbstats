@@ -755,7 +755,12 @@ export async function getMobileGamePayload(gameId: string) {
     },
     sections: {
       stats: comparisonRows,
-      events: game.events.map((event) => ({
+      events: game.events
+        // Each sub is stored as an inverse SUBSTITUTION_IN + OUT pair — keep only
+        // the OUT (player=out, related=in) so the client shows one sub, oriented
+        // correctly. Orphan INs are kept.
+        .filter((e) => !(e.type === 'SUBSTITUTION_IN' && game.events.some((o) => o.type === 'SUBSTITUTION_OUT' && o.minute === e.minute && o.teamId === e.teamId)))
+        .map((event) => ({
         id: event.id,
         // Raw enum value (GOAL / YELLOW_CARD / SUBSTITUTION_OUT / ...) — kept
         // so the mobile API mapper can translate to its own type taxonomy.

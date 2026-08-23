@@ -27,8 +27,8 @@ const eventLabels: Record<string, string> = {
   ASSIST: 'בישול',
   YELLOW_CARD: 'כרטיס צהוב',
   RED_CARD: 'כרטיס אדום',
-  SUBSTITUTION_IN: 'חילוף נכנס',
-  SUBSTITUTION_OUT: 'חילוף יוצא',
+  SUBSTITUTION_IN: 'חילוף',
+  SUBSTITUTION_OUT: 'חילוף',
   OWN_GOAL: 'שער עצמי',
   PENALTY_GOAL: 'פנדל',
   PENALTY_MISSED: 'פנדל מוחמץ',
@@ -90,6 +90,13 @@ export default async function GamePage({
   if (!game) {
     notFound();
   }
+
+  // Each substitution is stored as an inverse SUBSTITUTION_IN + SUBSTITUTION_OUT
+  // pair — drop the IN when its paired OUT exists so we render ONE "חילוף" event
+  // (getEventParticipantRows handles either type). Orphan INs are kept.
+  game.events = game.events.filter(
+    (e) => !(e.type === 'SUBSTITUTION_IN' && game.events.some((o) => o.type === 'SUBSTITUTION_OUT' && o.minute === e.minute && o.teamId === e.teamId)),
+  );
 
   const adminPlayers =
     currentUser?.role === 'ADMIN'
@@ -974,17 +981,15 @@ function getEventParticipantRows(event: any) {
     (event.notesHe && event.notesHe.includes('→')) ? event.notesHe.split('→')[1].replace(/^נכנס\s*/, '').trim() :
     null;
 
-  if (event.type === 'SUBSTITUTION_OUT') {
+  // A substitution is stored twice (SUBSTITUTION_OUT: player=out, related=in;
+  // SUBSTITUTION_IN: player=in, related=out). Show ONE "חילוף" card with the
+  // incoming player first (emphasised) and the outgoing second.
+  if (event.type === 'SUBSTITUTION_OUT' || event.type === 'SUBSTITUTION_IN') {
+    const incoming = event.type === 'SUBSTITUTION_OUT' ? relatedPlayer : primaryPlayer;
+    const outgoing = event.type === 'SUBSTITUTION_OUT' ? primaryPlayer : relatedPlayer;
     return [
-      { label: 'יוצא', value: primaryPlayer || 'שחקן לא משויך', emphasis: true },
-      ...(relatedPlayer ? [{ label: 'נכנס', value: relatedPlayer, emphasis: false }] : []),
-    ];
-  }
-
-  if (event.type === 'SUBSTITUTION_IN') {
-    return [
-      { label: 'יצא', value: primaryPlayer || 'שחקן לא משויך', emphasis: true },
-      ...(relatedPlayer ? [{ label: 'נכנס', value: relatedPlayer, emphasis: false }] : []),
+      { label: 'נכנס', value: incoming || 'שחקן לא משויך', emphasis: true },
+      ...(outgoing ? [{ label: 'יצא', value: outgoing, emphasis: false }] : []),
     ];
   }
 
