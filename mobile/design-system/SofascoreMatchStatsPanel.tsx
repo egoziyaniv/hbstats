@@ -11,11 +11,15 @@ import type { SofascoreMatchStat } from '@shared/types/mobile-api';
 import { theme } from './theme';
 
 const SECTION_HE: Record<string, string> = {
+  'Match overview': 'סקירת משחק',
+  'Top stats': 'מדדים מובילים',
   Shots: 'בעיטות',
   Attack: 'התקפה',
   Passes: 'מסירות',
   Duels: 'דו-קרבים',
   Defending: 'הגנה',
+  Defence: 'הגנה',
+  Discipline: 'משמעת',
   Goalkeeping: 'שוערים',
 };
 
@@ -54,6 +58,36 @@ const LABEL_HE: Record<string, string> = {
   'Big saves': 'הצלות גדולות',
   'High claims': 'תפיסות גבוהות',
   'Goal kicks': 'בעיטות שער',
+  'Ball possession': 'החזקת כדור',
+  'Big chances': 'מצבים גדולים',
+  'Corner kicks': 'קרנות',
+  'Passes': 'מסירות',
+  'Total passes': 'סך מסירות',
+  'Free kicks': 'בעיטות חופשיות',
+  'Yellow cards': 'כרטיסים צהובים',
+  'Red cards': 'כרטיסים אדומים',
+  'Fouls': 'עבירות',
+  'Fouls committed': 'עבירות',
+  'Tackles': 'תיקולים',
+  'Average rating': 'דירוג ממוצע',
+  'Expected goals': 'שערים צפויים (xG)',
+  'Expected goals on target': 'שערים צפויים למסגרת (xGOT)',
+  'Touches in penalty area': 'נגיעות ברחבה',
+  'Own half': 'מסירות במחצית שלנו',
+  'Opposition half': 'מסירות במחצית היריב',
+  'Accurate long balls': 'כדורים ארוכים מדויקים',
+  'Accurate crosses': 'הרמות מדויקות',
+  'Throws': 'הכנסות',
+  'Duels won': 'דו-קרבים שנוצחו',
+  'Ground duels won': 'דו-קרבים על הקרקע שנוצחו',
+  'Aerial duels won': 'דו-קרבים אוויריים שנוצחו',
+  'Successful dribbles': 'כדרורים מוצלחים',
+  'Blocks': 'חסימות',
+  'Keeper saves': 'הצלות שוער',
+  'Total saves': 'סך הצלות',
+  'Saves': 'הצלות',
+  'Final third phase': 'שהייה ב-1/3 אחרון',
+  'Errors lead to a shot': 'טעויות שהובילו לבעיטה',
 };
 
 function StatRow({ stat }: { stat: SofascoreMatchStat }) {
