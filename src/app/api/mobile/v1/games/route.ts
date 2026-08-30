@@ -84,8 +84,6 @@ export async function GET(request: NextRequest) {
     : [];
 
   // Group games by round, preserving chronological order within each round.
-  // Rounds appear most-recent first (reverse the chronological group order) so
-  // the current/upcoming round lands at the top of the list.
   const groupMap = new Map<string, MatchCard[]>();
   for (const g of games) {
     const roundLabel = g.roundNameHe || g.roundNameEn || 'משחקים';
@@ -121,9 +119,35 @@ export async function GET(request: NextRequest) {
     if (!groupMap.has(roundLabel)) groupMap.set(roundLabel, []);
     groupMap.get(roundLabel)!.push(card);
   }
-  const rounds: GamesRoundGroup[] = Array.from(groupMap.entries())
-    .map(([roundLabel, roundGames]) => ({ roundLabel, games: roundGames }))
-    .reverse();
+
+  // Order rounds around "now" instead of by date alone. A full season's
+  // fixtures are all pre-loaded, so a plain date sort would surface the season
+  // finale (round 26 in March) at the top. Anchor to the CURRENT round — the
+  // latest round that has already kicked off — then list earlier rounds
+  // (recent results, newest first) and finally the upcoming rounds. This keeps
+  // today's games at the top of the list all season long.
+  const roundEntries = Array.from(groupMap.entries()).map(([roundLabel, roundGames]) => ({
+    roundLabel,
+    games: roundGames,
+    startMs: new Date(roundGames[0].date).getTime(), // earliest kickoff (games are asc)
+  }));
+  roundEntries.sort((a, b) => a.startMs - b.startMs);
+
+  const nowMs = Date.now();
+  let currentIdx = -1;
+  for (let i = 0; i < roundEntries.length; i++) {
+    if (roundEntries[i].games.some((m) => new Date(m.date).getTime() <= nowMs)) currentIdx = i;
+  }
+  if (currentIdx === -1) currentIdx = 0; // season hasn't started — lead with the first round
+
+  const ordered: typeof roundEntries = [];
+  for (let i = currentIdx; i >= 0; i--) ordered.push(roundEntries[i]);              // current + past (newest first)
+  for (let i = currentIdx + 1; i < roundEntries.length; i++) ordered.push(roundEntries[i]); // upcoming (ascending)
+
+  const rounds: GamesRoundGroup[] = ordered.map(({ roundLabel, games: roundGames }) => ({
+    roundLabel,
+    games: roundGames,
+  }));
 
   const payload: GamesPayload = {
     season: { id: season.id, year: season.year, name: season.name },
