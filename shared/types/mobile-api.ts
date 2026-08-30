@@ -151,6 +151,26 @@ export interface SeasonsPayload {
   seasons: SeasonOption[];
 }
 
+// ---------- Games (matches list screen) ----------
+
+export interface GamesCompetitionOption {
+  id: string;
+  nameHe: string;
+}
+
+/** One round's fixtures/results (e.g. "מחזור 3"). */
+export interface GamesRoundGroup {
+  roundLabel: string;
+  games: MatchCard[];
+}
+
+export interface GamesPayload {
+  season: { id: string; year: number; name: string } | null;
+  competitions: GamesCompetitionOption[];
+  selectedCompetitionId: string | null;
+  rounds: GamesRoundGroup[];
+}
+
 // ---------- News (full list screen) ----------
 
 export interface NewsSource {

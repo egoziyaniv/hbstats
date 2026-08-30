@@ -219,7 +219,7 @@ export default function HomeScreen() {
         ) : null}
 
         {data.lastMatch ? (
-          <Section title="המשחק האחרון">
+          <Section title="המשחק האחרון" actionLabel="כל המשחקים" onAction={() => router.push('/(tabs)/games' as any)}>
             <MatchPreviewRow match={data.lastMatch} onPress={() => router.push(`/games/${data.lastMatch!.id}` as any)} brandAccent={brand.accent} />
           </Section>
         ) : null}
