@@ -20,6 +20,9 @@ import { SofascoreMatchStatsPanel } from '@/components/SofascoreMatchStatsPanel'
 import { ShotMap } from '@/components/ShotMap';
 import { MomentumChart } from '@/components/MomentumChart';
 import { PlayerRatingsTable } from '@/components/PlayerRatingsTable';
+import { FotmobPlayerStatsTable } from '@/components/FotmobPlayerStatsTable';
+import { FotmobUnavailableBlock } from '@/components/FotmobUnavailableBlock';
+import type { FotmobPlayerRating, FotmobUnavailablePlayer } from '@shared/types/mobile-api';
 import { MatchInfoCard } from '@/components/MatchInfoCard';
 
 const eventLabels: Record<string, string> = {
@@ -702,6 +705,14 @@ function PremierGameView({
                 awayName={game.awayTeam.nameHe || game.awayTeam.nameEn || ''}
               />
             ) : null}
+
+            {game.fotmobData?.playerStats && Array.isArray(game.fotmobData.playerStats) && game.fotmobData.playerStats.length ? (
+              <FotmobPlayerStatsTable
+                players={game.fotmobData.playerStats as FotmobPlayerRating[]}
+                homeTeamName={homeTeamName}
+                awayTeamName={awayTeamName}
+              />
+            ) : null}
           </>
         ) : null}
 
@@ -721,6 +732,16 @@ function PremierGameView({
 
         {selectedTab === 'lineups' ? (
           <>
+            <FotmobUnavailableBlock
+              unavailable={
+                (game.fotmobData?.unavailable ?? null) as {
+                  home: FotmobUnavailablePlayer[];
+                  away: FotmobUnavailablePlayer[];
+                } | null
+              }
+              homeTeamName={homeTeamName}
+              awayTeamName={awayTeamName}
+            />
             {predictedLineups ? (
               <PremierPanel title="תחזית הרכב פותח">
                 <PredictedLineupPanel

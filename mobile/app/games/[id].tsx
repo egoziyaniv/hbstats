@@ -15,6 +15,8 @@ import { SofascoreMatchStatsPanel } from '@/design-system/SofascoreMatchStatsPan
 import { ShotMap } from '@/design-system/ShotMap';
 import { MomentumChart } from '@/design-system/MomentumChart';
 import { PlayerRatingsTable } from '@/design-system/PlayerRatingsTable';
+import { FotmobPlayerStatsTable } from '@/design-system/FotmobPlayerStatsTable';
+import { FotmobUnavailable } from '@/design-system/FotmobUnavailable';
 import { MatchInfoCard } from '@/design-system/MatchInfoCard';
 import { LiveDot } from '@/design-system/LiveDot';
 import { TabBar } from '@/design-system/TabBar';
@@ -351,7 +353,25 @@ export default function MatchScreen() {
                 <PlayerRatingsTable players={data.fotmob.playerStats} />
               </Section>
             ) : null}
+
+            {data.fotmob?.playerStats && data.fotmob.playerStats.length > 0 ? (
+              <Section title="סטטיסטיקת שחקנים">
+                <FotmobPlayerStatsTable
+                  players={data.fotmob.playerStats}
+                  homeTeamName={data.homeTeam.nameHe}
+                  awayTeamName={data.awayTeam.nameHe}
+                />
+              </Section>
+            ) : null}
           </>
+        ) : null}
+
+        {tab === 'lineups' && data.fotmob?.unavailable ? (
+          <FotmobUnavailable
+            unavailable={data.fotmob.unavailable}
+            homeTeamName={homeTeam.nameHe}
+            awayTeamName={awayTeam.nameHe}
+          />
         ) : null}
 
         {tab === 'lineups' && data.predicted && (data.predicted.home.length > 0 || data.predicted.away.length > 0) ? (
