@@ -488,6 +488,20 @@ export interface FotmobPlayerRating {
   shots: number | null;
   chancesCreated: number | null;
   defActions: number | null;
+  /** Full per-category metric map (English label → value) for the stats table. */
+  stats?: Record<string, number | string>;
+}
+/** One injured/suspended player from FotMob's "unavailable" block. */
+export interface FotmobUnavailablePlayer {
+  name: string;
+  nameEn: string;
+  playerId: string | null;
+  fotmobId: number | null;
+  type: 'injury' | 'suspension';
+  expectedReturn: string | null;      // e.g. "Late September 2026"
+  expectedReturnDate: string | null;  // ISO
+  countryCode: string | null;
+  age: number | null;
 }
 export interface FotmobMatchInfo {
   attendance?: number | null;
@@ -501,6 +515,7 @@ export interface FotmobData {
   playerStats: FotmobPlayerRating[];
   teamStats: SofascoreMatchStat[]; // full team-stats panel (same shape as sofascoreStats)
   matchInfo: FotmobMatchInfo | null;
+  unavailable: { home: FotmobUnavailablePlayer[]; away: FotmobUnavailablePlayer[] } | null;
   homeXg: number | null;
   awayXg: number | null;
 }

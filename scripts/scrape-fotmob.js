@@ -126,6 +126,21 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
 
   // ── player stats ──
   const st = (key, group) => group?.[key]?.stat?.value ?? null;
+  // Flatten EVERY stat group (top_stats / attack / defense / duels; GK metrics
+  // live inside a keeper's top_stats) into one label→value map so the UI can
+  // render the full FotMob-style category table, not just top stats. Skip the
+  // "Shotmap" counter and any non-primitive value (e.g. hidden placeholders).
+  const flatStats = (p) => {
+    const out = {};
+    for (const grp of (p.stats || [])) {
+      for (const [label, obj] of Object.entries(grp.stats || {})) {
+        if (label === 'Shotmap') continue;
+        const v = obj?.stat?.value;
+        if (typeof v === 'number' || (typeof v === 'string' && v !== '')) out[label] = v;
+      }
+    }
+    return out;
+  };
   const playerStats = Object.values(c.playerStats || {}).map((p) => {
     const top = (p.stats || []).find((x) => x.key === 'top_stats')?.stats || {};
     return {
@@ -143,8 +158,33 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
       shots: st('Total shots', top),
       chancesCreated: st('Chances created', top),
       defActions: st('Defensive actions', top),
+      stats: flatStats(p), // full per-category metric map
     };
   }).filter((p) => p.rating != null || p.minutes != null);
+
+  // ── injured & suspended (FotMob "unavailable" block, oriented to our teams) ──
+  // Each: { name(He if matched), nameEn, playerId, fotmobId, type, expectedReturn,
+  //         expectedReturnDate, countryCode, age }.
+  const luRaw = c.lineup || {};
+  const mapUnavail = (arr, teamId) => (Array.isArray(arr) ? arr : []).map((u) => {
+    const mp = matchPlayer(u.name || '', teamId);
+    const ua = u.unavailability || {};
+    return {
+      name: mp.name,
+      nameEn: u.name || '',
+      playerId: mp.playerId,
+      fotmobId: u.id ?? null,
+      type: ua.type === 'suspension' ? 'suspension' : 'injury',
+      expectedReturn: ua.expectedReturn || null,
+      expectedReturnDate: ua.expectedReturnDate || null,
+      countryCode: u.countryCode || null,
+      age: u.age ?? null,
+    };
+  });
+  const unavailable = {
+    home: mapUnavail(luRaw[flip ? 'awayTeam' : 'homeTeam']?.unavailable, gm?.homeTeamId),
+    away: mapUnavail(luRaw[flip ? 'homeTeam' : 'awayTeam']?.unavailable, gm?.awayTeamId),
+  };
 
   // ── team stats (full panel + mapped into GameStatistics) ──
   const numify = (v) => { if (v == null) return null; if (typeof v === 'number') return v; const m = String(v).match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
@@ -220,13 +260,14 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
     }
   }
 
-  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} teamStats=${teamStats.length} lineup=${lineupEntries.length} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
+  const unavailCount = unavailable.home.length + unavailable.away.length;
+  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} teamStats=${teamStats.length} lineup=${lineupEntries.length} unavail=${unavailCount} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
   if (DRY) return;
 
   await prisma.fotmobMatchData.upsert({
     where: { gameId },
-    create: { gameId, fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo },
-    update: { fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo, scrapedAt: new Date() },
+    create: { gameId, fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo, unavailable },
+    update: { fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo, unavailable, scrapedAt: new Date() },
   });
   const statsData = { ...gsMap };
   if (homeXg != null) statsData.homeXg = homeXg;

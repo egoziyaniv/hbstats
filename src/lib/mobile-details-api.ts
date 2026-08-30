@@ -812,6 +812,7 @@ export async function getMobileGamePayload(gameId: string) {
             playerStats: Array.isArray(game.fotmobData.playerStats) ? (game.fotmobData.playerStats as unknown[]) : [],
             teamStats: Array.isArray(game.fotmobData.teamStats) ? (game.fotmobData.teamStats as unknown[]) : [],
             matchInfo: (game.fotmobData.matchInfo as unknown) ?? null,
+            unavailable: (game.fotmobData.unavailable as { home?: unknown[]; away?: unknown[] } | null) ?? null,
             homeXg: game.gameStats?.homeXg ?? null,
             awayXg: game.gameStats?.awayXg ?? null,
           }
