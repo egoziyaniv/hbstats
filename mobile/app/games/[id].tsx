@@ -17,6 +17,7 @@ import { MomentumChart } from '@/design-system/MomentumChart';
 import { PlayerRatingsTable } from '@/design-system/PlayerRatingsTable';
 import { FotmobPlayerStatsTable } from '@/design-system/FotmobPlayerStatsTable';
 import { FotmobUnavailable } from '@/design-system/FotmobUnavailable';
+import { GameEditorialBlock } from '@/design-system/GameEditorialBlock';
 import { MatchInfoCard } from '@/design-system/MatchInfoCard';
 import { LiveDot } from '@/design-system/LiveDot';
 import { TabBar } from '@/design-system/TabBar';
@@ -226,6 +227,9 @@ export default function MatchScreen() {
       >
         {tab === 'overview' ? (
           <>
+            {/* Editor-curated content — match fact, recap/full video, report,
+                photo gallery. Self-guards (renders null when empty). */}
+            <GameEditorialBlock editorial={data.editorial ?? null} gallery={data.gallery ?? []} />
             {/* Pre-match preview — form + injuries/suspensions + AI, only for
                 not-yet-started games (matches the web "לקראת המשחק" block). */}
             {data.preview ? (

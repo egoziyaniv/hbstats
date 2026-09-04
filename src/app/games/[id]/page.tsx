@@ -22,6 +22,7 @@ import { MomentumChart } from '@/components/MomentumChart';
 import { PlayerRatingsTable } from '@/components/PlayerRatingsTable';
 import { FotmobPlayerStatsTable } from '@/components/FotmobPlayerStatsTable';
 import { FotmobUnavailableBlock } from '@/components/FotmobUnavailableBlock';
+import { GameEditorialBlock } from '@/components/GameEditorialBlock';
 import type { FotmobPlayerRating, FotmobUnavailablePlayer } from '@shared/types/mobile-api';
 import { MatchInfoCard } from '@/components/MatchInfoCard';
 
@@ -570,6 +571,22 @@ function PremierGameView({
           <div className="mb-6">
             <MatchPreviewSection preview={matchPreview} homeName={homeTeamName} awayName={awayTeamName} />
           </div>
+        ) : null}
+
+        {selectedTab === 'overview' && currentUserRole === 'ADMIN' ? (
+          <div className="mb-4 flex justify-end">
+            <a
+              href={`/admin/games/${game.id}/editorial`}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--accent)] px-4 py-2 text-sm font-bold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+              ערוך תוכן משחק
+            </a>
+          </div>
+        ) : null}
+
+        {selectedTab === 'overview' ? (
+          <GameEditorialBlock editorial={game.editorial} gallery={game.mediaAssets} />
         ) : null}
 
         {selectedTab === 'overview' ? (
