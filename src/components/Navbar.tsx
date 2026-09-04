@@ -56,9 +56,11 @@ const navLinks: NavItem[] = [
 
 // Grouped navigation: a short row of primary links + two dropdowns, so the bar
 // never overflows. Admin is appended separately (admins only).
-const PRIMARY_HREFS = ['/', '/games', '/standings', '/teams', '/club', '/players', '/predictions', '/live'];
+// Beer Sheva first: הקבוצה + שירים lead the primary row (the club identity),
+// with the league-wide surfaces kept a click away in the dropdowns.
+const PRIMARY_HREFS = ['/', '/games', '/club', '/songs', '/standings', '/players', '/live'];
 const STATS_HREFS = ['/statistics', '/history', '/history/ask', '/statistics/best-xi', '/statistics/insights', '/statistics/advanced'];
-const MORE_HREFS = ['/coaches', '/referees', '/venues', '/compare', '/songs'];
+const MORE_HREFS = ['/teams', '/coaches', '/referees', '/venues', '/compare', '/predictions'];
 
 function linksFor(hrefs: string[]): NavItem[] {
   return hrefs.map((h) => navLinks.find((l) => l.href === h)).filter(Boolean) as NavItem[];

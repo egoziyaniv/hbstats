@@ -19,6 +19,7 @@ import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
+import ClubHubBand from '@/components/ClubHubBand';
 
 export const dynamic = 'force-dynamic';
 
@@ -736,6 +737,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
 
       {/* ── MAIN GRID ── */}
       <div className="mx-auto max-w-7xl px-4 py-6">
+        {/* ── מרכז המועדון: club quick-access band (foregrounds Hapoel Beer Sheva) ── */}
+        <ClubHubBand />
+
         <div className="grid gap-5 lg:grid-cols-3">
 
           {/* ── COL 1: Standings + Live ── */}

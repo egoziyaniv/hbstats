@@ -1,4 +1,6 @@
 import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
+import type { ReactNode } from 'react';
+import { Svg, Path, Circle } from 'react-native-svg';
 import { rtlRow } from '@/lib/rtl';
 import { openExternalUrl } from '@/lib/openExternal';
 import { CachedImage } from '@/design-system/CachedImage';
@@ -56,6 +58,41 @@ export default function HomeScreen() {
         ) : data.nextMatch ? (
           <UpcomingFeatureHero match={data.nextMatch} accentStart={brand.accent} accentEnd={brand.accentDeep} onPress={() => router.push(`/games/${data.nextMatch!.id}` as any)} />
         ) : null}
+
+        {/* Club hub — quick access to the Hapoel Beer Sheva club sections, right
+            under the hero so the club is foregrounded. 2×2 grid of pressable tiles. */}
+        <Section title="מרכז המועדון">
+          <View style={{ paddingHorizontal: 16, flexDirection: rtlRow(), flexWrap: 'wrap', gap: 10 }}>
+            <ClubHubTile
+              title="הקבוצה"
+              subtitle="סגל, היסטוריה, אצטדיון"
+              glow={brand.accentGlow}
+              icon={<ShieldIcon color={brand.accent} />}
+              onPress={() => router.push('/club' as any)}
+            />
+            <ClubHubTile
+              title="היכל התהילה"
+              subtitle="אגדות ותארים"
+              glow={brand.accentGlow}
+              icon={<StarIcon color={brand.accent} />}
+              onPress={() => router.push('/club' as any)}
+            />
+            <ClubHubTile
+              title="שירים"
+              subtitle="שירי היציע"
+              glow={brand.accentGlow}
+              icon={<MusicIcon color={brand.accent} />}
+              onPress={() => router.push('/songs' as any)}
+            />
+            <ClubHubTile
+              title="היסטוריה"
+              subtitle="שיאים ותארים"
+              glow={brand.accentGlow}
+              icon={<ClockIcon color={brand.accent} />}
+              onPress={() => router.push('/history/records' as any)}
+            />
+          </View>
+        </Section>
 
         <View style={{ height: 16 }} />
 
@@ -294,6 +331,90 @@ export default function HomeScreen() {
         ) : null}
       </ScrollView>
     </View>
+  );
+}
+
+/**
+ * ClubHubTile — a Card-styled, pressable quick-access tile for the "מרכז המועדון"
+ * grid. Icon in an accent-glow square on top (right edge in RTL), bold Hebrew
+ * title and muted subtitle beneath. flexBasis 46% + flexGrow makes a 2-per-row
+ * grid that fills the width; padding + 40px icon keep the hit target well ≥ 44px.
+ */
+function ClubHubTile({
+  title,
+  subtitle,
+  glow,
+  icon,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  glow: string;
+  icon: ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={{ flexGrow: 1, flexBasis: '46%' }}>
+      <Card marginX={0}>
+        <View style={{ gap: 10, alignItems: 'flex-start' }}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: glow,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {icon}
+          </View>
+          <View style={{ gap: 2, alignItems: 'flex-start' }}>
+            <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={{ color: theme.ink[500], fontSize: 12, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' }} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
+function ShieldIcon({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z" />
+    </Svg>
+  );
+}
+
+function StarIcon({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 7.1-1.01L12 2z" />
+    </Svg>
+  );
+}
+
+function MusicIcon({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M9 18V5l12-2v13" />
+      <Circle cx="6" cy="18" r="3" />
+      <Circle cx="18" cy="16" r="3" />
+    </Svg>
+  );
+}
+
+function ClockIcon({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="12" cy="12" r="10" />
+      <Path d="M12 6v6l4 2" />
+    </Svg>
   );
 }
 
