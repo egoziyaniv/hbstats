@@ -512,10 +512,16 @@ export default async function PlayerPage({
     };
   });
 
+  const playerSongs = await prisma.song.findMany({
+    where: { playerId: canonicalPlayerId, isPublished: true },
+    orderBy: { displayOrder: 'asc' },
+  });
+
   if (displayMode === 'premier') {
     return (
       <PremierPlayerView
         canonicalPlayer={canonicalPlayer}
+        playerSongs={playerSongs}
         canonicalPlayerId={canonicalPlayerId}
         displayPhoto={displayPhoto}
         playerDisplayName={playerDisplayName}
@@ -544,11 +550,6 @@ export default async function PlayerPage({
   }
 
   const isDeparted = !!(displayPlayerEntry?.additionalInfo as { departed?: boolean } | null)?.departed;
-
-  const playerSongs = await prisma.song.findMany({
-    where: { playerId: canonicalPlayerId, isPublished: true },
-    orderBy: { displayOrder: 'asc' },
-  });
 
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
@@ -845,8 +846,10 @@ function PremierPlayerView({
   currentSidelined,
   cardHistory,
   matchHistoryEntries,
+  playerSongs,
 }: {
   canonicalPlayer: any;
+  playerSongs: any[];
   canonicalPlayerId: string;
   displayPhoto: string | null;
   playerDisplayName: string;
@@ -1051,6 +1054,19 @@ function PremierPlayerView({
                 <MiniSummary label="שערים במערכת" value={String(aggregatedStats.reduce((sum, row) => sum + row.goals, 0))} />
                 <MiniSummary label="תמונות" value={String(uploadsCount)} />
               </div>
+
+              {playerSongs.length > 0 ? (
+                <div className="mt-5 border-t border-stone-100 pt-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-stone-900">
+                    <span className="inline-block h-4 w-1 rounded bg-[var(--accent)]"></span>שיר השחקן
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {playerSongs.map((song) => (
+                      <SongCard key={song.id} song={song} />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {transfers.length > 0 ? (
                 <div className="mt-5 border-t border-stone-100 pt-4">
