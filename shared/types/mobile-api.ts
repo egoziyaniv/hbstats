@@ -214,6 +214,44 @@ export interface ClubHubPayload {
   pages: ClubPageSummary[];
 }
 
+export interface ClubSeasonRow {
+  seasonId: string;
+  year: number;
+  name: string;
+  teamId: string;
+  position: number;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+  honors: string[];
+}
+export interface ClubSeasonsPayload {
+  seasons: ClubSeasonRow[];
+}
+
+export interface VenueGameRow {
+  id: string;
+  dateISO: string;
+  homeHe: string;
+  awayHe: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  competitionHe: string;
+  attendance: number | null;
+}
+export interface VenueStatsPayload {
+  venue: { id: string; nameHe: string; cityHe: string | null; capacity: number | null; imageUrl: string | null };
+  totalGames: number;
+  bsRecord: { played: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number } | null;
+  biggestWin: { gameId: string; scoreHe: string; opponentHe: string; dateISO: string } | null;
+  attendance: { avg: number; max: number } | null;
+  games: VenueGameRow[];
+}
+
 export interface LegendDetail {
   id: string;
   nameHe: string;

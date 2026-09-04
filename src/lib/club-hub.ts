@@ -92,6 +92,56 @@ export async function getLegend(id: string): Promise<LegendDetail | null> {
   };
 }
 
+const BS_AF = 563;
+const LIGAT_HAAL_ID = 'comp_liga_haal';
+
+/**
+ * Beer Sheva season-by-season league record — the archive no fan wiki has.
+ * One row per season (BS's Standing in ליגת העל) + honors won that season,
+ * newest first. `teamId` lets the UI deep-link to that season's BS games.
+ */
+export async function buildClubSeasons() {
+  const [teams, honors] = await Promise.all([
+    prisma.team.findMany({
+      where: { apiFootballId: BS_AF },
+      select: { id: true, seasonId: true, season: { select: { id: true, year: true, name: true } } },
+    }),
+    prisma.clubHonor.findMany({ where: { place: 'WINNER' } }),
+  ]);
+  const honorsByYear = new Map<number, string[]>();
+  for (const h of honors) {
+    const arr = honorsByYear.get(h.year) ?? [];
+    arr.push(h.competitionHe);
+    honorsByYear.set(h.year, arr);
+  }
+
+  const rows = await Promise.all(
+    teams.map(async (t) => {
+      const s = await prisma.standing.findFirst({
+        where: { seasonId: t.seasonId, competitionId: LIGAT_HAAL_ID, teamId: t.id },
+        select: { position: true, played: true, wins: true, draws: true, losses: true, goalsFor: true, goalsAgainst: true, points: true },
+      });
+      if (!s || s.played === 0) return null;
+      return {
+        seasonId: t.season.id,
+        year: t.season.year,
+        name: t.season.name,
+        teamId: t.id,
+        position: s.position,
+        played: s.played,
+        wins: s.wins,
+        draws: s.draws,
+        losses: s.losses,
+        goalsFor: s.goalsFor,
+        goalsAgainst: s.goalsAgainst,
+        points: s.points,
+        honors: honorsByYear.get(t.season.year) ?? [],
+      };
+    }),
+  );
+  return rows.filter((r): r is NonNullable<typeof r> => r !== null).sort((a, b) => b.year - a.year);
+}
+
 export async function getClubPage(slug: string): Promise<ClubPageDetail | null> {
   const pg = await prisma.clubPage.findUnique({ where: { slug: decodeURIComponent(slug) } });
   if (!pg || !pg.isPublished) return null;
