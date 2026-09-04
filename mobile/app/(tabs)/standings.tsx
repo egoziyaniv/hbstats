@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
+import { Svg, Path } from 'react-native-svg';
 import { rtlRow } from '@/lib/rtl';
 import { TeamCrest } from '@/design-system/TeamCrest';
 import { useRouter } from 'expo-router';
@@ -138,6 +139,19 @@ export default function StandingsScreen() {
           style={{ marginTop: 4, marginHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: brand.accentGlow, alignItems: 'center' }}
         >
           <Text style={{ fontSize: 13, fontWeight: '800', color: theme.ink[900] }}>🏆 כל העונות — אלופות ומלכי שערים</Text>
+        </Pressable>
+        {/* Entry to the club hub (הקבוצה) — history, honors, hall of fame. */}
+        <Pressable
+          onPress={() => router.push('/club' as any)}
+          style={{ marginTop: 8, marginHorizontal: 16, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: brand.accentGlow, flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={brand.accent} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M3 22h18" />
+            <Path d="M4 11l8-6 8 6" />
+            <Path d="M4 11h16" />
+            <Path d="M6 18v-7M10 18v-7M14 18v-7M18 18v-7" />
+          </Svg>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: theme.ink[900] }}>הקבוצה — היסטוריה, תארים, היכל תהילה</Text>
         </Pressable>
       </ScrollView>
     </View>

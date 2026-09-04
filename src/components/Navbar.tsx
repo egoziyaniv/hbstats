@@ -36,6 +36,7 @@ const navLinks: NavItem[] = [
   { href: '/games',       label: 'משחקים',         iconSrc: '/Icons/games-nav-96.png' },
   { href: '/standings',   label: 'טבלה',           iconSrc: '/Icons/standings-nav-96.png' },
   { href: '/teams',       label: 'קבוצות',         iconSrc: '/Icons/standings-nav-96.png' },
+  { href: '/club',        label: 'הקבוצה',         iconSrc: '/Icons/standings-nav-96.png' },
   { href: '/players',     label: 'שחקנים',         iconSrc: '/Icons/players-nav-96.png' },
   { href: '/coaches',     label: 'מאמנים',         iconSrc: '/Icons/players-nav-96.png' },
   { href: '/statistics',  label: 'כובשים',         iconSrc: '/Icons/stats-nav-96.png' },
@@ -55,7 +56,7 @@ const navLinks: NavItem[] = [
 
 // Grouped navigation: a short row of primary links + two dropdowns, so the bar
 // never overflows. Admin is appended separately (admins only).
-const PRIMARY_HREFS = ['/', '/games', '/standings', '/teams', '/players', '/predictions', '/live'];
+const PRIMARY_HREFS = ['/', '/games', '/standings', '/teams', '/club', '/players', '/predictions', '/live'];
 const STATS_HREFS = ['/statistics', '/history', '/history/ask', '/statistics/best-xi', '/statistics/insights', '/statistics/advanced'];
 const MORE_HREFS = ['/coaches', '/referees', '/venues', '/compare', '/songs'];
 
