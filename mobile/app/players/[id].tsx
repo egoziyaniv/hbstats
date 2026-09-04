@@ -16,13 +16,20 @@ import { MetricCell } from '@/design-system/MetricCell';
 import { BackButton } from '@/design-system/BackButton';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
-import type { PlayerCareerEntry } from '@shared/types/mobile-api';
+import type { PlayerCareerEntry, SongSummary, SongType } from '@shared/types/mobile-api';
 
 const roleLabel: Record<'started' | 'subbed_in' | 'unused' | 'subbed_out', string> = {
   started: 'התחיל',
   subbed_in: 'נכנס',
   unused: 'ספסל',
   subbed_out: 'הוחלף',
+};
+
+const SONG_TYPE_HE: Record<SongType, string> = {
+  STAND: 'שיר יציע',
+  PLAYER: 'שיר שחקן',
+  STUDIO: 'שיר אולפן',
+  CHAMPIONSHIP: 'שיר אליפות',
 };
 
 function formatHebrewDate(iso: string | null): string | null {
@@ -158,6 +165,21 @@ export default function PlayerScreen() {
         </Card>
       ) : null}
 
+      {data.songs && data.songs.length > 0 ? (
+        <Card>
+          <Section title="שיר השחקן">
+            {data.songs.map((song, i, arr) => (
+              <SongRow
+                key={song.id}
+                song={song}
+                last={i === arr.length - 1}
+                onPress={() => router.push(('/songs/' + encodeURIComponent(song.slug)) as any)}
+              />
+            ))}
+          </Section>
+        </Card>
+      ) : null}
+
       {stats ? (
         <Card>
           <Section title="סטטיסטיקות עונה">
@@ -272,5 +294,30 @@ function CareerStat({ label, value }: { label: string; value: number | string })
       <Text className="text-xs text-ink-500">{label}</Text>
       <Text className="text-xs font-black text-ink-900">{value}</Text>
     </View>
+  );
+}
+
+function SongRow({ song, last, onPress }: { song: SongSummary; last: boolean; onPress: () => void }) {
+  const { brand } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: rtlRow(),
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        paddingVertical: 10,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: theme.ink[100],
+      }}
+    >
+      <Text style={{ flex: 1, color: theme.ink[900], fontSize: 14, fontWeight: '700', textAlign: 'right' }} numberOfLines={1}>
+        {song.titleHe}
+      </Text>
+      <View style={{ backgroundColor: brand.accentGlow, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+        <Text style={{ color: brand.accent, fontSize: 10.5, fontWeight: '800' }}>{SONG_TYPE_HE[song.type]}</Text>
+      </View>
+    </Pressable>
   );
 }

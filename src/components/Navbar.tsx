@@ -41,6 +41,7 @@ const navLinks: NavItem[] = [
   { href: '/statistics',  label: 'כובשים',         iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/history', label: 'היסטוריה', iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/history/ask', label: 'שיאים ותשובות', iconSrc: '/Icons/stats-nav-96.png' },
+  { href: '/songs', label: 'שירים', iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/statistics/best-xi', label: 'הרכב העונה', iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/statistics/insights', label: 'תובנות',  iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/statistics/advanced', label: 'מתקדם',  iconSrc: '/Icons/stats-nav-96.png' },
@@ -56,7 +57,7 @@ const navLinks: NavItem[] = [
 // never overflows. Admin is appended separately (admins only).
 const PRIMARY_HREFS = ['/', '/games', '/standings', '/teams', '/players', '/predictions', '/live'];
 const STATS_HREFS = ['/statistics', '/history', '/history/ask', '/statistics/best-xi', '/statistics/insights', '/statistics/advanced'];
-const MORE_HREFS = ['/coaches', '/referees', '/venues', '/compare'];
+const MORE_HREFS = ['/coaches', '/referees', '/venues', '/compare', '/songs'];
 
 function linksFor(hrefs: string[]): NavItem[] {
   return hrefs.map((h) => navLinks.find((l) => l.href === h)).filter(Boolean) as NavItem[];

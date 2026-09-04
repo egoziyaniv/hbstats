@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
 import { PlayerOverviewPanel } from '@/components/PlayerOverviewPanel';
 import { PlayerTrophyCabinet } from '@/components/PlayerTrophyCabinet';
+import SongCard from '@/components/SongCard';
 import { buildPlayerTrophies } from '@/lib/player-trophies';
 
 type AggregatedStatRow = {
@@ -544,6 +545,11 @@ export default async function PlayerPage({
 
   const isDeparted = !!(displayPlayerEntry?.additionalInfo as { departed?: boolean } | null)?.departed;
 
+  const playerSongs = await prisma.song.findMany({
+    where: { playerId: canonicalPlayerId, isPublished: true },
+    orderBy: { displayOrder: 'asc' },
+  });
+
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -705,6 +711,17 @@ export default async function PlayerPage({
             </p>
           ) : null}
         </section>
+
+        {playerSongs.length > 0 ? (
+          <section className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+            <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">שיר השחקן</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {playerSongs.map((song) => (
+                <SongCard key={song.id} song={song} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section id="games" className="modern-card rounded-xl border border-stone-200/80 bg-white p-6 shadow-sm">
           <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">טבלת משחקים</h2>
