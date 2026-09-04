@@ -251,6 +251,22 @@ export default function ClubHubScreen() {
       >
         <Hero totalTitles={data?.totalTitles ?? 0} />
 
+        {/* Quick links — season archive + stadium */}
+        <View style={{ paddingHorizontal: 16, flexDirection: rtlRow(), gap: 10, marginTop: 4, marginBottom: 4 }}>
+          <Pressable style={{ flex: 1 }} onPress={() => router.push('/club/seasons' as any)}>
+            <Card marginX={0}>
+              <Text style={{ color: theme.ink[900], fontSize: 14, fontWeight: '900', textAlign: 'right' }}>עונה אחר עונה</Text>
+              <Text style={{ color: theme.ink[500], fontSize: 11, fontWeight: '700', textAlign: 'right', marginTop: 2 }}>מאזן ומיקום בכל עונה</Text>
+            </Card>
+          </Pressable>
+          <Pressable style={{ flex: 1 }} onPress={() => router.push('/venues/cmoycq3a00003apuryts2re7e' as any)}>
+            <Card marginX={0}>
+              <Text style={{ color: theme.ink[900], fontSize: 14, fontWeight: '900', textAlign: 'right' }}>אצטדיון טרנר</Text>
+              <Text style={{ color: theme.ink[500], fontSize: 11, fontWeight: '700', textAlign: 'right', marginTop: 2 }}>משחקים, מאזן וקהל</Text>
+            </Card>
+          </Pressable>
+        </View>
+
         {isEmpty ? (
           <View style={{ alignItems: 'center', justifyContent: 'center', padding: 32 }}>
             <Text style={{ color: theme.ink[700], fontSize: 14, textAlign: 'center' }}>

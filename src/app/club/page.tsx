@@ -63,6 +63,28 @@ export default async function ClubPage() {
         </div>
       </section>
 
+      {/* Quick links — season archive + stadium */}
+      <section className="grid gap-4 sm:grid-cols-2">
+        <a href="/club/seasons" className="modern-card flex items-center gap-3 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:border-[var(--accent)]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-glow)] text-[var(--accent-deep)]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 3v3M16 3v3" /></svg>
+          </span>
+          <span>
+            <span className="block font-black text-stone-900">עונה אחר עונה</span>
+            <span className="block text-xs font-semibold text-stone-500">מאזן ומיקום בכל עונה</span>
+          </span>
+        </a>
+        <a href="/venues/cmoycq3a00003apuryts2re7e" className="modern-card flex items-center gap-3 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:border-[var(--accent)]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-glow)] text-[var(--accent-deep)]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" /></svg>
+          </span>
+          <span>
+            <span className="block font-black text-stone-900">אצטדיון טרנר</span>
+            <span className="block text-xs font-semibold text-stone-500">משחקים, מאזן וקהל</span>
+          </span>
+        </a>
+      </section>
+
       {/* Honors board */}
       {honors.length > 0 ? (
         <section className="space-y-4">

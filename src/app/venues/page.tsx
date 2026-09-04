@@ -231,7 +231,9 @@ export default async function VenuesPage({
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-black">{venue.nameHe || venue.nameEn}</h2>
+                      <h2 className="text-xl font-black">
+                        <Link href={`/venues/${venue.id}`} className="hover:underline">{venue.nameHe || venue.nameEn}</Link>
+                      </h2>
                       {venue.isIsraeli ? (
                         <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">ישראל</span>
                       ) : null}
