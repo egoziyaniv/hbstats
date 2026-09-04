@@ -516,6 +516,8 @@ model Game {
   matchRatings        PlayerMatchRating[]
   sofascoreMatchStats SofascoreMatchStats?
   fotmobData          FotmobMatchData?
+  editorial           GameEditorial?
+  mediaAssets         MediaAsset[]             @relation("GameAssets")
   awayTeam            Team                     @relation("AwayTeam", fields: [awayTeamId], references: [id])
   competition         Competition?             @relation(fields: [competitionId], references: [id])
   homeTeam            Team                     @relation("HomeTeam", fields: [homeTeamId], references: [id])
@@ -1211,13 +1213,16 @@ model MediaAsset {
   isPrimary    Boolean        @default(false)
   seasonId     String?
   venueId      String?
+  gameId       String?
   player       Player?        @relation("PlayerAssets", fields: [playerId], references: [id])
   season       Season?        @relation(fields: [seasonId], references: [id])
   team         Team?          @relation("TeamAssets", fields: [teamId], references: [id])
   venue        Venue?         @relation("VenueAssets", fields: [venueId], references: [id])
+  game         Game?          @relation("GameAssets", fields: [gameId], references: [id])
 
   @@index([seasonId])
   @@index([venueId])
+  @@index([gameId])
   @@map("media_assets")
 }
 
@@ -1557,6 +1562,8 @@ enum MediaAssetKind {
   PLAYER_PHOTO
   BANNER
   VENUE_PHOTO
+  GAME_PHOTO
+  GALLERY
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -1821,6 +1828,22 @@ enum SongType {
   PLAYER // שיר שחקן
   STUDIO // שיר אולפן
   CHAMPIONSHIP // שיר אליפות
+}
+
+model GameEditorial {
+  id            String   @id @default(cuid())
+  gameId        String   @unique
+  recapVideoUrl String? // YouTube highlights
+  fullMatchUrl  String? // YouTube full match
+  reportTitleHe String?
+  reportHe      String? // match report prose
+  matchFactHe   String? // one-line "match fact"
+  aiGenerated   Boolean  @default(false) // draft came from AI, awaiting/edited by editor
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("game_editorials")
 }
 
 model Song {

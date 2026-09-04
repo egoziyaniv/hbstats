@@ -4,8 +4,8 @@ import { getEventDisplayLabel } from '@/lib/event-display';
 import { formatPlayerName } from '@/lib/player-display';
 import { buildPlayerTrophies } from '@/lib/player-trophies';
 import prisma from '@/lib/prisma';
-import { youtubeThumb } from '@/lib/youtube';
-import type { SongSummary } from '@shared/types/mobile-api';
+import { youtubeThumb, youtubeEmbedUrl } from '@/lib/youtube';
+import type { SongSummary, MatchEditorial, MatchGalleryPhoto } from '@shared/types/mobile-api';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
 
@@ -687,6 +687,11 @@ export async function getMobileGamePayload(gameId: string) {
       gameStats: true,
       sofascoreMatchStats: true,
       fotmobData: true,
+      editorial: true,
+      mediaAssets: {
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+        select: { id: true, filePath: true, title: true },
+      },
       events: {
         include: {
           player: true,
@@ -820,6 +825,16 @@ export async function getMobileGamePayload(gameId: string) {
           }
         : null,
       sofascoreShotmap: Array.isArray(game.sofascoreMatchStats?.shotmap) ? (game.sofascoreMatchStats!.shotmap as unknown[]) : [],
+      editorial: game.editorial
+        ? ({
+            recapVideoEmbedUrl: youtubeEmbedUrl(game.editorial.recapVideoUrl),
+            fullMatchEmbedUrl: youtubeEmbedUrl(game.editorial.fullMatchUrl),
+            reportTitleHe: game.editorial.reportTitleHe,
+            reportHe: game.editorial.reportHe,
+            matchFactHe: game.editorial.matchFactHe,
+          } as MatchEditorial)
+        : null,
+      gallery: (game.mediaAssets ?? []).map((m) => ({ id: m.id, url: m.filePath, title: m.title })) as MatchGalleryPhoto[],
     },
     h2h: await buildMobileH2H(game.homeTeamId, game.awayTeamId, game.id),
     xg: {

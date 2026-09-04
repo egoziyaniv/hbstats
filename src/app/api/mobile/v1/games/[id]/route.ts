@@ -241,6 +241,8 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     h2h: await buildH2HBlock(raw.game.homeTeam.id, raw.game.awayTeam.id, raw.game.id),
     predicted: await buildPredictedBlock(raw),
     preview: await buildPreviewBlock(raw),
+    editorial: ((raw.sections as { editorial?: MatchPayload['editorial'] }).editorial ?? null),
+    gallery: ((raw.sections as { gallery?: MatchPayload['gallery'] }).gallery ?? []),
   };
 
   return NextResponse.json(payload);

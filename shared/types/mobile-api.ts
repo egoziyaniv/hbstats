@@ -591,6 +591,24 @@ export interface MatchPayload {
   predicted: { home: PredictedLineupPlayerSummary[]; away: PredictedLineupPlayerSummary[] } | null;
   /** Pre-match preview (form + injuries/suspensions + AI). Null unless SCHEDULED. */
   preview: MatchPreviewApi | null;
+  /** Editor-curated content — recap video, report, "match fact". Null when none. */
+  editorial: MatchEditorial | null;
+  /** Editor-curated photo gallery for this game. */
+  gallery: MatchGalleryPhoto[];
+}
+
+export interface MatchEditorial {
+  recapVideoEmbedUrl: string | null;
+  fullMatchEmbedUrl: string | null;
+  reportTitleHe: string | null;
+  reportHe: string | null;
+  matchFactHe: string | null;
+}
+
+export interface MatchGalleryPhoto {
+  id: string;
+  url: string;
+  title: string | null;
 }
 
 // ---------- Team ----------

@@ -58,6 +58,11 @@ export default async function GamePage({
       gameStats: true,
       sofascoreMatchStats: true,
       fotmobData: true,
+      editorial: true,
+      mediaAssets: {
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+        select: { id: true, filePath: true, title: true },
+      },
       referee: {
         select: {
           id: true,

@@ -155,7 +155,7 @@ export async function storeUploadedImage({
   label,
 }: {
   file: File;
-  entityType: 'teams' | 'players' | 'venues';
+  entityType: 'teams' | 'players' | 'venues' | 'games';
   seasonYear?: number | null;
   folderName: string;
   entityId: string;

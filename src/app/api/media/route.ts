@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const isPrimary = String(formData.get('isPrimary') || '') === 'true';
   const file = formData.get('file');
 
-  if (!entityId || (entityType !== 'team' && entityType !== 'player' && entityType !== 'venue') || !(file instanceof File)) {
+  if (!entityId || (entityType !== 'team' && entityType !== 'player' && entityType !== 'venue' && entityType !== 'game') || !(file instanceof File)) {
     return NextResponse.json({ error: 'Missing upload fields.' }, { status: 400 });
   }
 
@@ -126,6 +126,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ asset, filePath });
   }
 
+  if (entityType === 'game') {
+    const game = await prisma.game.findUnique({
+      where: { id: entityId },
+      include: { season: true },
+    });
+
+    if (!game) {
+      return NextResponse.json({ error: 'Game not found.' }, { status: 404 });
+    }
+
+    const filePath = await storeUploadedImage({
+      file,
+      entityType: 'games',
+      seasonYear: game.season.year,
+      folderName: game.id,
+      entityId: game.id,
+      label: title || game.id,
+    });
+
+    const currentCount = await prisma.mediaAsset.count({
+      where: { gameId: game.id },
+    });
+
+    const asset = await prisma.mediaAsset.create({
+      data: {
+        kind: MediaAssetKind.GAME_PHOTO,
+        title: title || null,
+        originalName: file.name,
+        filePath,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        isPrimary,
+        displayOrder: currentCount,
+        gameId: game.id,
+      },
+    });
+
+    return NextResponse.json({ asset, filePath });
+  }
+
   const player = await prisma.player.findUnique({
     where: { id: entityId },
     include: {
@@ -177,4 +217,17 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ asset, filePath });
+}
+
+// Remove a media asset (used by the game-gallery editor). Admin only.
+// Deletes the DB row; the underlying file is left on disk (harmless orphan).
+export async function DELETE(request: NextRequest) {
+  const viewer = await getRequestUser(request);
+  if (!viewer || viewer.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const id = request.nextUrl.searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+  await prisma.mediaAsset.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }
