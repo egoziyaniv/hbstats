@@ -455,6 +455,7 @@ model Player {
   playerStats        PlayerStatistics[]
   transfers          PlayerTransfer[]
   trophies           PlayerTrophy[]
+  songs              Song[]
   canonicalPlayer    Player?                       @relation("CanonicalPlayer", fields: [canonicalPlayerId], references: [id])
   seasonEntries      Player[]                      @relation("CanonicalPlayer")
   team               Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -1813,6 +1814,38 @@ model ApiFootballRawFixtureStatistics {
 
   @@index([leagueId, season])
   @@map("apifootball_raw_fixture_statistics")
+}
+
+enum SongType {
+  STAND // שיר יציע
+  PLAYER // שיר שחקן
+  STUDIO // שיר אולפן
+  CHAMPIONSHIP // שיר אליפות
+}
+
+model Song {
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  type              SongType @default(STAND)
+  titleHe           String
+  lyricsHe          String?
+  chordsHe          String?
+  originalMelody    String? // "שיר מקור" name
+  originalMelodyUrl String? // YouTube of the original
+  performerGroup    String? // e.g. "אולטרס דרום"
+  debutSeasonYear   Int? // start-year of debut season
+  videoUrls         String[] // YouTube links
+  playerId          String?
+  contentWarning    Boolean  @default(false)
+  isPublished       Boolean  @default(true)
+  displayOrder      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  player            Player?  @relation(fields: [playerId], references: [id])
+
+  @@index([type])
+  @@index([playerId])
+  @@map("songs")
 }
 
 model RecordEntry {
