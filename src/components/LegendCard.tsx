@@ -17,7 +17,7 @@ function monogram(name: string): string {
 }
 
 // A hall-of-fame legend card: photo or initials monogram, name, role+years,
-// and a stat-line chip. Links to the player page when linked.
+// and a stat-line chip. Links to the legend profile page.
 export default function LegendCard({ item }: { item: HallOfFameItem }) {
   const metaParts = [ROLE_HE[item.role], item.years].filter(Boolean) as string[];
 
@@ -54,13 +54,9 @@ export default function LegendCard({ item }: { item: HallOfFameItem }) {
     </div>
   );
 
-  if (item.playerId) {
-    return (
-      <Link href={`/players/${item.playerId}`} className="group block">
-        {inner}
-      </Link>
-    );
-  }
-
-  return <div className="group">{inner}</div>;
+  return (
+    <Link href={`/club/legends/${item.id}`} className="group block">
+      {inner}
+    </Link>
+  );
 }

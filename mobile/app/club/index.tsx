@@ -277,7 +277,7 @@ export default function ClubHubScreen() {
                   key={item.id}
                   item={item}
                   isLast={i === hallOfFame.length - 1}
-                  onPress={item.playerId ? () => router.push(`/players/${item.playerId}` as any) : undefined}
+                  onPress={() => router.push(('/club/legends/' + item.id) as any)}
                 />
               ))}
             </Card>

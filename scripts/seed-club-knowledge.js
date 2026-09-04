@@ -31,7 +31,7 @@ const LEGENDS = [
   { nameHe: 'אליניב ברדה', role: 'PLAYER', years: '1998–2003, 2013–2018', statLineHe: '207 הופעות · 53 שערים', blurbHe: 'סמל האליפות הראשונה בעידן ברקת.' },
   { nameHe: 'מיגל ויטור', role: 'PLAYER', years: '2016–2022', statLineHe: 'קפטן שלוש אליפויות', blurbHe: 'קפטן שושלת האליפויות.' },
   { nameHe: 'אליהו עופר', role: 'PLAYER', years: 'שנות ה-70–80', statLineHe: '450 הופעות · 64 שערים' },
-  { nameHe: 'מאיר בראד', role: 'PLAYER', statLineHe: '344 הופעות · 80 שערים' },
+  { nameHe: 'מאיר ברד', role: 'PLAYER', statLineHe: '344 הופעות · 80 שערים' },
   { nameHe: 'סתיו אלימלך', role: 'PLAYER', statLineHe: '431 הופעות' },
   { nameHe: 'רפי אליהו', role: 'PLAYER', statLineHe: '419 הופעות · 66 שערים' },
   { nameHe: 'מאור מליקסון', role: 'PLAYER', statLineHe: '230 הופעות' },
