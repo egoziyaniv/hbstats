@@ -171,6 +171,34 @@ export interface GamesPayload {
   rounds: GamesRoundGroup[];
 }
 
+// ---------- Songs (fan chants) ----------
+
+export type SongType = 'STAND' | 'PLAYER' | 'STUDIO' | 'CHAMPIONSHIP';
+
+export interface SongSummary {
+  id: string;
+  slug: string;
+  type: SongType;
+  titleHe: string;
+  performerGroup: string | null;
+  debutSeasonYear: number | null;
+  thumbUrl: string | null;
+  contentWarning: boolean;
+  player: { id: string; nameHe: string } | null;
+}
+
+export interface SongDetail extends SongSummary {
+  lyricsHe: string | null;
+  chordsHe: string | null;
+  originalMelody: string | null;
+  originalMelodyUrl: string | null;
+  videoEmbedUrls: string[];
+}
+
+export interface SongsPayload {
+  songs: SongSummary[];
+}
+
 // ---------- News (full list screen) ----------
 
 export interface NewsSource {
@@ -662,6 +690,7 @@ export interface PlayerPayload {
   recentMatches: PlayerRecentMatch[];
   career: PlayerCareerEntry[];
   trophies: PlayerTrophyGroup[];
+  songs: SongSummary[];
 }
 
 // ---------- Preferences ----------

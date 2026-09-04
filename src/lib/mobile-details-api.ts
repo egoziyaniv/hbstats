@@ -4,6 +4,8 @@ import { getEventDisplayLabel } from '@/lib/event-display';
 import { formatPlayerName } from '@/lib/player-display';
 import { buildPlayerTrophies } from '@/lib/player-trophies';
 import prisma from '@/lib/prisma';
+import { youtubeThumb } from '@/lib/youtube';
+import type { SongSummary } from '@shared/types/mobile-api';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
 
@@ -1075,6 +1077,24 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
   // big aggregations so we share canonicalPlayerId without duplicating it.
   const trophyGroups = await buildPlayerTrophies(canonicalPlayerId);
 
+  // Fan chants linked to this player (published) → "שיר השחקן" on the profile.
+  const songRows = await prisma.song.findMany({
+    where: { isPublished: true, playerId: canonicalPlayerId },
+    orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+    include: { player: { select: { id: true, nameHe: true } } },
+  });
+  const songs: SongSummary[] = songRows.map((s) => ({
+    id: s.id,
+    slug: s.slug,
+    type: s.type as SongSummary['type'],
+    titleHe: s.titleHe,
+    performerGroup: s.performerGroup,
+    debutSeasonYear: s.debutSeasonYear,
+    thumbUrl: youtubeThumb(s.videoUrls[0] ?? null),
+    contentWarning: s.contentWarning,
+    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe } : null,
+  }));
+
   // AI overview lives on the canonical Player's additionalInfo. The fetcher
   // script writes there so all season-linked rows share one summary.
   const canonicalAdditional = (canonicalPlayer.additionalInfo as { aiSummary?: { text?: string; wiki?: { summary?: string; thumbnail?: string; sourceUrl?: string } } } | null) || null;
@@ -1145,6 +1165,7 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
         isPrimary: upload.isPrimary,
       })),
       trophies: trophyGroups,
+      songs,
     },
   };
 }
