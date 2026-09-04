@@ -171,6 +171,49 @@ export interface GamesPayload {
   rounds: GamesRoundGroup[];
 }
 
+// ---------- Club hub (knowledge & history) ----------
+
+export type HonorPlace = 'WINNER' | 'RUNNER_UP';
+
+export interface ClubHonorGroup {
+  competitionHe: string;
+  winners: string[]; // season labels
+  runnersUp: string[];
+}
+
+export type HallOfFameRole = 'PLAYER' | 'COACH' | 'LEGEND';
+
+export interface HallOfFameItem {
+  id: string;
+  playerId: string | null;
+  nameHe: string;
+  role: HallOfFameRole;
+  years: string | null;
+  blurbHe: string | null;
+  statLineHe: string | null;
+  photoUrl: string | null;
+}
+
+export type ClubPageCategory = 'HISTORY' | 'STADIUM' | 'IDENTITY' | 'CULTURE';
+
+export interface ClubPageSummary {
+  slug: string;
+  title: string;
+  category: ClubPageCategory;
+  heroImageUrl: string | null;
+}
+
+export interface ClubPageDetail extends ClubPageSummary {
+  bodyHe: string;
+}
+
+export interface ClubHubPayload {
+  honors: ClubHonorGroup[];
+  totalTitles: number;
+  hallOfFame: HallOfFameItem[];
+  pages: ClubPageSummary[];
+}
+
 // ---------- Songs (fan chants) ----------
 
 export type SongType = 'STAND' | 'PLAYER' | 'STUDIO' | 'CHAMPIONSHIP';

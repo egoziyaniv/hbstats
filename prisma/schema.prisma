@@ -456,6 +456,7 @@ model Player {
   transfers          PlayerTransfer[]
   trophies           PlayerTrophy[]
   songs              Song[]
+  hallOfFame         HallOfFameEntry[]
   canonicalPlayer    Player?                       @relation("CanonicalPlayer", fields: [canonicalPlayerId], references: [id])
   seasonEntries      Player[]                      @relation("CanonicalPlayer")
   team               Team                          @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -1828,6 +1829,73 @@ enum SongType {
   PLAYER // שיר שחקן
   STUDIO // שיר אולפן
   CHAMPIONSHIP // שיר אליפות
+}
+
+enum HonorPlace {
+  WINNER
+  RUNNER_UP
+}
+
+model ClubHonor {
+  id            String     @id @default(cuid())
+  competitionHe String // "ליגת העל", "גביע המדינה", "אלוף האלופים", ...
+  place         HonorPlace @default(WINNER)
+  seasonLabel   String // "2016/17" or "2016"
+  year          Int // sortable start-year
+  displayOrder  Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([competitionHe, place])
+  @@map("club_honors")
+}
+
+enum HallOfFameRole {
+  PLAYER
+  COACH
+  LEGEND
+}
+
+model HallOfFameEntry {
+  id          String         @id @default(cuid())
+  playerId    String?
+  nameHe      String
+  role        HallOfFameRole @default(PLAYER)
+  years       String? // "2013–2018"
+  blurbHe     String?
+  statLineHe  String? // "207 הופעות · 53 שערים"
+  photoUrl    String?
+  rank        Int            @default(0)
+  isPublished Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  player      Player?        @relation(fields: [playerId], references: [id])
+
+  @@index([rank])
+  @@map("hall_of_fame_entries")
+}
+
+enum ClubPageCategory {
+  HISTORY
+  STADIUM
+  IDENTITY
+  CULTURE
+}
+
+model ClubPage {
+  id           String           @id @default(cuid())
+  slug         String           @unique
+  title        String
+  category     ClubPageCategory @default(HISTORY)
+  bodyHe       String // rich-text / prose
+  heroImageUrl String?
+  displayOrder Int              @default(0)
+  isPublished  Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([category])
+  @@map("club_pages")
 }
 
 model GameEditorial {
