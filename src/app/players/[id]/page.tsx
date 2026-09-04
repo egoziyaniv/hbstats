@@ -1055,19 +1055,6 @@ function PremierPlayerView({
                 <MiniSummary label="תמונות" value={String(uploadsCount)} />
               </div>
 
-              {playerSongs.length > 0 ? (
-                <div className="mt-5 border-t border-stone-100 pt-4">
-                  <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-stone-900">
-                    <span className="inline-block h-4 w-1 rounded bg-[var(--accent)]"></span>שיר השחקן
-                  </h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {playerSongs.map((song) => (
-                      <SongCard key={song.id} song={song} />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
               {transfers.length > 0 ? (
                 <div className="mt-5 border-t border-stone-100 pt-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-stone-400">העברות</div>
@@ -1267,6 +1254,18 @@ function PremierPlayerView({
             ai={(canonicalPlayer.additionalInfo as { aiSummary?: any }).aiSummary}
             playerName={playerDisplayName}
           />
+        ) : null}
+
+        {/* שיר השחקן — always visible (not tab-gated) so it shows on the default tab too */}
+        {playerSongs.length > 0 ? (
+          <section id="player-songs" className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
+            <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">שיר השחקן</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {playerSongs.map((song) => (
+                <SongCard key={song.id} song={song} />
+              ))}
+            </div>
+          </section>
         ) : null}
 
         {activeTab === 'games' && matchHistoryEntries.length > 0 ? (
