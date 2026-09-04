@@ -1,12 +1,14 @@
 // src/lib/club-hub.ts — assemble the Beer Sheva club knowledge hub
 // (honors board + hall of fame + club-page list). Shared by web + mobile.
 import prisma from '@/lib/prisma';
+import { youtubeEmbedUrl } from '@/lib/youtube';
 import type {
   ClubHubPayload,
   ClubHonorGroup,
   HallOfFameItem,
   ClubPageSummary,
   ClubPageDetail,
+  LegendDetail,
 } from '@shared/types/mobile-api';
 
 // Competition display order (most prestigious first).
@@ -50,6 +52,36 @@ export async function buildClubHubPayload(): Promise<ClubHubPayload> {
   }));
 
   return { honors, totalTitles, hallOfFame, pages: pages as ClubPageSummary[] };
+}
+
+export async function getLegend(id: string): Promise<LegendDetail | null> {
+  const e = await prisma.hallOfFameEntry.findUnique({ where: { id } });
+  if (!e || !e.isPublished) return null;
+
+  // If linked to a Player we have data for, surface a real contribution summary
+  // (goals scored in our event data + appearances) alongside the curated line.
+  let playerSummary: LegendDetail['playerSummary'] = null;
+  if (e.playerId) {
+    const [player, goals, apps] = await Promise.all([
+      prisma.player.findUnique({ where: { id: e.playerId }, select: { photoUrl: true, position: true } }),
+      prisma.gameEvent.count({ where: { playerId: e.playerId, type: { in: ['GOAL', 'PENALTY_GOAL'] } } }),
+      prisma.gameLineupEntry.count({ where: { playerId: e.playerId, role: 'STARTER' } }),
+    ]);
+    playerSummary = { photoUrl: player?.photoUrl ?? null, position: player?.position ?? null, goals, appearances: apps };
+  }
+
+  return {
+    id: e.id,
+    nameHe: e.nameHe,
+    role: e.role as LegendDetail['role'],
+    years: e.years,
+    statLineHe: e.statLineHe,
+    blurbHe: e.blurbHe,
+    photoUrl: e.photoUrl,
+    videoEmbedUrl: youtubeEmbedUrl(e.videoUrl),
+    playerId: e.playerId,
+    playerSummary,
+  };
 }
 
 export async function getClubPage(slug: string): Promise<ClubPageDetail | null> {

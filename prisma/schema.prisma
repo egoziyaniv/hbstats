@@ -1865,6 +1865,7 @@ model HallOfFameEntry {
   blurbHe     String?
   statLineHe  String? // "207 הופעות · 53 שערים"
   photoUrl    String?
+  videoUrl    String? // YouTube highlights/tribute
   rank        Int            @default(0)
   isPublished Boolean        @default(true)
   createdAt   DateTime       @default(now())

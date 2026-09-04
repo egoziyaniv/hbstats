@@ -214,6 +214,25 @@ export interface ClubHubPayload {
   pages: ClubPageSummary[];
 }
 
+export interface LegendDetail {
+  id: string;
+  nameHe: string;
+  role: HallOfFameRole;
+  years: string | null;
+  statLineHe: string | null;
+  blurbHe: string | null;
+  photoUrl: string | null;
+  videoEmbedUrl: string | null;
+  playerId: string | null;
+  /** Real contribution from our data when linked to a Player. */
+  playerSummary: {
+    photoUrl: string | null;
+    position: string | null;
+    goals: number;
+    appearances: number;
+  } | null;
+}
+
 // ---------- Songs (fan chants) ----------
 
 export type SongType = 'STAND' | 'PLAYER' | 'STUDIO' | 'CHAMPIONSHIP';
