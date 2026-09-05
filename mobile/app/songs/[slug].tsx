@@ -3,10 +3,12 @@ import { ScrollView, View, Text, ActivityIndicator, Pressable, Linking } from 'r
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Svg, Path } from 'react-native-svg';
 import { rtlRow } from '@/lib/rtl';
+import { absoluteImage } from '@/lib/config';
 import { useSong } from '@/hooks/useSong';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Header } from '@/design-system/Header';
 import { Card } from '@/design-system/Card';
+import { CachedImage } from '@/design-system/CachedImage';
 import { Section } from '@/design-system/Section';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
@@ -45,6 +47,15 @@ function TypeChip({ type }: { type: SongType }) {
   return (
     <View style={{ alignSelf: 'flex-start', backgroundColor: brand.accentGlow, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
       <Text style={{ color: brand.accent, fontSize: 11, fontWeight: '800' }}>{TYPE_HE[type]}</Text>
+    </View>
+  );
+}
+
+function StatTile({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}>
+      <Text style={{ color: theme.ink[900], fontSize: 20, fontWeight: '900' }}>{value}</Text>
+      <Text style={{ color: theme.ink[500], fontSize: 11, fontWeight: '700', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -124,6 +135,61 @@ export default function SongDetailScreen() {
           </Card>
         ) : null}
 
+        {/* The player the chant is about — his real numbers + a way through to
+            his page, where the full per-season statistics live. */}
+        {data.player ? (
+          <Card pad={false}>
+            <Pressable
+              onPress={() => router.push(`/players/${data.player!.id}` as any)}
+              style={{ flexDirection: rtlRow(), alignItems: 'center', gap: 12, padding: 14 }}
+            >
+              {absoluteImage(data.playerSummary?.photoUrl ?? data.player.photoUrl) ? (
+                <CachedImage
+                  source={{ uri: absoluteImage(data.playerSummary?.photoUrl ?? data.player.photoUrl) }}
+                  style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1, borderColor: theme.ink[200] }}
+                />
+              ) : (
+                <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: brand.accentGlow, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: brand.accent, fontSize: 22, fontWeight: '900' }}>{data.player.nameHe.slice(0, 1)}</Text>
+                </View>
+              )}
+              <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                <Text style={{ color: theme.ink[500], fontSize: 11, fontWeight: '800' }}>שיר השחקן של</Text>
+                <Text style={{ color: theme.ink[900], fontSize: 19, fontWeight: '900', textAlign: 'right' }} numberOfLines={1}>
+                  {data.player.nameHe}
+                </Text>
+                {data.playerSummary?.position ? (
+                  <Text style={{ color: theme.ink[500], fontSize: 12.5, fontWeight: '600' }}>{data.playerSummary.position}</Text>
+                ) : null}
+              </View>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={theme.ink[300]} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M15 6l-6 6 6 6" />
+              </Svg>
+            </Pressable>
+
+            {data.playerSummary ? (
+              <>
+                <View style={{ flexDirection: rtlRow(), borderTopWidth: 1, borderTopColor: theme.ink[100] }}>
+                  <StatTile value={data.playerSummary.appearances} label="הופעות" />
+                  <View style={{ width: 1, backgroundColor: theme.ink[100] }} />
+                  <StatTile value={data.playerSummary.goals} label="שערים" />
+                </View>
+                <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: theme.ink[100] }}>
+                  <Pressable
+                    onPress={() => router.push(`/players/${data.player!.id}` as any)}
+                    style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: brand.accent, borderRadius: 12, paddingVertical: 11 }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 14, fontWeight: '900' }}>לדף השחקן והסטטיסטיקות</Text>
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                      <Path d="M15 6l-6 6 6 6" />
+                    </Svg>
+                  </Pressable>
+                </View>
+              </>
+            ) : null}
+          </Card>
+        ) : null}
+
         {/* Lyrics */}
         {data.lyricsHe ? (
           <Card>
@@ -181,20 +247,6 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
 
-        {/* Linked player */}
-        {data.player ? (
-          <Pressable
-            onPress={() => router.push(`/players/${data.player!.id}` as any)}
-            style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'white', borderWidth: 1, borderColor: theme.ink[200], borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14 }}
-          >
-            <Text style={{ color: theme.ink[900], fontSize: 14, fontWeight: '800', textAlign: 'right', flexShrink: 1 }} numberOfLines={1}>
-              שיר השחקן של {data.player.nameHe}
-            </Text>
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={brand.accent} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M15 6l-6 6 6 6" />
-            </Svg>
-          </Pressable>
-        ) : null}
       </ScrollView>
       <BottomNav />
     </View>

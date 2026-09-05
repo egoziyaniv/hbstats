@@ -2,6 +2,7 @@
 // (honors board + hall of fame + club-page list). Shared by web + mobile.
 import prisma from '@/lib/prisma';
 import { youtubeEmbedUrl } from '@/lib/youtube';
+import { buildPlayerContribution } from '@/lib/player-contribution';
 import type {
   ClubHubPayload,
   ClubHonorGroup,
@@ -60,23 +61,7 @@ export async function getLegend(id: string): Promise<LegendDetail | null> {
 
   // If linked to a Player we have data for, surface a real contribution summary
   // (goals scored in our event data + appearances) alongside the curated line.
-  let playerSummary: LegendDetail['playerSummary'] = null;
-  if (e.playerId) {
-    // Aggregate across the whole canonical family (season-specific Player rows
-    // hang off the canonical id) so the totals reflect the full career, not one
-    // season — GameEvent/GameLineupEntry point at the per-season rows.
-    const family = await prisma.player.findMany({
-      where: { OR: [{ id: e.playerId }, { canonicalPlayerId: e.playerId }] },
-      select: { id: true },
-    });
-    const famIds = [...new Set([e.playerId, ...family.map((f) => f.id)])];
-    const [player, goals, apps] = await Promise.all([
-      prisma.player.findUnique({ where: { id: e.playerId }, select: { photoUrl: true, position: true } }),
-      prisma.gameEvent.count({ where: { playerId: { in: famIds }, type: { in: ['GOAL', 'PENALTY_GOAL'] } } }),
-      prisma.gameLineupEntry.count({ where: { playerId: { in: famIds }, role: 'STARTER' } }),
-    ]);
-    playerSummary = { photoUrl: player?.photoUrl ?? null, position: player?.position ?? null, goals, appearances: apps };
-  }
+  const playerSummary = e.playerId ? await buildPlayerContribution(e.playerId) : null;
 
   return {
     id: e.id,

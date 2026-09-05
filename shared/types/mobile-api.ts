@@ -252,6 +252,14 @@ export interface VenueStatsPayload {
   games: VenueGameRow[];
 }
 
+/** A player's real contribution in our data (shared by legends + chants). */
+export interface PlayerContribution {
+  photoUrl: string | null;
+  position: string | null;
+  goals: number;
+  appearances: number;
+}
+
 export interface LegendDetail {
   id: string;
   nameHe: string;
@@ -263,12 +271,7 @@ export interface LegendDetail {
   videoEmbedUrl: string | null;
   playerId: string | null;
   /** Real contribution from our data when linked to a Player. */
-  playerSummary: {
-    photoUrl: string | null;
-    position: string | null;
-    goals: number;
-    appearances: number;
-  } | null;
+  playerSummary: PlayerContribution | null;
 }
 
 // ---------- Songs (fan chants) ----------
@@ -290,6 +293,8 @@ export interface SongSummary {
 }
 
 export interface SongDetail extends SongSummary {
+  /** The linked player's real stats, so a chant page can link through to them. */
+  playerSummary: PlayerContribution | null;
   lyricsHe: string | null;
   chordsHe: string | null;
   originalMelody: string | null;

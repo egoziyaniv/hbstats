@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { youtubeThumb, youtubeEmbedUrl } from '@/lib/youtube';
+import { buildPlayerContribution } from '@/lib/player-contribution';
 import type { SongDetail } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,8 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
   });
   if (!s || !s.isPublished) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const playerSummary = s.playerId ? await buildPlayerContribution(s.playerId) : null;
+
   const detail: SongDetail = {
     id: s.id,
     slug: s.slug,
@@ -24,6 +27,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     contentWarning: s.contentWarning,
     hasLyrics: !!s.lyricsHe,
     player: s.player ? { id: s.player.id, nameHe: s.player.nameHe, photoUrl: s.player.photoUrl } : null,
+    playerSummary,
     lyricsHe: s.lyricsHe,
     chordsHe: s.chordsHe,
     originalMelody: s.originalMelody,

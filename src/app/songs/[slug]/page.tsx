@@ -2,9 +2,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { SONG_TYPE_HE } from '@/lib/song-display';
+import { formatPlayerPosition } from '@/lib/player-display';
+import { buildPlayerContribution } from '@/lib/player-contribution';
 import { youtubeEmbedUrl } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
+
+function monogram(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('');
+}
 
 export default async function SongPage({ params }: { params: { slug: string } }) {
   const song = await prisma.song.findUnique({
@@ -15,6 +21,10 @@ export default async function SongPage({ params }: { params: { slug: string } })
   if (!song || !song.isPublished) {
     notFound();
   }
+
+  // A player chant is *about* someone we hold 26 seasons of data on — surface
+  // that contribution here and hand the reader straight through to his page.
+  const contribution = song.player ? await buildPlayerContribution(song.player.id) : null;
 
   const metaParts: Array<{ label: string; node: React.ReactNode }> = [];
   if (song.debutSeasonYear) {
@@ -81,6 +91,75 @@ export default async function SongPage({ params }: { params: { slug: string } })
           </div>
         ) : null}
 
+        {song.player ? (
+          <section className="modern-card overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+            <Link
+              href={`/players/${song.player.id}`}
+              className="group flex items-center gap-4 p-5 transition hover:bg-stone-50"
+            >
+              {contribution?.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={contribution.photoUrl}
+                  alt={song.player.nameHe}
+                  className="h-20 w-20 shrink-0 rounded-2xl border border-stone-200 bg-white object-cover object-top"
+                />
+              ) : (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--accent),#7f1d1d)]">
+                  <span className="text-2xl font-black text-white/90">{monogram(song.player.nameHe)}</span>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-stone-400">שיר השחקן של</div>
+                <div className="truncate text-2xl font-black text-stone-900 group-hover:text-[var(--accent)]">
+                  {song.player.nameHe}
+                </div>
+                {contribution?.position ? (
+                  <div className="mt-0.5 text-sm text-stone-500">{formatPlayerPosition(contribution.position)}</div>
+                ) : null}
+              </div>
+              <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-stone-300 group-hover:text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 6 9 12 15 18" />
+              </svg>
+            </Link>
+
+            {contribution ? (
+              <>
+                <div className="grid grid-cols-2 divide-x divide-x-reverse divide-stone-200/80 border-y border-stone-200/80 bg-stone-50">
+                  <Link href={`/players/${song.player.id}?tab=games`} className="p-4 text-center transition hover:bg-white">
+                    <div className="text-2xl font-black text-stone-900">{contribution.appearances}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-stone-500">הופעות</div>
+                  </Link>
+                  <Link href={`/players/${song.player.id}?tab=stats`} className="p-4 text-center transition hover:bg-white">
+                    <div className="text-2xl font-black text-stone-900">{contribution.goals}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-stone-500">שערים</div>
+                  </Link>
+                </div>
+                <div className="flex flex-wrap gap-2 p-4">
+                  <Link
+                    href={`/players/${song.player.id}`}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90"
+                  >
+                    לדף השחקן
+                  </Link>
+                  <Link
+                    href={`/players/${song.player.id}?tab=stats`}
+                    className="inline-flex items-center gap-2 rounded-xl border border-stone-200 px-4 py-2 text-sm font-bold text-stone-700 transition hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
+                  >
+                    כל הסטטיסטיקות
+                  </Link>
+                  <Link
+                    href={`/players/${song.player.id}?tab=games`}
+                    className="inline-flex items-center gap-2 rounded-xl border border-stone-200 px-4 py-2 text-sm font-bold text-stone-700 transition hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
+                  >
+                    המשחקים שלו
+                  </Link>
+                </div>
+              </>
+            ) : null}
+          </section>
+        ) : null}
+
         {song.lyricsHe ? (
           <section className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
             <div className="whitespace-pre-line text-base leading-loose text-stone-800">{song.lyricsHe}</div>
@@ -111,16 +190,6 @@ export default async function SongPage({ params }: { params: { slug: string } })
           </section>
         ) : null}
 
-        {song.player ? (
-          <div>
-            <Link
-              href={`/players/${song.player.id}`}
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-2.5 text-sm font-bold text-stone-900 transition hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
-            >
-              שיר השחקן של {song.player.nameHe}
-            </Link>
-          </div>
-        ) : null}
       </div>
     </div>
   );
