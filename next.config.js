@@ -29,7 +29,9 @@ const nextConfig = {
       "style-src 'self' 'unsafe-inline' https://accounts.google.com",
       "font-src 'self' data:",
       "connect-src 'self' https://accounts.google.com",
-      "frame-src https://accounts.google.com",
+      // accounts.google.com: Google Identity. youtube-nocookie/youtube: embedded
+      // fan-chant + match-recap videos (blocked as "content is blocked" without this).
+      "frame-src https://accounts.google.com https://www.youtube-nocookie.com https://www.youtube.com",
     ].join('; ');
 
     return [
