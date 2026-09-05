@@ -12,7 +12,7 @@
  *    another club's player can't produce a wrong link.
  */
 const { PrismaClient } = require('@prisma/client');
-const CHANTS = require('./data/ultrasouth-songs');
+const CHANTS = require('./ultrasouth-songs-data');
 const prisma = new PrismaClient();
 
 const videoId = (url) => {
