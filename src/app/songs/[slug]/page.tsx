@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { SONG_TYPE_HE } from '@/lib/song-display';
-import { formatPlayerPosition } from '@/lib/player-display';
 import { buildPlayerContribution } from '@/lib/player-contribution';
 import { youtubeEmbedUrl } from '@/lib/youtube';
 
@@ -115,7 +114,7 @@ export default async function SongPage({ params }: { params: { slug: string } })
                   {song.player.nameHe}
                 </div>
                 {contribution?.position ? (
-                  <div className="mt-0.5 text-sm text-stone-500">{formatPlayerPosition(contribution.position)}</div>
+                  <div className="mt-0.5 text-sm text-stone-500">{contribution.position}</div>
                 ) : null}
               </div>
               <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-stone-300 group-hover:text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
