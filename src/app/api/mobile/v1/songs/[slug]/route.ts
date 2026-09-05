@@ -9,7 +9,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
   const slug = decodeURIComponent(params.slug);
   const s = await prisma.song.findUnique({
     where: { slug },
-    include: { player: { select: { id: true, nameHe: true } } },
+    include: { player: { select: { id: true, nameHe: true, photoUrl: true } } },
   });
   if (!s || !s.isPublished) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -22,7 +22,8 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     debutSeasonYear: s.debutSeasonYear,
     thumbUrl: youtubeThumb(s.videoUrls[0] ?? null),
     contentWarning: s.contentWarning,
-    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe } : null,
+    hasLyrics: !!s.lyricsHe,
+    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe, photoUrl: s.player.photoUrl } : null,
     lyricsHe: s.lyricsHe,
     chordsHe: s.chordsHe,
     originalMelody: s.originalMelody,

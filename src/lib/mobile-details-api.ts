@@ -1096,7 +1096,7 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
   const songRows = await prisma.song.findMany({
     where: { isPublished: true, playerId: canonicalPlayerId },
     orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
-    include: { player: { select: { id: true, nameHe: true } } },
+    include: { player: { select: { id: true, nameHe: true, photoUrl: true } } },
   });
   const songs: SongSummary[] = songRows.map((s) => ({
     id: s.id,
@@ -1107,7 +1107,8 @@ export async function getMobilePlayerPayload(playerId: string, options?: { seaso
     debutSeasonYear: s.debutSeasonYear,
     thumbUrl: youtubeThumb(s.videoUrls[0] ?? null),
     contentWarning: s.contentWarning,
-    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe } : null,
+    hasLyrics: !!s.lyricsHe,
+    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe, photoUrl: s.player.photoUrl } : null,
   }));
 
   // AI overview lives on the canonical Player's additionalInfo. The fetcher

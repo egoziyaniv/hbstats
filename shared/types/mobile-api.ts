@@ -284,7 +284,9 @@ export interface SongSummary {
   debutSeasonYear: number | null;
   thumbUrl: string | null;
   contentWarning: boolean;
-  player: { id: string; nameHe: string } | null;
+  /** True when the song has lyrics stored (drives the "מילים" badge + search). */
+  hasLyrics: boolean;
+  player: { id: string; nameHe: string; photoUrl: string | null } | null;
 }
 
 export interface SongDetail extends SongSummary {

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const rows = await prisma.song.findMany({
     where: { isPublished: true, ...(type ? { type } : {}) },
     orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
-    include: { player: { select: { id: true, nameHe: true } } },
+    include: { player: { select: { id: true, nameHe: true, photoUrl: true } } },
   });
 
   const songs: SongSummary[] = rows.map((s) => ({
@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
     debutSeasonYear: s.debutSeasonYear,
     thumbUrl: youtubeThumb(s.videoUrls[0] ?? null),
     contentWarning: s.contentWarning,
-    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe } : null,
+    hasLyrics: !!s.lyricsHe,
+    player: s.player ? { id: s.player.id, nameHe: s.player.nameHe, photoUrl: s.player.photoUrl } : null,
   }));
 
   const payload: SongsPayload = { songs };
