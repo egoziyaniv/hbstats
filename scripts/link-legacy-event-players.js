@@ -91,11 +91,25 @@ const norm = (s) => (s || '').replace(/['"׳״]/g, '').replace(/\s+/g, ' ').trim
     return;
   }
 
-  let done = 0;
+  // Group by the value being written so this is a few hundred updateMany calls
+  // instead of ~24k single-row round trips.
+  const groups = new Map();
   for (const u of updates) {
-    await prisma.gameEvent.update({ where: { id: u.id }, data: u.data });
-    if (++done % 2000 === 0) console.log(`  ${done}/${updates.length}`);
+    const key = JSON.stringify(u.data);
+    (groups.get(key) ?? groups.set(key, []).get(key)).push(u.id);
   }
-  console.log(`\nAPPLIED — ${done} events linked`);
+  let done = 0;
+  let n = 0;
+  for (const [key, ids] of groups) {
+    for (let i = 0; i < ids.length; i += 500) {
+      const res = await prisma.gameEvent.updateMany({
+        where: { id: { in: ids.slice(i, i + 500) } },
+        data: JSON.parse(key),
+      });
+      done += res.count;
+    }
+    if (++n % 100 === 0) console.log(`  ${n}/${groups.size} groups, ${done} events`);
+  }
+  console.log(`\nAPPLIED — ${done} events linked across ${groups.size} players`);
   await prisma.$disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });
