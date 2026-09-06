@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMobilePlayerPayload } from '@/lib/mobile-details-api';
 import prisma from '@/lib/prisma';
+import { buildBeerShevaSpell } from '@/lib/beer-sheva-spell';
 import type { PlayerPayload, PlayerSeasonStats, PlayerRecentMatch, PlayerCareerEntry } from '@shared/types/mobile-api';
 import type { TeamSummary } from '@shared/types/common';
 
@@ -253,6 +254,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     career: extras.career,
     trophies: (raw.sections.trophies as PlayerPayload['trophies']) ?? [],
     songs: (raw.sections.songs as PlayerPayload['songs']) ?? [],
+    bsSpell: await buildBeerShevaSpell(playerProfile.id),
   };
 
   return NextResponse.json(payload);

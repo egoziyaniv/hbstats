@@ -158,8 +158,21 @@ export default function SongDetailScreen() {
                 <Text style={{ color: theme.ink[900], fontSize: 19, fontWeight: '900', textAlign: 'right' }} numberOfLines={1}>
                   {data.player.nameHe}
                 </Text>
-                {data.playerSummary?.position ? (
-                  <Text style={{ color: theme.ink[500], fontSize: 12.5, fontWeight: '600' }}>{data.playerSummary.position}</Text>
+                {data.playerSummary ? (
+                  <Text style={{ color: theme.ink[500], fontSize: 12, fontWeight: '600', textAlign: 'right' }} numberOfLines={1}>
+                    {[
+                      data.playerSummary.position,
+                      data.playerSummary.firstLabel
+                        ? `הפועל באר שבע ${data.playerSummary.firstLabel}${
+                            data.playerSummary.lastLabel && data.playerSummary.lastLabel !== data.playerSummary.firstLabel
+                              ? `–${data.playerSummary.lastLabel}`
+                              : ''
+                          }`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
                 ) : null}
               </View>
               <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={theme.ink[300]} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -173,6 +186,8 @@ export default function SongDetailScreen() {
                   <StatTile value={data.playerSummary.appearances} label="הופעות" />
                   <View style={{ width: 1, backgroundColor: theme.ink[100] }} />
                   <StatTile value={data.playerSummary.goals} label="שערים" />
+                  <View style={{ width: 1, backgroundColor: theme.ink[100] }} />
+                  <StatTile value={data.playerSummary.assists} label="בישולים" />
                 </View>
                 <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: theme.ink[100] }}>
                   <Pressable

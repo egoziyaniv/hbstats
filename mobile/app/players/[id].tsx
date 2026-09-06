@@ -16,7 +16,7 @@ import { MetricCell } from '@/design-system/MetricCell';
 import { BackButton } from '@/design-system/BackButton';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
-import type { PlayerCareerEntry, SongSummary, SongType } from '@shared/types/mobile-api';
+import type { BeerShevaSpell, PlayerCareerEntry, SongSummary, SongType } from '@shared/types/mobile-api';
 
 const roleLabel: Record<'started' | 'subbed_in' | 'unused' | 'subbed_out', string> = {
   started: 'התחיל',
@@ -47,6 +47,78 @@ function calculateAge(iso: string | null): number | null {
   const m = now.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
   return age;
+}
+
+function SpellTile({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text style={{ color: theme.ink[900], fontSize: 19, fontWeight: '900' }}>{value}</Text>
+      <Text style={{ color: theme.ink[500], fontSize: 10.5, fontWeight: '700', marginTop: 2 }}>{label}</Text>
+    </View>
+  );
+}
+
+/** "התקופה בהפועל באר שבע" — club-scoped, never career totals. */
+function BeerShevaSpellCard({ spell }: { spell: BeerShevaSpell }) {
+  const { brand } = useTheme();
+  return (
+    <Card>
+      <Section title="התקופה בהפועל באר שבע">
+        <Text style={{ color: theme.ink[700], fontSize: 13.5, lineHeight: 21, textAlign: 'right', writingDirection: 'rtl' }}>
+          {spell.summaryHe}
+        </Text>
+
+        <View style={{ flexDirection: rtlRow(), marginTop: 14, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.ink[100] }}>
+          <SpellTile value={spell.appearances} label="הופעות" />
+          <SpellTile value={spell.goals} label="שערים" />
+          <SpellTile value={spell.assists} label="בישולים" />
+          <SpellTile value={spell.seasons.length} label="עונות" />
+        </View>
+
+        {spell.honors.length > 0 ? (
+          <View style={{ flexDirection: rtlRow(), flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+            {spell.honors.map((h) => (
+              <View
+                key={`${h.competitionHe}-${h.year}`}
+                style={{ backgroundColor: brand.accentGlow, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}
+              >
+                <Text style={{ color: brand.accent, fontSize: 11, fontWeight: '800' }}>
+                  {h.competitionHe} {h.seasonLabel}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {spell.seasons.length > 1 ? (
+          <View style={{ marginTop: 14 }}>
+            {spell.seasons.map((row, i) => (
+              <View
+                key={row.year}
+                style={{
+                  flexDirection: rtlRow(),
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: theme.ink[100],
+                }}
+              >
+                <Text style={{ flex: 1, color: theme.ink[900], fontSize: 13, fontWeight: '800', textAlign: 'right' }}>
+                  {row.label}
+                </Text>
+                <Text style={{ width: 62, color: theme.ink[700], fontSize: 12.5, textAlign: 'center' }}>
+                  {row.appearances} הופ׳
+                </Text>
+                <Text style={{ width: 62, color: theme.ink[700], fontSize: 12.5, textAlign: 'center' }}>
+                  {row.goals ? `${row.goals} שער׳` : '—'}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </Section>
+    </Card>
+  );
 }
 
 export default function PlayerScreen() {
@@ -124,6 +196,8 @@ export default function PlayerScreen() {
           ) : null}
         </View>
       </LinearGradient>
+
+      {data.bsSpell ? <BeerShevaSpellCard spell={data.bsSpell} /> : null}
 
       {data.player.aiOverview && (data.player.aiOverview.text || data.player.aiOverview.wikiSummary) ? (
         <Card>

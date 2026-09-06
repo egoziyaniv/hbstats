@@ -855,6 +855,8 @@ export interface PlayerPayload {
   career: PlayerCareerEntry[];
   trophies: PlayerTrophyGroup[];
   songs: SongSummary[];
+  /** His time at Beer Sheva; null for the great majority who never played here. */
+  bsSpell: BeerShevaSpell | null;
 }
 
 // ---------- Preferences ----------
