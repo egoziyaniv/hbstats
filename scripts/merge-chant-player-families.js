@@ -52,7 +52,7 @@ const APPLY = process.argv.includes('--apply');
       where: { nameHe },
       select: {
         id: true, birthDate: true, photoUrl: true, position: true,
-        nationality: true, canonicalPlayerId: true,
+        canonicalPlayerId: true,
         team: { select: { nameHe: true, season: { select: { year: true } } } },
       },
     });
