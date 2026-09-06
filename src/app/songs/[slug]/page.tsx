@@ -101,6 +101,7 @@ export default async function SongPage({ params }: { params: { slug: string } })
                 <img
                   src={contribution.photoUrl}
                   alt={song.player.nameHe}
+                  title={contribution.photoCredit ? `צילום: ${contribution.photoCredit}` : undefined}
                   className="h-20 w-20 shrink-0 rounded-2xl border border-stone-200 bg-white object-cover object-top"
                 />
               ) : (
@@ -113,9 +114,20 @@ export default async function SongPage({ params }: { params: { slug: string } })
                 <div className="truncate text-2xl font-black text-stone-900 group-hover:text-[var(--accent)]">
                   {song.player.nameHe}
                 </div>
-                {contribution?.position ? (
-                  <div className="mt-0.5 text-sm text-stone-500">{contribution.position}</div>
-                ) : null}
+                <div className="mt-0.5 text-sm text-stone-500">
+                  {[
+                    contribution?.position,
+                    contribution?.firstLabel
+                      ? `הפועל באר שבע ${contribution.firstLabel}${
+                          contribution.lastLabel && contribution.lastLabel !== contribution.firstLabel
+                            ? `–${contribution.lastLabel}`
+                            : ''
+                        }`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
               </div>
               <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-stone-300 group-hover:text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline points="15 6 9 12 15 18" />
@@ -124,7 +136,7 @@ export default async function SongPage({ params }: { params: { slug: string } })
 
             {contribution ? (
               <>
-                <div className="grid grid-cols-2 divide-x divide-x-reverse divide-stone-200/80 border-y border-stone-200/80 bg-stone-50">
+                <div className="grid grid-cols-3 divide-x divide-x-reverse divide-stone-200/80 border-y border-stone-200/80 bg-stone-50">
                   <Link href={`/players/${song.player.id}?tab=games`} className="p-4 text-center transition hover:bg-white">
                     <div className="text-2xl font-black text-stone-900">{contribution.appearances}</div>
                     <div className="mt-0.5 text-xs font-semibold text-stone-500">הופעות</div>
@@ -133,7 +145,14 @@ export default async function SongPage({ params }: { params: { slug: string } })
                     <div className="text-2xl font-black text-stone-900">{contribution.goals}</div>
                     <div className="mt-0.5 text-xs font-semibold text-stone-500">שערים</div>
                   </Link>
+                  <Link href={`/players/${song.player.id}?tab=stats`} className="p-4 text-center transition hover:bg-white">
+                    <div className="text-2xl font-black text-stone-900">{contribution.assists}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-stone-500">בישולים</div>
+                  </Link>
                 </div>
+                <p className="px-4 pt-3 text-center text-[11px] font-semibold text-stone-400">
+                  הנתונים מתייחסים לתקופתו בהפועל באר שבע בלבד
+                </p>
                 <div className="flex flex-wrap gap-2 p-4">
                   <Link
                     href={`/players/${song.player.id}`}

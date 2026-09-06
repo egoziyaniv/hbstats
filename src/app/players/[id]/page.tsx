@@ -4,6 +4,9 @@ import { LeaderboardCategory } from '@prisma/client';
 import { derivePlayerDeepStats } from '@/lib/deep-stats';
 import { getDisplayMode } from '@/lib/display-mode';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
+import { buildBeerShevaSpell } from '@/lib/beer-sheva-spell';
+import type { BeerShevaSpell } from '@shared/types/mobile-api';
+import BeerShevaSpellBlock from '@/components/BeerShevaSpellBlock';
 import prisma from '@/lib/prisma';
 import { PlayerMatchHistory } from '@/components/PlayerMatchHistory';
 import { PlayerOverviewPanel } from '@/components/PlayerOverviewPanel';
@@ -447,11 +450,19 @@ export default async function PlayerPage({
   const uploads = linkedPlayers
     .flatMap((player) => player.uploads)
     .sort((left, right) => Number(right.isPrimary) - Number(left.isPrimary) || +new Date(left.createdAt) - +new Date(right.createdAt));
+  // The season row is often photo-less (the 2009-2015 import carried none), so fall back
+  // to the canonical row, which is where a Commons portrait is stored.
+  const photoOwner =
+    (displayPlayerEntry.photoUrl ? displayPlayerEntry : null) ||
+    (canonicalPlayer.photoUrl ? canonicalPlayer : null);
   const displayPhoto =
-    displayPlayerEntry.photoUrl ||
+    photoOwner?.photoUrl ||
     uploads.find((upload) => upload.isPrimary)?.filePath ||
     uploads[0]?.filePath ||
     null;
+  // CC BY-SA obliges us to name the author and licence wherever the photo is shown.
+  const photoCredit = photoOwner?.photoCredit ?? null;
+  const photoSourceUrl = photoOwner?.photoSourceUrl ?? null;
   const playerDisplayName = formatPlayerName(canonicalPlayer);
   const primarySeasonStats = aggregatedStats[0] || null;
   const activeGameFilter = normalizeGameFilter(searchParams?.filter || (searchParams?.view !== 'premier' ? searchParams?.view : undefined));
@@ -517,13 +528,19 @@ export default async function PlayerPage({
     orderBy: { displayOrder: 'asc' },
   });
 
+  // Null for anyone who never played for the club — most of the 20k players in the DB.
+  const bsSpell = await buildBeerShevaSpell(canonicalPlayerId);
+
   if (displayMode === 'premier') {
     return (
       <PremierPlayerView
         canonicalPlayer={canonicalPlayer}
         playerSongs={playerSongs}
+        bsSpell={bsSpell}
         canonicalPlayerId={canonicalPlayerId}
         displayPhoto={displayPhoto}
+        photoCredit={photoCredit}
+        photoSourceUrl={photoSourceUrl}
         playerDisplayName={playerDisplayName}
         displayPlayerEntry={displayPlayerEntry}
         selectedSeason={selectedSeason}
@@ -825,6 +842,8 @@ function PremierPlayerView({
   canonicalPlayer,
   canonicalPlayerId,
   displayPhoto,
+  photoCredit,
+  photoSourceUrl,
   playerDisplayName,
   displayPlayerEntry,
   selectedSeason,
@@ -847,11 +866,15 @@ function PremierPlayerView({
   cardHistory,
   matchHistoryEntries,
   playerSongs,
+  bsSpell,
 }: {
   canonicalPlayer: any;
   playerSongs: any[];
+  bsSpell: BeerShevaSpell | null;
   canonicalPlayerId: string;
   displayPhoto: string | null;
+  photoCredit: string | null;
+  photoSourceUrl: string | null;
   playerDisplayName: string;
   displayPlayerEntry: any;
   selectedSeason: { id: string; name: string; year: number } | undefined;
@@ -995,6 +1018,17 @@ function PremierPlayerView({
                     )}
                     {isDeparted ? (
                       <span className="absolute inset-x-0 bottom-1 mx-auto w-fit rounded-full bg-stone-900/85 px-2.5 py-0.5 text-[10px] font-black tracking-wide text-white shadow">עזב</span>
+                    ) : null}
+                    {photoCredit ? (
+                      <a
+                        href={photoSourceUrl ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`צילום: ${photoCredit}`}
+                        className="mt-1 block max-w-28 truncate text-[9px] leading-tight text-white/55 hover:text-white/80"
+                      >
+                        צילום: {photoCredit}
+                      </a>
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -1256,7 +1290,10 @@ function PremierPlayerView({
           />
         ) : null}
 
-        {/* שיר השחקן — always visible (not tab-gated) so it shows on the default tab too */}
+        {/* התקופה במועדון + שיר השחקן — always visible, not tab-gated, so they show on
+            the default tab too. */}
+        {bsSpell ? <BeerShevaSpellBlock spell={bsSpell} /> : null}
+
         {playerSongs.length > 0 ? (
           <section id="player-songs" className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm">
             <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">שיר השחקן</h2>

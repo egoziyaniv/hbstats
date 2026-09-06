@@ -252,12 +252,51 @@ export interface VenueStatsPayload {
   games: VenueGameRow[];
 }
 
-/** A player's real contribution in our data (shared by legends + chants). */
+// ---------- Beer Sheva spell (a player's time at the club) ----------
+
+export interface BeerShevaSeasonLine {
+  seasonId: string;
+  year: number;
+  label: string;      // "2016/17"
+  teamId: string;     // that season's BS squad — deep-links to its games
+  appearances: number;
+  goals: number;
+  assists: number;
+  honors: string[];   // competitions the club won that season
+}
+
+/** Scoped to games played FOR Beer Sheva — never career totals. */
+export interface BeerShevaSpell {
+  seasons: BeerShevaSeasonLine[]; // newest first
+  firstYear: number;
+  lastYear: number;
+  firstLabel: string;
+  lastLabel: string;
+  appearances: number;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  honors: Array<{ competitionHe: string; seasonLabel: string; year: number }>;
+  summaryHe: string;  // a few plain sentences generated from the numbers above
+}
+
+/**
+ * What a player did FOR BEER SHEVA (shared by legends + chants) — never career totals.
+ * photoCredit/photoSourceUrl are non-null for photos held under a free licence and must
+ * be rendered wherever the photo is.
+ */
 export interface PlayerContribution {
   photoUrl: string | null;
+  photoCredit: string | null;
+  photoSourceUrl: string | null;
   position: string | null;
   goals: number;
   appearances: number;
+  assists: number;
+  firstLabel: string | null; // "2013/14"
+  lastLabel: string | null;
+  seasonCount: number;
 }
 
 export interface LegendDetail {

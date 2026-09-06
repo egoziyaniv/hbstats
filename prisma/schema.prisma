@@ -420,6 +420,11 @@ model Player {
   nameHe             String
   jerseyNumber       Int?
   photoUrl           String?
+  // Attribution for photos sourced under a free licence (Wikimedia Commons).
+  // CC BY-SA requires naming the author and the licence wherever the photo is shown,
+  // so a photo imported from Commons MUST carry these two alongside photoUrl.
+  photoCredit        String? // "Adir Benyamini · CC BY-SA 4.0"
+  photoSourceUrl     String? // the Commons file page
   position           String?
   createdAt          DateTime                      @default(now())
   updatedAt          DateTime                      @updatedAt
