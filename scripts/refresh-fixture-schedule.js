@@ -16,6 +16,10 @@
  * looks at today, so nothing revisited them either. Monday's results, events, lineups and
  * per-player statistics were never collected until someone refreshed by hand.
  *
+ * The same payload also carries the status and score, so this reconciles finished games
+ * whose result we never stored — the three Liga Leumit games of 2026-09-07 sat SCHEDULED
+ * with no score because our rows had them a day early and nothing looked there again.
+ *
  * Two API calls per league per run, so it is cheap enough to run daily.
  *
  * Usage:
@@ -71,6 +75,7 @@ async function fetchFixtures(leagueId, season) {
 (async () => {
   console.log(`═══ ${new Date().toISOString()} — fixture schedule refresh (season ${SEASON}) ═══`);
   let moved = 0;
+  let scored = 0;
   let checked = 0;
   let missing = 0;
 
@@ -93,27 +98,54 @@ async function fetchFixtures(leagueId, season) {
 
       const game = await prisma.game.findUnique({
         where: { apiFootballId: apiId },
-        select: { id: true, dateTime: true },
+        select: { id: true, dateTime: true, status: true, homeScore: true, awayScore: true },
       });
       if (!game) { missing++; continue; }
       checked++;
 
-      // Sub-minute drift is noise; anything more is a real reschedule.
-      if (Math.abs(game.dateTime.getTime() - kickoff.getTime()) < 60_000) continue;
+      const data = {};
+      const label = `${f.teams?.home?.name} vs ${f.teams?.away?.name}`;
 
-      console.log(
-        `  ${DRY ? 'WOULD MOVE' : 'MOVE'} ${apiId}: ` +
-        `${game.dateTime.toISOString().slice(0, 16)} -> ${kickoff.toISOString().slice(0, 16)}` +
-        `  ${f.teams?.home?.name} vs ${f.teams?.away?.name}`,
-      );
-      if (!DRY) await prisma.game.update({ where: { id: game.id }, data: { dateTime: kickoff } });
-      moved++;
+      // Sub-minute drift is noise; anything more is a real reschedule.
+      if (Math.abs(game.dateTime.getTime() - kickoff.getTime()) >= 60_000) {
+        console.log(
+          `  ${DRY ? 'WOULD MOVE' : 'MOVE'} ${apiId}: ` +
+          `${game.dateTime.toISOString().slice(0, 16)} -> ${kickoff.toISOString().slice(0, 16)}  ${label}`,
+        );
+        data.dateTime = kickoff;
+        moved++;
+      }
+
+      // Reconcile a finished result we never recorded. Only ever fills a gap: a score we
+      // already hold is left alone, since the richer sources (IFA / FotMob) may have
+      // corrected it.
+      const short = String(f.fixture?.status?.short || '').toUpperCase();
+      const finished = ['FT', 'AET', 'PEN'].includes(short);
+      const hg = f.goals?.home;
+      const ag = f.goals?.away;
+      if (finished && typeof hg === 'number' && typeof ag === 'number' &&
+          (game.homeScore === null || game.awayScore === null || game.status !== 'COMPLETED')) {
+        console.log(
+          `  ${DRY ? 'WOULD SCORE' : 'SCORE'} ${apiId}: ${game.status} ${game.homeScore}:${game.awayScore}` +
+          ` -> COMPLETED ${hg}:${ag}  ${label}`,
+        );
+        if (game.homeScore === null) data.homeScore = hg;
+        if (game.awayScore === null) data.awayScore = ag;
+        data.status = 'COMPLETED';
+        data.statusShort = short;
+        data.statusLong = f.fixture?.status?.long ?? null;
+        scored++;
+      }
+
+      if (!DRY && Object.keys(data).length) {
+        await prisma.game.update({ where: { id: game.id }, data });
+      }
     }
   }
 
   console.log(
-    `\n${DRY ? 'DRY RUN' : 'DONE'} — matched ${checked} fixtures, rescheduled ${moved}` +
-    `, ${missing} API fixtures not in our DB`,
+    `\n${DRY ? 'DRY RUN' : 'DONE'} — matched ${checked} fixtures, rescheduled ${moved},` +
+    ` results filled ${scored}, ${missing} API fixtures not in our DB`,
   );
   await prisma.$disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });
