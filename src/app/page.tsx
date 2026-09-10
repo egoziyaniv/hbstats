@@ -721,7 +721,16 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
       showTeaser: g.status === 'SCHEDULED',
     };
   };
-  const heroSourcePool = [...liveIsraeliGames, ...rankedUpcoming];
+  // With a team filter on, the hero must stay inside that team: rankedUpcoming holds
+  // every Israeli fixture and only SORTS the chosen team's first, so the carousel used to
+  // rotate onto other clubs' games while each slide still read "המשחק הבא" — a Beer Sheva
+  // fan saw "עירוני קריית שמונה - מכבי חיפה" and read it as Beer Sheva's next match.
+  // Fall back to the unfiltered pool only if the chosen team has nothing scheduled.
+  const heroPoolAll = [...liveIsraeliGames, ...rankedUpcoming];
+  const heroPoolForTeam = selectedTeamIds.length
+    ? heroPoolAll.filter((g) => gameMatchesPreferredTeam(g, selectedTeamIds))
+    : heroPoolAll;
+  const heroSourcePool = heroPoolForTeam.length ? heroPoolForTeam : heroPoolAll;
   const heroSourceDeduped = heroSourcePool.filter((g, idx) => heroSourcePool.findIndex((x) => x.id === g.id) === idx).slice(0, 6);
   const heroSlides: HeroSlide[] = heroSourceDeduped.length
     ? heroSourceDeduped.map(buildHeroSlide)
