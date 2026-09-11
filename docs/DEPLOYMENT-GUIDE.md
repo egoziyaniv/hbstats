@@ -1,5 +1,8 @@
 # HBStats — Deployment & Data Setup Guide
 
+> משימות מתוזמנות (cron) אינן חלק מה-deploy: מקור האמת הוא [`ops/crontab`](../ops/crontab),
+> מותקן ב-`scripts/install-crontab.sh`. ראה [OPERATIONS.md](OPERATIONS.md).
+
 מדריך הקמת סביבה חדשה — DEV או PROD.
 
 ## דרישות מקדימות

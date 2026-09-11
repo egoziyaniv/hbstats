@@ -1,0 +1,48 @@
+# StatsAI production crontab (user: hbs, host: Hetzner)
+#
+# THIS FILE IS THE SOURCE OF TRUTH. The server's live crontab is not in git and does
+# not survive a rebuild, so edit here and install with:
+#     scripts/install-crontab.sh
+#
+# Times are UTC (the server runs UTC; Israel is UTC+3). That matters: an Israeli evening
+# kickoff at 17:30 UTC is 20:30 local, and anything scheduled at 01:15 UTC runs at 04:15
+# local — i.e. after the previous day's games but before the coming day's.
+#
+# Logs all land in /home/hbs/logs/.
+
+# ── Data collection ───────────────────────────────────────────────────────────
+# Fixture schedule + results reconciliation. Every 3 hours, NOT daily: the league
+# publishes a round's real kickoff times mid-day, and until it is re-read every
+# collector below is watching the wrong window. See docs/OPERATIONS.md.
+0 */3 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/refresh-fixture-schedule.js >> /home/hbs/logs/fixture-schedule.log 2>&1
+
+# Near-live refresh during a match window (kickoff -2h .. +5h). Cheap when idle:
+# it exits with 0 API calls when no Israeli fixture is in the window.
+*/30 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/matchday-live.js >> /home/hbs/logs/matchday-live.log 2>&1
+
+# Nightly sweep: schedule refresh, then today + the 3 preceding days (results, events,
+# lineups, statistics, IFA Hebrew details), then the league tables.
+15 1 * * * /home/hbs/hbstats/scripts/cron-matchday.sh >> /home/hbs/logs/matchday.log 2>&1
+
+# European ties and pre-season friendlies for Israeli clubs.
+0 6 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/import-euro-fixtures.js --execute >> /home/hbs/logs/euro-import.log 2>&1
+0 6 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/import-friendlies.js --execute >> /home/hbs/logs/friendlies-import.log 2>&1
+
+# ── Squads & player data (weekly) ─────────────────────────────────────────────
+0 5 * * 1 cd /home/hbs/hbstats && node scripts/sync-squads.js --execute >> /home/hbs/logs/sync-squads.log 2>&1
+30 5 * * 2 cd /home/hbs/hbstats && /usr/bin/node scripts/scrape-sofascore-squads.js --execute >> /home/hbs/logs/sofascore-squads.log 2>&1
+15 6 * * 2 cd /home/hbs/hbstats && /usr/bin/node scripts/backfill-sofascore-photos.js --execute >> /home/hbs/logs/sofascore-photos.log 2>&1
+45 6 * * 2 /home/hbs/hbstats/scripts/cron-squad-names.sh >> /home/hbs/logs/squad-names.log 2>&1
+
+# ── Derived content ───────────────────────────────────────────────────────────
+30 4 * * * cd /home/hbs/hbstats && npx tsx scripts/rebuild-records.ts >> /home/hbs/logs/rebuild-records.log 2>&1
+30 3 * * * /home/hbs/hbstats/scripts/cron-refresh-ai.sh >> /home/hbs/logs/ai-refresh.log 2>&1
+0 9 * * * cd /home/hbs/hbstats && curl -s -H "x-cron-secret: $(grep ^CRON_SECRET= .env | cut -d= -f2)" "http://localhost:3100/api/cron/on-this-day" >> /home/hbs/logs/on-this-day.log 2>&1
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+*/3 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-matches.js --execute >> /home/hbs/logs/notify-matches.log 2>&1
+*/10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-reminders.js --execute >> /home/hbs/logs/notify-reminders.log 2>&1
+*/10 * * * * cd /home/hbs/hbstats && curl -s -H "x-cron-secret: $(grep ^CRON_SECRET= .env | cut -d= -f2)" "http://localhost:3100/api/cron/notify-news" >> /home/hbs/logs/notify-news.log 2>&1
+
+# ── Backups ───────────────────────────────────────────────────────────────────
+0 2 * * * /home/hbs/hbstats/scripts/backup-db.sh >> /home/hbs/logs/db-backup.log 2>&1

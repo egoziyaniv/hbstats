@@ -26,6 +26,10 @@ npx prisma db push --accept-data-loss && npx prisma generate
 npm run build && pm2 restart hbstats
 ```
 > אם לא היה שינוי סכמה אפשר לדלג על שורת ה-prisma. שלב ה-`db push` הוא ידני — אל תשכח אותו כשמוסיפים/משנים שדות.
+
+> **cron ותפעול:** ה-crontab החי אינו ב-git. מקור האמת הוא [`ops/crontab`](ops/crontab),
+> מותקן ב-`scripts/install-crontab.sh`. לאבחון "האתר לא התעדכן" ולתקינות נתוני שחקנים —
+> [docs/OPERATIONS.md](docs/OPERATIONS.md).
 אם ה-build נכשל מחוסר זיכרון:
 ```bash
 NODE_OPTIONS="--max-old-space-size=3072" npm run build
@@ -139,8 +143,18 @@ scripts/
   build-rosters-from-leaderboards.js # בניית סגלים מ-leaderboards
   transliterate-players.js     # תעתיק שמות שחקנים לעברית
   backfill_canonical_players.js # איחוד שחקנים כפולים
+  refresh-fixture-schedule.js  # קריאה מחדש של שעות פתיחה + השלמת תוצאות (cron כל 3 שעות)
+  merge-chant-player-families.js     # איחוד שורות שחקן פר-עונה (רשימת שמות מאומתת)
+  merge-reversed-name-duplicates.js  # איחוד "אליניב ברדה" מול "ברדה אליניב" באותו סגל
+  audit-reversed-name-duplicates.js  # בדיקה בלבד לכפילויות שם הפוך
+  link-legacy-event-players.js # שיוך אירועים שלפני 2016 לשחקנים לפי שם בתוך הסגל
+  apply-commons-player-photos.js # תמונות ויקישיתוף + ייחוס רישיון
+  install-crontab.sh           # התקנת ops/crontab על השרת
+ops/
+  crontab                      # מקור האמת ל-cron (החי על השרת אינו ב-git)
 docs/
   ARCHITECTURE.md              # ארכיטקטורת המערכת
+  OPERATIONS.md                # cron, אבחון "האתר לא התעדכן", תקינות נתוני שחקנים
   SECURITY-AUDIT.md            # דוח אבטחה + תיקונים
   DEPLOYMENT-GUIDE.md          # מדריך הקמת סביבה
 ```
