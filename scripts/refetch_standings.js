@@ -123,6 +123,25 @@ async function main() {
             continue;
           }
 
+          // API-Football reports points NET of any league deduction, but the rest of the
+          // app stores `points` as the RAW earned total and keeps the deduction in
+          // `pointsAdjustment` (displayed points = points + pointsAdjustment). Writing the
+          // net figure straight into `points` therefore erased the deduction: Ironi
+          // Tiberias showed 0 points with no explanation, and the standings footnote that
+          // exists for exactly this case never fired. Split it the same way
+          // /api/admin/fetch already does.
+          const winCount = row?.all?.win ?? 0;
+          const drawCount = row?.all?.draw ?? 0;
+          const netPoints = row?.points ?? 0;
+          const basePoints = winCount * 3 + drawCount;
+          const pointsAdjustment = netPoints - basePoints;
+          const pointsAdjustmentNoteHe =
+            pointsAdjustment < 0
+              ? `הורדת ${Math.abs(pointsAdjustment)} נקודות`
+              : pointsAdjustment > 0
+                ? `תוספת ${pointsAdjustment} נקודות`
+                : null;
+
           await prisma.standing.upsert({
             where: {
               seasonId_teamId_competitionId: {
@@ -140,7 +159,9 @@ async function main() {
               losses: row?.all?.lose ?? 0,
               goalsFor: row?.all?.goals?.for ?? 0,
               goalsAgainst: row?.all?.goals?.against ?? 0,
-              points: row?.points ?? 0,
+              points: basePoints,
+              pointsAdjustment,
+              pointsAdjustmentNoteHe,
               form: row?.form ?? null,
             },
             create: {
@@ -154,7 +175,9 @@ async function main() {
               losses: row?.all?.lose ?? 0,
               goalsFor: row?.all?.goals?.for ?? 0,
               goalsAgainst: row?.all?.goals?.against ?? 0,
-              points: row?.points ?? 0,
+              points: basePoints,
+              pointsAdjustment,
+              pointsAdjustmentNoteHe,
               form: row?.form ?? null,
             },
           });

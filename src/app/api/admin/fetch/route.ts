@@ -1966,10 +1966,14 @@ export async function POST(request: NextRequest) {
                   ? row.description.join(', ')
                   : null;
             const importedDescriptionHe = importedDescriptionEn ? translateName(importedDescriptionEn) : null;
+            // Shown to readers (the statistics page renders it as a subtitle), so it must
+            // read as a football fact and must not name a data source.
             const inferredAdjustmentNoteHe =
-              inferredPointsAdjustment !== 0
-                ? `פער נקודות מיובא מה-API: ${inferredPointsAdjustment > 0 ? `+${inferredPointsAdjustment}` : inferredPointsAdjustment}`
-                : null;
+              inferredPointsAdjustment < 0
+                ? `הורדת ${Math.abs(inferredPointsAdjustment)} נקודות`
+                : inferredPointsAdjustment > 0
+                  ? `תוספת ${inferredPointsAdjustment} נקודות`
+                  : null;
 
             // Standing is unique per (season, team, competition), so each
             // competition's table is stored independently — a Toto Cup group
