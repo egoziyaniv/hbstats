@@ -375,4 +375,38 @@ describe('calculateSeasonMetrics', () => {
 
     expect(metrics[3]).toMatchObject({ value: 4, coverage: 'PARTIAL', evidenceGameIds: [] });
   });
+
+  it('treats a source-only partial competition as part of expected metric coverage', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [game({ id: 'league-valid' })],
+      { position: 1, competitionId: 'league' },
+      [
+        { ...completeMetricSource, competitionId: 'league' },
+        { ...completeMetricSource, competitionId: 'cup', coverageStatus: 'PARTIAL' as const },
+      ],
+      new Date('2026-09-13T09:00:00.000Z'),
+    );
+
+    expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
+      'PARTIAL',
+      'PARTIAL',
+      'PARTIAL',
+    ]);
+    expect(metrics[0].competitionBreakdown).toEqual([
+      { competitionId: 'league', competitionNameHe: 'ליגת העל', value: 1, coverage: 'COMPLETE' },
+    ]);
+  });
+
+  it('accepts a global complete metric source for exact standing coverage', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [],
+      { position: 4, competitionId: 'national-league' },
+      [completeMetricSource],
+      new Date('2026-09-13T09:00:00.000Z'),
+    );
+
+    expect(metrics[3]).toMatchObject({ value: 4, coverage: 'COMPLETE', evidenceGameIds: [] });
+  });
 });
