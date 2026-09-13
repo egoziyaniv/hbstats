@@ -110,6 +110,30 @@ describe('resolveTeamScore', () => {
     });
   });
 
+  it('resolves a loss', () => {
+    expect(resolveTeamScore(TEAM_ID, game({ homeScore: 1, awayScore: 3 }))).toEqual({
+      goalsFor: 1,
+      goalsAgainst: 3,
+      result: 'L',
+    });
+  });
+
+  it('uses the canonical extra-time score instead of the regular-time or shootout score', () => {
+    expect(
+      resolveTeamScore(
+        TEAM_ID,
+        game({
+          homeScore: 2,
+          awayScore: 1,
+          homeScoreRegular: 1,
+          awayScoreRegular: 1,
+          homePenalty: 3,
+          awayPenalty: 5,
+        }),
+      ),
+    ).toEqual({ goalsFor: 2, goalsAgainst: 1, result: 'W' });
+  });
+
   it('returns null for incomplete scores and unrelated teams', () => {
     expect(resolveTeamScore(TEAM_ID, game({ awayScore: null }))).toBeNull();
     expect(resolveTeamScore('different-team', game())).toBeNull();
@@ -153,15 +177,15 @@ describe('calculateSeasonMetrics', () => {
     const metrics = calculateSeasonMetrics(
       TEAM_ID,
       games,
-      2,
-      [completeMetricSource],
-      '2026-09-13T12:34:56+03:00',
+      { position: 2, competitionId: 'league' },
+      [completeMetricSource, { ...completeMetricSource, competitionId: 'league' }],
+      new Date('2026-09-13T12:34:56+03:00'),
     );
 
     expect(metrics.map(({ key, value, coverage }) => ({ key, value, coverage }))).toEqual([
-      { key: 'matches', value: 4, coverage: 'COMPLETE' },
-      { key: 'wins', value: 2, coverage: 'COMPLETE' },
-      { key: 'goalsFor', value: 5, coverage: 'COMPLETE' },
+      { key: 'matches', value: 4, coverage: 'PARTIAL' },
+      { key: 'wins', value: 2, coverage: 'PARTIAL' },
+      { key: 'goalsFor', value: 5, coverage: 'PARTIAL' },
       { key: 'leaguePosition', value: 2, coverage: 'COMPLETE' },
     ]);
     expect(metrics.every((metric) => metric.computedAt === '2026-09-13T09:34:56.000Z')).toBe(true);
@@ -177,9 +201,11 @@ describe('calculateSeasonMetrics', () => {
     expect(metrics[1].evidenceGameIds).toEqual(evidenceIds);
     expect(metrics[2].evidenceGameIds).toEqual(evidenceIds);
     expect(metrics[3].evidenceGameIds).toEqual([]);
+    expect(metrics[0].evidenceGameIds).not.toBe(metrics[1].evidenceGameIds);
+    expect(metrics[1].evidenceGameIds).not.toBe(metrics[2].evidenceGameIds);
 
     expect(metrics[0].competitionBreakdown).toEqual([
-      { competitionId: 'league', competitionNameHe: 'ליגת העל', value: 2, coverage: 'COMPLETE' },
+      { competitionId: 'league', competitionNameHe: 'ליגת העל', value: 2, coverage: 'PARTIAL' },
       { competitionId: 'cup', competitionNameHe: 'גביע המדינה', value: 1, coverage: 'COMPLETE' },
       { competitionId: 'europe', competitionNameHe: 'הליגה האירופית', value: 1, coverage: 'COMPLETE' },
     ]);
@@ -195,7 +221,7 @@ describe('calculateSeasonMetrics', () => {
         game({ id: 'scheduled', status: 'SCHEDULED', homeScore: 0, awayScore: 0 }),
         game({ id: 'missing-score', awayScore: null }),
       ],
-      null,
+      { position: null, competitionId: 'league' },
       [completeMetricSource],
       new Date('2026-09-13T09:00:00.000Z'),
     );
@@ -208,16 +234,21 @@ describe('calculateSeasonMetrics', () => {
       'UNKNOWN',
     ]);
     expect(metrics.every((metric) => metric.evidenceGameIds.length === 0)).toBe(true);
-    expect(metrics.every((metric) => metric.competitionBreakdown.length === 0)).toBe(true);
+    expect(metrics.slice(0, 3).map((metric) => metric.competitionBreakdown)).toEqual([
+      [{ competitionId: 'league', competitionNameHe: 'ליגת העל', value: null, coverage: 'UNKNOWN' }],
+      [{ competitionId: 'league', competitionNameHe: 'ליגת העל', value: null, coverage: 'UNKNOWN' }],
+      [{ competitionId: 'league', competitionNameHe: 'ליגת העל', value: null, coverage: 'UNKNOWN' }],
+    ]);
+    expect(metrics[3].competitionBreakdown).toEqual([]);
   });
 
   it('uses a valid 0-0 to establish partial zero-valued aggregates', () => {
     const metrics = calculateSeasonMetrics(
       TEAM_ID,
       [game({ id: 'nil-draw', homeScore: 0, awayScore: 0 })],
-      null,
+      { position: null, competitionId: 'league' },
       [],
-      '2026-09-13T09:00:00.000Z',
+      new Date('2026-09-13T09:00:00.000Z'),
     );
 
     expect(metrics.slice(0, 3).map(({ value, coverage }) => ({ value, coverage }))).toEqual([
@@ -238,12 +269,12 @@ describe('calculateSeasonMetrics', () => {
           competition: { id: 'cup', nameHe: 'גביע המדינה', type: 'CUP', apiFootballId: 384 },
         }),
       ],
-      1,
+      { position: 1, competitionId: 'league' },
       [
         { ...completeMetricSource, competitionId: 'league' },
         { ...completeMetricSource, competitionId: 'cup', coverageStatus: 'PARTIAL' as const },
       ],
-      '2026-09-13T09:00:00.000Z',
+      new Date('2026-09-13T09:00:00.000Z'),
     );
 
     expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
@@ -256,5 +287,92 @@ describe('calculateSeasonMetrics', () => {
       'PARTIAL',
     ]);
     expect(metrics[3]).toMatchObject({ value: 1, coverage: 'COMPLETE', evidenceGameIds: [] });
+  });
+
+  it('downgrades complete source coverage when a completed official match has a missing score', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [game({ id: 'valid' }), game({ id: 'invalid', awayScore: null })],
+      { position: 1, competitionId: 'league' },
+      [{ ...completeMetricSource, competitionId: 'league' }],
+      new Date('2026-09-13T09:00:00.000Z'),
+    );
+
+    expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
+      'PARTIAL',
+      'PARTIAL',
+      'PARTIAL',
+    ]);
+    expect(metrics[0].competitionBreakdown).toEqual([
+      { competitionId: 'league', competitionNameHe: 'ליגת העל', value: 1, coverage: 'PARTIAL' },
+    ]);
+    expect(metrics[0].evidenceGameIds).toEqual(['valid']);
+  });
+
+  it('includes an invalid-only official cup and prevents global complete coverage', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [
+        game({ id: 'league-valid' }),
+        game({
+          id: 'cup-invalid',
+          awayScore: null,
+          competition: { id: 'cup', nameHe: 'גביע המדינה', type: 'CUP', apiFootballId: 384 },
+        }),
+      ],
+      { position: 1, competitionId: 'league' },
+      [
+        { ...completeMetricSource, competitionId: 'league' },
+        { ...completeMetricSource, competitionId: 'cup' },
+      ],
+      new Date('2026-09-13T09:00:00.000Z'),
+    );
+
+    expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
+      'PARTIAL',
+      'PARTIAL',
+      'PARTIAL',
+    ]);
+    expect(metrics[0].competitionBreakdown).toEqual([
+      { competitionId: 'league', competitionNameHe: 'ליגת העל', value: 1, coverage: 'COMPLETE' },
+      { competitionId: 'cup', competitionNameHe: 'גביע המדינה', value: null, coverage: 'UNKNOWN' },
+    ]);
+    expect(metrics[1].competitionBreakdown[1].value).toBeNull();
+    expect(metrics[2].competitionBreakdown[1].value).toBeNull();
+  });
+
+  it('uses the standing competition source when there are no completed league games', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [],
+      { position: 4, competitionId: 'national-league' },
+      [{ ...completeMetricSource, competitionId: 'national-league' }],
+      new Date('2026-09-13T09:00:00.000Z'),
+    );
+
+    expect(metrics[3]).toMatchObject({ value: 4, coverage: 'COMPLETE', evidenceGameIds: [] });
+  });
+
+  it('does not use coverage from the wrong league competition for the standing', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [
+        game({ id: 'top-flight-game' }),
+        game({
+          id: 'national-league-game',
+          competition: {
+            id: 'national-league',
+            nameHe: 'הליגה הלאומית',
+            type: 'LEAGUE',
+            apiFootballId: 382,
+          },
+        }),
+      ],
+      { position: 4, competitionId: 'national-league' },
+      [{ ...completeMetricSource, competitionId: 'league' }],
+      new Date('2026-09-13T09:00:00.000Z'),
+    );
+
+    expect(metrics[3]).toMatchObject({ value: 4, coverage: 'PARTIAL', evidenceGameIds: [] });
   });
 });

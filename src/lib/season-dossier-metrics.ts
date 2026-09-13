@@ -30,6 +30,11 @@ export type SeasonDossierMetricSourceInput = Pick<
   'scope' | 'competitionId' | 'coverageStatus'
 >;
 
+export type SeasonDossierStandingInput = {
+  position: number | null;
+  competitionId: string | null;
+};
+
 export type ResolvedTeamScore = {
   goalsFor: number;
   goalsAgainst: number;
@@ -110,6 +115,19 @@ function hasCompleteCoverage(
   );
 }
 
+function hasExactCompleteCoverage(
+  sources: readonly SeasonDossierMetricSourceInput[],
+  competitionId: string | null,
+): boolean {
+  return (
+    competitionId !== null &&
+    metricSources(sources).some(
+      (source) =>
+        source.coverageStatus === 'COMPLETE' && source.competitionId === competitionId,
+    )
+  );
+}
+
 function coverageForBasis(hasBasis: boolean, complete: boolean): SeasonDossierCoverage {
   if (!hasBasis) return 'UNKNOWN';
   return complete ? 'COMPLETE' : 'PARTIAL';
@@ -118,15 +136,31 @@ function coverageForBasis(hasBasis: boolean, complete: boolean): SeasonDossierCo
 export function calculateSeasonMetrics(
   teamId: string,
   games: readonly SeasonDossierGameInput[],
-  leaguePosition: number | null,
+  standing: SeasonDossierStandingInput,
   sources: readonly SeasonDossierMetricSourceInput[],
-  asOf: Date | string,
+  asOf: Date,
 ): SeasonDossierMetrics {
-  const basis = games.flatMap((game) => {
-    if (!isOfficialCompletedGame(game) || !game.competition) return [];
+  const completedOfficialGames = games.flatMap((game) => {
+    const involvesTeam = game.homeTeamId === teamId || game.awayTeamId === teamId;
+    if (
+      !involvesTeam ||
+      game.status !== 'COMPLETED' ||
+      !game.competition ||
+      competitionBucket(game.competition) === null
+    ) {
+      return [];
+    }
+
     const score = resolveTeamScore(teamId, game);
-    return score ? [{ game, competition: game.competition, score }] : [];
+    return [{ game, competition: game.competition, score }];
   });
+  const basis = completedOfficialGames.filter(
+    (
+      item,
+    ): item is typeof item & {
+      score: ResolvedTeamScore;
+    } => item.score !== null,
+  );
 
   const competitionGroups = new Map<
     string,
@@ -135,27 +169,34 @@ export function calculateSeasonMetrics(
       matches: number;
       wins: number;
       goalsFor: number;
+      invalidMatches: number;
     }
   >();
 
-  for (const item of basis) {
+  for (const item of completedOfficialGames) {
     const current = competitionGroups.get(item.competition.id) ?? {
       competition: item.competition,
       matches: 0,
       wins: 0,
       goalsFor: 0,
+      invalidMatches: 0,
     };
-    current.matches += 1;
-    current.wins += item.score.result === 'W' ? 1 : 0;
-    current.goalsFor += item.score.goalsFor;
+    if (item.score) {
+      current.matches += 1;
+      current.wins += item.score.result === 'W' ? 1 : 0;
+      current.goalsFor += item.score.goalsFor;
+    } else {
+      current.invalidMatches += 1;
+    }
     competitionGroups.set(item.competition.id, current);
   }
 
   const hasGameBasis = basis.length > 0;
   const allCompetitionCoverageComplete =
     hasGameBasis &&
-    [...competitionGroups.keys()].every((competitionId) =>
-      hasCompleteCoverage(sources, competitionId),
+    [...competitionGroups.values()].every(
+      (group) =>
+        group.invalidMatches === 0 && hasCompleteCoverage(sources, group.competition.id),
     );
   const aggregateCoverage = coverageForBasis(hasGameBasis, allCompetitionCoverageComplete);
   const evidenceGameIds = basis.map(({ game }) => game.id);
@@ -165,22 +206,12 @@ export function calculateSeasonMetrics(
     [...competitionGroups.values()].map((group) => ({
       competitionId: group.competition.id,
       competitionNameHe: group.competition.nameHe,
-      value: group[field],
+      value: group.matches > 0 ? group[field] : null,
       coverage: coverageForBasis(
         group.matches > 0,
-        hasCompleteCoverage(sources, group.competition.id),
+        group.invalidMatches === 0 && hasCompleteCoverage(sources, group.competition.id),
       ),
     }));
-
-  const leagueCompetitionIds = [...competitionGroups.values()]
-    .filter((group) => competitionBucket(group.competition) === 'LEAGUE')
-    .map((group) => group.competition.id);
-  const globalCoverageComplete = metricSources(sources).some(
-    (source) => source.competitionId === null && source.coverageStatus === 'COMPLETE',
-  );
-  const leaguePositionCoverageComplete =
-    globalCoverageComplete ||
-    leagueCompetitionIds.some((competitionId) => hasCompleteCoverage(sources, competitionId));
 
   return [
     {
@@ -190,7 +221,7 @@ export function calculateSeasonMetrics(
       coverage: aggregateCoverage,
       computedAt,
       competitionBreakdown: breakdown('matches'),
-      evidenceGameIds,
+      evidenceGameIds: [...evidenceGameIds],
     },
     {
       key: 'wins',
@@ -201,7 +232,7 @@ export function calculateSeasonMetrics(
       coverage: aggregateCoverage,
       computedAt,
       competitionBreakdown: breakdown('wins'),
-      evidenceGameIds,
+      evidenceGameIds: [...evidenceGameIds],
     },
     {
       key: 'goalsFor',
@@ -212,13 +243,16 @@ export function calculateSeasonMetrics(
       coverage: aggregateCoverage,
       computedAt,
       competitionBreakdown: breakdown('goalsFor'),
-      evidenceGameIds,
+      evidenceGameIds: [...evidenceGameIds],
     },
     {
       key: 'leaguePosition',
       definitionHe: 'המיקום האחרון בטבלת הליגה.',
-      value: leaguePosition,
-      coverage: coverageForBasis(leaguePosition !== null, leaguePositionCoverageComplete),
+      value: standing.position,
+      coverage: coverageForBasis(
+        standing.position !== null,
+        hasExactCompleteCoverage(sources, standing.competitionId),
+      ),
       computedAt,
       competitionBreakdown: [],
       evidenceGameIds: [],
