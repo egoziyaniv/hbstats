@@ -237,7 +237,7 @@ export interface ClubSeasonsPayload {
 
 export type SeasonDossierCoverage = 'COMPLETE' | 'PARTIAL' | 'UNKNOWN';
 export type SeasonDossierSourceScope = 'METRICS' | 'EDITORIAL' | 'BOTH';
-export type SeasonDossierStatus = 'DRAFT' | 'PUBLISHED';
+export type SeasonDossierStatus = 'CURRENT' | 'FINAL';
 export type SeasonDossierMetricKey = 'matches' | 'wins' | 'goalsFor' | 'leaguePosition';
 
 export interface SeasonDossierSource {

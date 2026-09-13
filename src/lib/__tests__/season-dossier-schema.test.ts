@@ -7,6 +7,7 @@ import type {
   SeasonDossierMetric,
   SeasonDossierMoment,
   SeasonDossierPayload,
+  SeasonDossierStatus,
 } from '@shared/types/mobile-api';
 
 const schema = readFileSync(join(process.cwd(), 'prisma/schema.prisma'), 'utf8');
@@ -20,12 +21,14 @@ type MomentBodyIsRequiredString = Assert<IsEqual<SeasonDossierMoment['bodyHe'], 
 type CompetitionKindIsExplicit = Assert<
   IsEqual<SeasonDossierCompetition['type'], 'LEAGUE' | 'CUP' | 'EUROPE'>
 >;
+type SeasonStateIsExplicit = Assert<IsEqual<SeasonDossierStatus, 'CURRENT' | 'FINAL'>>;
 
 const contractAssertions: [
   MetricComputedAtIsRequiredString,
   MomentBodyIsRequiredString,
   CompetitionKindIsExplicit,
-] = [true, true, true];
+  SeasonStateIsExplicit,
+] = [true, true, true, true];
 
 function schemaBlock(kind: 'model' | 'enum', name: string): string {
   const match = schema.match(new RegExp(`${kind} ${name} \\{[\\s\\S]*?\\n\\}`));
@@ -68,7 +71,7 @@ const payloadFixture = {
     nameEn: 'Hapoel Beer Sheva',
     logoUrl: null,
   },
-  status: 'PUBLISHED',
+  status: 'CURRENT',
   asOf: '2026-09-13T09:00:00.000Z',
   editorial: null,
   metrics: [
@@ -227,6 +230,6 @@ describe('season dossier schema contract', () => {
     expect(payloadFixture.competitions[0].type).toBe('LEAGUE');
     expect(payloadFixture.games[0].competitionId).toBe(payloadFixture.competitions[0].id);
     expect(mobileApiTypes).not.toContain('interface SeasonDossierCompetitionGroup');
-    expect(contractAssertions).toEqual([true, true, true]);
+    expect(contractAssertions).toEqual([true, true, true, true]);
   });
 });
