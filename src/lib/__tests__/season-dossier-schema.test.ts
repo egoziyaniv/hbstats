@@ -22,16 +22,51 @@ const payloadFixture = {
   },
   status: 'PUBLISHED',
   asOf: '2026-09-13T09:00:00.000Z',
-  editorial: {
-    introHe: 'פתיחת עונת 2026/27.',
-    summaryHe: null,
-    heroImageUrl: null,
-  },
+  editorial: null,
   metrics: [
-    { key: 'matches', value: 4, coverage: 'COMPLETE' },
-    { key: 'wins', value: 3, coverage: 'COMPLETE' },
-    { key: 'goalsFor', value: 9, coverage: 'PARTIAL' },
-    { key: 'leaguePosition', value: 1, coverage: 'UNKNOWN' },
+    {
+      key: 'matches',
+      definitionHe: 'כל המשחקים הרשמיים שנכללו בכיסוי.',
+      value: 4,
+      coverage: 'COMPLETE',
+      computedAt: '2026-09-13T09:00:00.000Z',
+      competitionBreakdown: [
+        {
+          competitionId: 'competition-league',
+          competitionNameHe: 'ליגת העל',
+          value: 4,
+          coverage: 'COMPLETE',
+        },
+      ],
+      evidenceGameIds: ['game-1'],
+    },
+    {
+      key: 'wins',
+      definitionHe: 'משחקים רשמיים שהסתיימו בניצחון.',
+      value: 3,
+      coverage: 'COMPLETE',
+      computedAt: '2026-09-13T09:00:00.000Z',
+      competitionBreakdown: [],
+      evidenceGameIds: ['game-1'],
+    },
+    {
+      key: 'goalsFor',
+      definitionHe: 'שערי הקבוצה במשחקים הרשמיים שנכללו בכיסוי.',
+      value: 9,
+      coverage: 'PARTIAL',
+      computedAt: '2026-09-13T09:00:00.000Z',
+      competitionBreakdown: [],
+      evidenceGameIds: ['game-1'],
+    },
+    {
+      key: 'leaguePosition',
+      definitionHe: 'המיקום האחרון בטבלת הליגה.',
+      value: 1,
+      coverage: 'UNKNOWN',
+      computedAt: null,
+      competitionBreakdown: [],
+      evidenceGameIds: [],
+    },
   ],
   sources: [],
   moments: [],
@@ -39,8 +74,43 @@ const payloadFixture = {
   coach: null,
   standing: null,
   honors: [],
-  competitions: [],
-  games: [],
+  competitions: [
+    {
+      competition: {
+        id: 'competition-league',
+        nameHe: 'ליגת העל',
+        nameEn: 'Premier League',
+        logoUrl: null,
+        type: 'LEAGUE',
+      },
+      gameGroups: [
+        {
+          labelHe: 'מחזור 1',
+          games: [
+            {
+              id: 'game-1',
+              dateTime: '2026-08-22T17:00:00.000Z',
+              status: 'finished',
+              competitionId: 'competition-league',
+              competitionNameHe: 'ליגת העל',
+              roundNameHe: 'מחזור 1',
+              isHome: true,
+              opponent: {
+                id: 'opponent-1',
+                apiId: null,
+                nameHe: 'קבוצה אורחת',
+                nameEn: 'Away Team',
+                logoUrl: null,
+              },
+              goalsFor: 2,
+              goalsAgainst: 0,
+              result: 'W',
+            },
+          ],
+        },
+      ],
+    },
+  ],
 } satisfies SeasonDossierPayload;
 
 describe('season dossier schema contract', () => {
@@ -58,6 +128,7 @@ describe('season dossier schema contract', () => {
     expect(moment).toMatch(/dossier\s+ClubSeasonDossier\s+@relation\([^\n]*onDelete: Cascade\)/);
     expect(moment).toMatch(/game\s+Game\?\s+@relation\([^\n]*onDelete: SetNull\)/);
     expect(moment).toMatch(/mediaAsset\s+MediaAsset\?\s+@relation\([^\n]*onDelete: SetNull\)/);
+    expect(moment).toMatch(/bodyHe\s+String(?:\s|$)/m);
     expect(moment).toContain('@@index([dossierId, eventDate])');
     expect(moment).toContain('@@index([dossierId, displayOrder])');
 

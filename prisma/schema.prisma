@@ -1935,7 +1935,7 @@ model ClubSeasonMoment {
   dossierId    String
   eventDate    DateTime
   titleHe      String
-  bodyHe       String?
+  bodyHe       String
   gameId       String?
   mediaAssetId String?
   imageUrl     String?

@@ -269,12 +269,21 @@ export interface SeasonDossierEvidenceGame {
   result: 'W' | 'D' | 'L' | null;
 }
 
-export interface SeasonDossierMetric<K extends SeasonDossierMetricKey = SeasonDossierMetricKey> {
-  key: K;
+export interface SeasonDossierMetricCompetitionBreakdown {
+  competitionId: string;
+  competitionNameHe: string;
   value: number | null;
   coverage: SeasonDossierCoverage;
-  evidenceGames?: SeasonDossierEvidenceGame[];
-  sourceIds?: string[];
+}
+
+export interface SeasonDossierMetric<K extends SeasonDossierMetricKey = SeasonDossierMetricKey> {
+  key: K;
+  definitionHe: string;
+  value: number | null;
+  coverage: SeasonDossierCoverage;
+  computedAt: string | null;
+  competitionBreakdown: SeasonDossierMetricCompetitionBreakdown[];
+  evidenceGameIds: string[];
 }
 
 export type SeasonDossierMetrics = [
@@ -347,12 +356,11 @@ export interface SeasonDossierCompetition {
 
 export interface SeasonDossierCompetitionGroup {
   competition: SeasonDossierCompetition;
-  games: SeasonDossierEvidenceGame[];
+  gameGroups: SeasonDossierGameGroup[];
 }
 
 export interface SeasonDossierGameGroup {
   labelHe: string;
-  competitionId: string | null;
   games: SeasonDossierEvidenceGame[];
 }
 
@@ -365,7 +373,7 @@ export interface SeasonDossierPayload {
     introHe: string | null;
     summaryHe: string | null;
     heroImageUrl: string | null;
-  };
+  } | null;
   metrics: SeasonDossierMetrics;
   sources: SeasonDossierSource[];
   moments: SeasonDossierMoment[];
@@ -373,8 +381,7 @@ export interface SeasonDossierPayload {
   coach: SeasonDossierCoach | null;
   standing: SeasonDossierStanding | null;
   honors: SeasonDossierHonor[];
-  competitions: SeasonDossierCompetition[];
-  games: SeasonDossierGameGroup[];
+  competitions: SeasonDossierCompetitionGroup[];
 }
 
 export interface VenueGameRow {
