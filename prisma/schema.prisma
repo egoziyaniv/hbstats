@@ -250,6 +250,7 @@ model Team {
 
   @@unique([nameEn, seasonId])
   @@unique([apiFootballId, seasonId])
+  @@unique([id, seasonId])
   @@index([seasonId])
   @@index([footyStatsId])
   @@map("teams")
@@ -1918,7 +1919,7 @@ model ClubSeasonDossier {
   updatedAt    DateTime  @updatedAt
 
   season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  team   Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  team   Team   @relation(fields: [teamId, seasonId], references: [id, seasonId], onDelete: Restrict)
 
   moments ClubSeasonMoment[]
   sources ClubSeasonSource[]
@@ -1949,6 +1950,7 @@ model ClubSeasonMoment {
   mediaAsset MediaAsset?        @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
   sources    ClubSeasonSource[]
 
+  @@unique([id, dossierId])
   @@index([dossierId, eventDate])
   @@index([dossierId, displayOrder])
   @@index([gameId])
@@ -1974,7 +1976,7 @@ model ClubSeasonSource {
   updatedAt      DateTime              @updatedAt
 
   dossier     ClubSeasonDossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
-  moment      ClubSeasonMoment? @relation(fields: [momentId], references: [id], onDelete: SetNull)
+  moment      ClubSeasonMoment? @relation(fields: [momentId, dossierId], references: [id, dossierId], onDelete: Cascade)
   competition Competition?      @relation(fields: [competitionId], references: [id], onDelete: SetNull)
 
   @@index([dossierId, scope])

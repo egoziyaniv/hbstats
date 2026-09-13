@@ -351,15 +351,11 @@ export interface SeasonDossierCompetition {
   nameHe: string;
   nameEn: string;
   logoUrl: string | null;
-  type: string;
-}
-
-export interface SeasonDossierCompetitionGroup {
-  competition: SeasonDossierCompetition;
-  gameGroups: SeasonDossierGameGroup[];
+  type: 'LEAGUE' | 'CUP' | 'EUROPE';
 }
 
 export interface SeasonDossierGameGroup {
+  competitionId: string;
   labelHe: string;
   games: SeasonDossierEvidenceGame[];
 }
@@ -381,7 +377,7 @@ export interface SeasonDossierPayload {
   coach: SeasonDossierCoach | null;
   standing: SeasonDossierStanding | null;
   honors: SeasonDossierHonor[];
-  competitions: SeasonDossierCompetitionGroup[];
+  competitions: SeasonDossierCompetition[];
   games: SeasonDossierGameGroup[];
 }
 

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type {
+  SeasonDossierCompetition,
   SeasonDossierEvidenceGame,
   SeasonDossierMetric,
   SeasonDossierMoment,
@@ -9,14 +10,22 @@ import type {
 } from '@shared/types/mobile-api';
 
 const schema = readFileSync(join(process.cwd(), 'prisma/schema.prisma'), 'utf8');
+const mobileApiTypes = readFileSync(join(process.cwd(), 'shared/types/mobile-api.ts'), 'utf8');
 
 type IsEqual<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Assert<T extends true> = T;
 type MetricComputedAtIsRequiredString = Assert<IsEqual<SeasonDossierMetric['computedAt'], string>>;
 type MomentBodyIsRequiredString = Assert<IsEqual<SeasonDossierMoment['bodyHe'], string>>;
+type CompetitionKindIsExplicit = Assert<
+  IsEqual<SeasonDossierCompetition['type'], 'LEAGUE' | 'CUP' | 'EUROPE'>
+>;
 
-const contractAssertions: [MetricComputedAtIsRequiredString, MomentBodyIsRequiredString] = [true, true];
+const contractAssertions: [
+  MetricComputedAtIsRequiredString,
+  MomentBodyIsRequiredString,
+  CompetitionKindIsExplicit,
+] = [true, true, true];
 
 function schemaBlock(kind: 'model' | 'enum', name: string): string {
   const match = schema.match(new RegExp(`${kind} ${name} \\{[\\s\\S]*?\\n\\}`));
@@ -152,45 +161,50 @@ const payloadFixture = {
   honors: [{ competitionHe: 'אלוף האלופים', place: 'WINNER' }],
   competitions: [
     {
-      competition: {
-        id: 'competition-league',
-        nameHe: 'ליגת העל',
-        nameEn: 'Premier League',
-        logoUrl: null,
-        type: 'LEAGUE',
-      },
-      gameGroups: [
-        {
-          labelHe: 'מחזור 1',
-          games: [evidenceGameFixture],
-        },
-      ],
+      id: 'competition-league',
+      nameHe: 'ליגת העל',
+      nameEn: 'Premier League',
+      logoUrl: null,
+      type: 'LEAGUE',
     },
   ],
-  games: [{ labelHe: 'מחזור 1', games: [evidenceGameFixture] }],
+  games: [
+    {
+      competitionId: 'competition-league',
+      labelHe: 'מחזור 1',
+      games: [evidenceGameFixture],
+    },
+  ],
 } satisfies SeasonDossierPayload;
 
 describe('season dossier schema contract', () => {
   it('defines the dossier, moment, and source models with ownership and query indexes', () => {
+    const team = schemaBlock('model', 'Team');
     const dossier = schemaBlock('model', 'ClubSeasonDossier');
     const moment = schemaBlock('model', 'ClubSeasonMoment');
     const source = schemaBlock('model', 'ClubSeasonSource');
 
+    expect(team).toContain('@@unique([id, seasonId])');
     expect(dossier).toContain('@@unique([seasonId, teamId])');
     expect(dossier).toContain('@@index([seasonId])');
     expect(dossier).toContain('@@index([teamId])');
     expect(dossier).toMatch(/season\s+Season\s+@relation\([^\n]*onDelete: Restrict\)/);
-    expect(dossier).toMatch(/team\s+Team\s+@relation\([^\n]*onDelete: Restrict\)/);
+    expect(dossier).toMatch(
+      /team\s+Team\s+@relation\(fields: \[teamId, seasonId\], references: \[id, seasonId\], onDelete: Restrict\)/,
+    );
 
     expect(moment).toMatch(/dossier\s+ClubSeasonDossier\s+@relation\([^\n]*onDelete: Cascade\)/);
     expect(moment).toMatch(/game\s+Game\?\s+@relation\([^\n]*onDelete: SetNull\)/);
     expect(moment).toMatch(/mediaAsset\s+MediaAsset\?\s+@relation\([^\n]*onDelete: SetNull\)/);
     expect(moment).toMatch(/bodyHe\s+String(?:\s|$)/m);
+    expect(moment).toContain('@@unique([id, dossierId])');
     expect(moment).toContain('@@index([dossierId, eventDate])');
     expect(moment).toContain('@@index([dossierId, displayOrder])');
 
     expect(source).toMatch(/dossier\s+ClubSeasonDossier\s+@relation\([^\n]*onDelete: Cascade\)/);
-    expect(source).toMatch(/moment\s+ClubSeasonMoment\?\s+@relation\([^\n]*onDelete: SetNull\)/);
+    expect(source).toMatch(
+      /moment\s+ClubSeasonMoment\?\s+@relation\(fields: \[momentId, dossierId\], references: \[id, dossierId\], onDelete: Cascade\)/,
+    );
     expect(source).toMatch(/competition\s+Competition\?\s+@relation\([^\n]*onDelete: SetNull\)/);
     expect(source).toContain('@@index([dossierId, scope])');
     expect(source).toContain('@@index([momentId])');
@@ -210,6 +224,9 @@ describe('season dossier schema contract', () => {
     expect(payloadFixture.metrics).toHaveLength(4);
     expect(payloadFixture.games[0].games).toHaveLength(1);
     expect(nonNullEditorialFixture.introHe).toBeTruthy();
-    expect(contractAssertions).toEqual([true, true]);
+    expect(payloadFixture.competitions[0].type).toBe('LEAGUE');
+    expect(payloadFixture.games[0].competitionId).toBe(payloadFixture.competitions[0].id);
+    expect(mobileApiTypes).not.toContain('interface SeasonDossierCompetitionGroup');
+    expect(contractAssertions).toEqual([true, true, true]);
   });
 });
