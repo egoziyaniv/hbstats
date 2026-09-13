@@ -1,15 +1,54 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { SeasonDossierPayload } from '@shared/types/mobile-api';
+import type {
+  SeasonDossierEvidenceGame,
+  SeasonDossierMetric,
+  SeasonDossierMoment,
+  SeasonDossierPayload,
+} from '@shared/types/mobile-api';
 
 const schema = readFileSync(join(process.cwd(), 'prisma/schema.prisma'), 'utf8');
+
+type IsEqual<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Assert<T extends true> = T;
+type MetricComputedAtIsRequiredString = Assert<IsEqual<SeasonDossierMetric['computedAt'], string>>;
+type MomentBodyIsRequiredString = Assert<IsEqual<SeasonDossierMoment['bodyHe'], string>>;
+
+const contractAssertions: [MetricComputedAtIsRequiredString, MomentBodyIsRequiredString] = [true, true];
 
 function schemaBlock(kind: 'model' | 'enum', name: string): string {
   const match = schema.match(new RegExp(`${kind} ${name} \\{[\\s\\S]*?\\n\\}`));
   expect(match).not.toBeNull();
   return match?.[0] ?? '';
 }
+
+const evidenceGameFixture = {
+  id: 'game-1',
+  dateTime: '2026-08-22T17:00:00.000Z',
+  status: 'finished',
+  competitionId: 'competition-league',
+  competitionNameHe: 'ליגת העל',
+  roundNameHe: 'מחזור 1',
+  isHome: true,
+  opponent: {
+    id: 'opponent-1',
+    apiId: null,
+    nameHe: 'קבוצה אורחת',
+    nameEn: 'Away Team',
+    logoUrl: null,
+  },
+  goalsFor: 2,
+  goalsAgainst: 0,
+  result: 'W',
+} satisfies SeasonDossierEvidenceGame;
+
+const nonNullEditorialFixture = {
+  introHe: 'פתיחת עונת 2026/27.',
+  summaryHe: null,
+  heroImageUrl: null,
+} satisfies NonNullable<SeasonDossierPayload['editorial']>;
 
 const payloadFixture = {
   season: { id: 'season-2026', year: 2026, name: '2026/27' },
@@ -63,17 +102,54 @@ const payloadFixture = {
       definitionHe: 'המיקום האחרון בטבלת הליגה.',
       value: 1,
       coverage: 'UNKNOWN',
-      computedAt: null,
+      computedAt: '2026-09-13T09:00:00.000Z',
       competitionBreakdown: [],
       evidenceGameIds: [],
     },
   ],
   sources: [],
-  moments: [],
-  squad: [],
+  moments: [
+    {
+      id: 'moment-1',
+      eventDate: '2026-08-22T17:00:00.000Z',
+      titleHe: 'ניצחון במחזור הפתיחה',
+      bodyHe: 'הקבוצה פתחה את העונה בניצחון ביתי.',
+      imageUrl: null,
+      displayOrder: 0,
+      game: evidenceGameFixture,
+      sources: [],
+    },
+  ],
+  squad: [
+    {
+      playerId: 'player-1',
+      nameHe: 'שחקן לדוגמה',
+      nameEn: 'Example Player',
+      photoUrl: null,
+      position: 'Midfielder',
+      jerseyNumber: 8,
+      appearances: 4,
+      starts: 4,
+      minutes: 360,
+      goals: 1,
+      assists: 2,
+    },
+  ],
   coach: null,
-  standing: null,
-  honors: [],
+  standing: {
+    competitionId: 'competition-league',
+    competitionNameHe: 'ליגת העל',
+    position: 1,
+    played: 4,
+    wins: 3,
+    draws: 1,
+    losses: 0,
+    goalsFor: 9,
+    goalsAgainst: 2,
+    points: 10,
+    coverage: 'COMPLETE',
+  },
+  honors: [{ competitionHe: 'אלוף האלופים', place: 'WINNER' }],
   competitions: [
     {
       competition: {
@@ -86,31 +162,12 @@ const payloadFixture = {
       gameGroups: [
         {
           labelHe: 'מחזור 1',
-          games: [
-            {
-              id: 'game-1',
-              dateTime: '2026-08-22T17:00:00.000Z',
-              status: 'finished',
-              competitionId: 'competition-league',
-              competitionNameHe: 'ליגת העל',
-              roundNameHe: 'מחזור 1',
-              isHome: true,
-              opponent: {
-                id: 'opponent-1',
-                apiId: null,
-                nameHe: 'קבוצה אורחת',
-                nameEn: 'Away Team',
-                logoUrl: null,
-              },
-              goalsFor: 2,
-              goalsAgainst: 0,
-              result: 'W',
-            },
-          ],
+          games: [evidenceGameFixture],
         },
       ],
     },
   ],
+  games: [{ labelHe: 'מחזור 1', games: [evidenceGameFixture] }],
 } satisfies SeasonDossierPayload;
 
 describe('season dossier schema contract', () => {
@@ -151,5 +208,8 @@ describe('season dossier schema contract', () => {
 
   it('keeps the shared payload contract type-checkable with exactly four metrics', () => {
     expect(payloadFixture.metrics).toHaveLength(4);
+    expect(payloadFixture.games[0].games).toHaveLength(1);
+    expect(nonNullEditorialFixture.introHe).toBeTruthy();
+    expect(contractAssertions).toEqual([true, true]);
   });
 });

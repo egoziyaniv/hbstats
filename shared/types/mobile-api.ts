@@ -281,7 +281,7 @@ export interface SeasonDossierMetric<K extends SeasonDossierMetricKey = SeasonDo
   definitionHe: string;
   value: number | null;
   coverage: SeasonDossierCoverage;
-  computedAt: string | null;
+  computedAt: string;
   competitionBreakdown: SeasonDossierMetricCompetitionBreakdown[];
   evidenceGameIds: string[];
 }
@@ -297,7 +297,7 @@ export interface SeasonDossierMoment {
   id: string;
   eventDate: string;
   titleHe: string;
-  bodyHe: string | null;
+  bodyHe: string;
   imageUrl: string | null;
   displayOrder: number;
   game: SeasonDossierEvidenceGame | null;
@@ -382,6 +382,7 @@ export interface SeasonDossierPayload {
   standing: SeasonDossierStanding | null;
   honors: SeasonDossierHonor[];
   competitions: SeasonDossierCompetitionGroup[];
+  games: SeasonDossierGameGroup[];
 }
 
 export interface VenueGameRow {
