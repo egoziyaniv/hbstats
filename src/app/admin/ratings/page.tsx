@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminRatingsIndexPage({ searchParams }: { searchParams: { round?: string; season?: string } }) {
+export default async function AdminRatingsIndexPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ round?: string; season?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return (

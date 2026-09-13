@@ -10,7 +10,8 @@ import prisma from '@/lib/prisma';
 
 const KNOWN_SOURCES = ['api-football', 'sofascore', 'fotmob', 'admin'] as const;
 
-export async function GET(_req: NextRequest, { params }: { params: { gameId: string } }) {
+export async function GET(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ gameId: string }> }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -78,7 +79,8 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
   });
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { gameId: string } }) {
+export async function PUT(req: NextRequest, { params: paramsPromise }: { params: Promise<{ gameId: string }> }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

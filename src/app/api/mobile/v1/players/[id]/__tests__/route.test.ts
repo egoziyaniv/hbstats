@@ -9,7 +9,7 @@ function mkReq(id: string): NextRequest {
 
 describe('GET /api/mobile/v1/players/:id — basic PlayerPayload (v1.0)', () => {
   test('returns 404 for unknown id', async () => {
-    const res = await GET(mkReq('bogus'), { params: { id: 'bogus' } });
+    const res = await GET(mkReq('bogus'), { params: Promise.resolve({ id: 'bogus' }) });
     expect(res.status).toBe(404);
   });
 
@@ -20,7 +20,7 @@ describe('GET /api/mobile/v1/players/:id — basic PlayerPayload (v1.0)', () => 
       return;
     }
     const req = mkReq(player.id);
-    const res = await GET(req, { params: { id: player.id } });
+    const res = await GET(req, { params: Promise.resolve({ id: player.id }) });
     expect(res.status).toBe(200);
     const body = (await res.json()) as PlayerPayload;
     expect(body.player.id).toBe(player.id);
@@ -47,7 +47,7 @@ describe('GET /api/mobile/v1/players/:id — basic PlayerPayload (v1.0)', () => 
       console.warn('No player has Flashscore extras yet — skipping');
       return;
     }
-    const res = await GET(mkReq(sample.id), { params: { id: sample.id } });
+    const res = await GET(mkReq(sample.id), { params: Promise.resolve({ id: sample.id }) });
     const body = (await res.json()) as PlayerPayload;
     expect(typeof body.player.marketValue).toBe('string');
     expect(Array.isArray(body.career)).toBe(true);

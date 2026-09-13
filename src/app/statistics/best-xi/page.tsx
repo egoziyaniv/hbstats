@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 
 type Mode = 'season' | 'matchday';
 
-export default async function BestXiPage({ searchParams }: { searchParams: { season?: string; mode?: string; round?: string } }) {
+export default async function BestXiPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ season?: string; mode?: string; round?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' }, take: 8 });
   const selectedSeason = searchParams.season
     ? seasons.find((s) => s.id === searchParams.season) || seasons[0]

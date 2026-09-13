@@ -3,6 +3,7 @@ import { Text, Button } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { server } from '../../__tests__/msw/server';
+import { setAccessToken, getAccessToken } from '../../lib/auth';
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // This unit-test file mocks global.fetch directly via jest.fn().
@@ -20,7 +21,7 @@ function Probe() {
   return (
     <>
       <Text testID="user">{user ? user.email : 'anon'}</Text>
-      <Button title="login" onPress={() => login('a@b.c', 'pw')} />
+      <Button title="login" onPress={() => login('a@b.c', 'pw').catch(() => {})} />
       <Button title="logout" onPress={() => logout()} />
     </>
   );
@@ -28,6 +29,7 @@ function Probe() {
 
 beforeEach(async () => {
   fetchMock.mockReset();
+  setAccessToken(null);
   // Drain the stateful SecureStore mock between tests
   await SecureStore.deleteItemAsync('hbs_refresh');
   await SecureStore.deleteItemAsync('hbs_user');
@@ -101,4 +103,35 @@ describe('AuthContext', () => {
     });
     expect(await findByText('anon')).toBeTruthy();
   });
+});
+
+
+test('does not restore a saved user after the server rejects their refresh token', async () => {
+  await SecureStore.setItemAsync('hbs_refresh', 'revoked');
+  await SecureStore.setItemAsync('hbs_user', JSON.stringify({ id: 'u1', email: 'old@test.tld' }));
+  fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401 }));
+  const { findByText } = render(<AuthProvider><Probe /></AuthProvider>);
+  expect(await findByText('anon')).toBeTruthy();
+});
+
+test('keeps the saved identity during a transient refresh outage', async () => {
+  await SecureStore.setItemAsync('hbs_refresh', 'valid');
+  await SecureStore.setItemAsync('hbs_user', JSON.stringify({ id: 'u1', email: 'offline@test.tld' }));
+  fetchMock.mockResolvedValueOnce(new Response('{}', { status: 503 }));
+  const { findByText } = render(<AuthProvider><Probe /></AuthProvider>);
+  expect(await findByText('offline@test.tld')).toBeTruthy();
+});
+
+
+test('does not activate an access token when secure session storage fails', async () => {
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+    accessToken: 'must-not-activate', refreshToken: 'secret',
+    user: { id: 'u1', email: 'me@test.tld' },
+  }), { status: 200 }));
+  const { findByText, getByText } = render(<AuthProvider><Probe /></AuthProvider>);
+  await findByText('anon');
+  (SecureStore.setItemAsync as jest.Mock).mockRejectedValueOnce(new Error('keychain unavailable'));
+  await act(async () => fireEvent.press(getByText('login')));
+  expect(getAccessToken()).toBeNull();
+  expect(getByText('anon')).toBeTruthy();
 });

@@ -26,8 +26,14 @@ export async function POST(request: NextRequest) {
   }
 
   if (refreshToken) {
-    await prisma.session.deleteMany({
-      where: { tokenHash: sha256(refreshToken), userId: user.id },
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
+      const session = await tx.session.findUnique({ where: { tokenHash: sha256(refreshToken!) } });
+      if (session?.userId === user.id) {
+        // Delete rotated ancestors too: their access JWTs remain valid during
+        // normal rotation but must stop authorizing after this device logs out.
+        await tx.session.deleteMany({ where: { familyId: session.familyId, userId: user.id } });
+      }
     });
   }
   // If no refreshToken provided, this is a no-op success — client should clear local state anyway.

@@ -3,7 +3,8 @@ import { PlayerChartsView } from '@/components/Charts';
 import { formatPlayerName } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 
-export default async function PlayerChartsPage({ params }: { params: { id: string } }) {
+export default async function PlayerChartsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const matchedPlayer = await prisma.player.findFirst({
     where: {
       OR: [{ id: params.id }, { canonicalPlayerId: params.id }],

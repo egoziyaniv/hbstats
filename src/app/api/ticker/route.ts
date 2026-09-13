@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export const revalidate = 60;
+// The ticker reads live database state and must not be prerendered during a
+// deployment build, where the runtime database may be intentionally absent.
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const now = new Date();

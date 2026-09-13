@@ -66,10 +66,11 @@ function RecordRows({ rows }: { rows: RecordRow[] }) {
 }
 
 export default async function RecordsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { cat?: string; club?: string };
+  searchParams?: Promise<{ cat?: string; club?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const catParam = searchParams?.cat;
   const clubParam = typeof searchParams?.club === 'string' ? searchParams.club : undefined;
 

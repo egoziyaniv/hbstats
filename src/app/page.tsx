@@ -116,7 +116,8 @@ function parseSearchValues(value: string | string[] | undefined) {
   return [];
 }
 
-export default async function HomePage({ searchParams }: { searchParams?: SearchParams }) {
+export default async function HomePage({ searchParams: searchParamsPromise }: { searchParams?: Promise<SearchParams> }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(Array.isArray(searchParams?.view) ? searchParams.view[0] : searchParams?.view);
   const viewer = await getCurrentUser();
   const latestSeason = await prisma.season.findFirst({

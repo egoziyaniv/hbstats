@@ -8,7 +8,8 @@ function heDate(iso: string): string {
   return new Date(iso).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-export default async function VenuePage({ params }: { params: { id: string } }) {
+export default async function VenuePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const s = await buildVenueStats(params.id);
   if (!s) notFound();
 

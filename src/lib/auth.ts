@@ -53,7 +53,7 @@ export async function createSession(userId: string) {
     data: { familyId: created.id },
   });
 
-  cookies().set(SESSION_COOKIE, rawToken, {
+  (await cookies()).set(SESSION_COOKIE, rawToken, {
     httpOnly: true,
     sameSite: 'lax',
     // Secure in production (HTTPS); allow plain HTTP only for local dev.
@@ -64,7 +64,7 @@ export async function createSession(userId: string) {
 }
 
 export async function destroySession(rawToken?: string | null) {
-  const token = rawToken || cookies().get(SESSION_COOKIE)?.value;
+  const token = rawToken || (await cookies()).get(SESSION_COOKIE)?.value;
 
   if (token) {
     await prisma.session.deleteMany({
@@ -74,11 +74,11 @@ export async function destroySession(rawToken?: string | null) {
     });
   }
 
-  cookies().delete(SESSION_COOKIE);
+  (await cookies()).delete(SESSION_COOKIE);
 }
 
 export async function getCurrentUser() {
-  const rawToken = cookies().get(SESSION_COOKIE)?.value;
+  const rawToken = (await cookies()).get(SESSION_COOKIE)?.value;
 
   if (!rawToken) {
     return null;
@@ -127,9 +127,13 @@ export async function getRequestUser(request: NextRequest) {
     const { verifyAccessToken } = await import('./jwt');
     const claims = verifyAccessToken(token);
     if (claims) {
-      const user = await prisma.user.findUnique({ where: { id: claims.userId } });
-      if (user && user.isActive) {
-        return toSafeUser(user);
+      // Keep rotated rows valid for already-issued access tokens; deleting the
+      // device family (logout) or all sessions (recovery) revokes them immediately.
+      const session = await prisma.session.findUnique({
+        where: { id: claims.sessionId }, include: { user: true },
+      });
+      if (session && session.userId === claims.userId && session.expiresAt >= new Date() && session.user.isActive) {
+        return toSafeUser(session.user);
       }
     }
   }
@@ -160,15 +164,12 @@ export async function requireAdminUser() {
 export async function changeUserPassword(userId: string, nextPassword: string) {
   const password = await hashPassword(nextPassword);
 
-  // Invalidate all existing sessions for this user
-  await prisma.session.deleteMany({ where: { userId } });
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      password,
-      passwordChangedAt: new Date(),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+    await tx.session.deleteMany({ where: { userId } });
+    await tx.user.update({ where: { id: userId }, data: {
+      password, passwordChangedAt: new Date(),
+    } });
   });
 
   // Create a fresh session for the current user
@@ -206,7 +207,7 @@ export async function issueMobileSession(user: {
   await prisma.session.update({ where: { id: session.id }, data: { familyId: session.id } });
 
   return {
-    accessToken: signAccessToken(user.id),
+    accessToken: signAccessToken(user.id, session.id, session.createdAt),
     refreshToken: rawRefresh,
     user: toSafeUser(user),
   };

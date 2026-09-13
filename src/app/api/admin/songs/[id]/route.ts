@@ -12,7 +12,8 @@ function cleanUrls(v: unknown): string[] {
   return Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : [];
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const auth = await getRequestUser(request);
   if (!auth || auth.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await readJson(request);
@@ -50,7 +51,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json(song);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const auth = await getRequestUser(request);
   if (!auth || auth.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   await prisma.song.delete({ where: { id: params.id } });

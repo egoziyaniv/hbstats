@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { getAiSettings, getActiveApiKey } from '@/lib/ai-settings';
 import { chatWithClaude, chatWithOpenAI, type ChatMessage } from '@/lib/ai-providers';
+import { reserveChatRequest } from '@/lib/ai-chat-quota';
 
 // Rate limiting: 10 requests per minute per user
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -31,25 +32,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'יותר מדי בקשות. נסה שוב בעוד דקה.' }, { status: 429 });
   }
 
-  // Parse body
-  const body = await request.json().catch(() => null);
-  if (!body?.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
+  // Bound bytes as they arrive, including chunked requests without Content-Length.
+  const reader = request.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  if (!reader) return NextResponse.json({ error: 'חסרות הודעות' }, { status: 400 });
+  let body: unknown;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > 64 * 1024) {
+        await reader.cancel();
+        return NextResponse.json({ error: 'הבקשה גדולה מדי' }, { status: 413 });
+      }
+      chunks.push(value);
+    }
+    body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 });
+  } finally {
+    reader.releaseLock();
+  }
+  const input = body as { messages?: unknown } | null;
+  if (!input?.messages || !Array.isArray(input.messages) || input.messages.length === 0) {
     return NextResponse.json({ error: 'חסרות הודעות' }, { status: 400 });
   }
 
-  // Validate messages
-  const messages: ChatMessage[] = body.messages
-    .filter((m: any) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .slice(-20); // Max 20 messages for context
-
-  if (messages.length === 0) {
-    return NextResponse.json({ error: 'חסרות הודעות תקינות' }, { status: 400 });
+  // Assistant replies may exceed the user input limit; bound both roles and
+  // the entire context, including fabricated history supplied by the client.
+  const messages: ChatMessage[] = [];
+  let totalChars = 0;
+  for (const m of input.messages) {
+    if (!m || typeof m !== 'object' ||
+        (m.role !== 'user' && m.role !== 'assistant') || typeof m.content !== 'string' ||
+        !m.content.trim() || m.content.length > (m.role === 'user' ? 500 : 8000)) {
+      return NextResponse.json({ error: 'הודעה לא תקינה או ארוכה מדי' }, { status: 400 });
+    }
+    totalChars += m.content.length;
+    messages.push({ role: m.role, content: m.content });
   }
-
-  // Check last message length
-  const lastMsg = messages[messages.length - 1];
-  if (lastMsg.content.length > 500) {
-    return NextResponse.json({ error: 'ההודעה ארוכה מדי (מקסימום 500 תווים)' }, { status: 400 });
+  if (messages.length > 20 || totalChars > 16000 || messages.at(-1)?.role !== 'user') {
+    return NextResponse.json({ error: 'השיחה ארוכה מדי. יש להתחיל שיחה חדשה.' }, { status: 400 });
   }
 
   // Load AI settings
@@ -58,6 +83,14 @@ export async function POST(request: NextRequest) {
 
   if (!apiKey) {
     return NextResponse.json({ error: 'עוזר הAI אינו פעיל כרגע' }, { status: 503 });
+  }
+
+  try {
+    if (!await reserveChatRequest(user.id)) {
+      return NextResponse.json({ error: 'מכסת השימוש היומית מוצתה. אפשר לנסות שוב מחר.' }, { status: 429 });
+    }
+  } catch {
+    return NextResponse.json({ error: 'עוזר ה־AI אינו זמין כרגע' }, { status: 503 });
   }
 
   try {

@@ -32,7 +32,8 @@ function fmtDate(iso: string): string {
   return `${Number(d)}.${Number(m)}.${y}`;
 }
 
-export async function generateMetadata({ params }: { params: { keys: string } }): Promise<Metadata> {
+export async function generateMetadata({ params: paramsPromise }: { params: Promise<{ keys: string }> }): Promise<Metadata> {
+  const params = await paramsPromise;
   const pair = await resolvePair(params.keys);
   if (!pair) return {};
   const { famA, famB } = pair;
@@ -42,7 +43,8 @@ export async function generateMetadata({ params }: { params: { keys: string } })
   };
 }
 
-export default async function H2HPairPage({ params }: { params: { keys: string } }) {
+export default async function H2HPairPage({ params: paramsPromise }: { params: Promise<{ keys: string }> }) {
+  const params = await paramsPromise;
   const pair = await resolvePair(params.keys);
   if (!pair) notFound();
   const { famA, famB } = pair;

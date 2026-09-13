@@ -3,7 +3,8 @@ import { getClubPage } from '@/lib/club-hub';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(_request: NextRequest, { params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const page = await getClubPage(params.slug);
   if (!page) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(page);

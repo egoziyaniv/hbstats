@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
  * GET /api/games/:id/player-stats
  * Returns the full per-player stats panel for a single match (API-Football data).
  */
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const rows = await prisma.gamePlayerStats.findMany({
     where: { gameId: params.id },
     orderBy: [{ minutes: 'desc' }, { rating: 'desc' }],

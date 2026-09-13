@@ -12,7 +12,8 @@ import { getCurrentUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { submitMatchRatings } from '@/lib/match-ratings';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ratings: [], averages: {} });
   const rows = await prisma.playerMatchRating.findMany({
@@ -43,7 +44,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   });
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'התחבר כדי לנקד שחקנים' }, { status: 401 });
   try {

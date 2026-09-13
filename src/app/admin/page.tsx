@@ -20,10 +20,11 @@ import { DEFAULT_TELEGRAM_SOURCES, normalizeTelegramSource } from '@/lib/telegra
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { season?: string };
+  searchParams?: Promise<{ season?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const user = await getCurrentUser();
 
   if (!user || user.role !== 'ADMIN') {

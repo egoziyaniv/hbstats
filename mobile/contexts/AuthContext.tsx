@@ -50,7 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // to userId=null and never receive personalized (favorite-team) pushes.
           await ensureAccessToken().catch(() => {});
           if (cancelled) return;
-          setUser(savedUser);
+          // Rejected refreshes clear credentials; outages retain them for retry.
+          const remainingRefresh = await loadRefreshToken();
+          if (!cancelled && remainingRefresh) setUser(savedUser);
         } else if (guest) setIsGuest(true);
       } catch {
         // Secure storage unavailable — treat as logged out rather than hang.
@@ -65,10 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logging in always supersedes guest mode.
   const adoptSession = async (res: LoginResponse) => {
-    setAccessToken(res.accessToken);
     await storeRefreshToken(res.refreshToken);
     await storeUser(res.user);
     await storeGuest(false);
+    setAccessToken(res.accessToken);
     // Drop any personalized data cached under the previous identity (guest or
     // another user) so this user's home/preferences load fresh.
     clearUserQueries();

@@ -24,10 +24,11 @@ function formatOdd(odd: number | null): string {
 }
 
 export default async function PredictionsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { view?: string; season?: string };
+  searchParams?: Promise<{ view?: string; season?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
 
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' }, select: { id: true, name: true } });

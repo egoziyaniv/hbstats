@@ -106,3 +106,18 @@ describe('recomputeStoredStandings', () => {
     expect(await recomputeStoredStandings(t2.tx as any, 's1', 'comp_liga_haal')).toBe(0);
   });
 });
+
+describe('removed completed games', () => {
+  const previous = { id: 'g1', seasonId: 's1', competitionId: 'c1', status: 'COMPLETED', homeTeamId: 'A', awayTeamId: 'B', homeScore: 2, awayScore: 0 };
+  it('allows a known removed result to reduce a complete table', async () => {
+    const { tx, updates } = makeTx([base({teamId:'A', played:1, wins:1, points:3}), base({teamId:'B', played:1, losses:1})], []);
+    await recomputeStoredStandings(tx as any, 's1', 'c1', previous);
+    expect(updates).toHaveLength(2);
+    expect(updates[0].data).toMatchObject({played:0, wins:0, points:0});
+  });
+  it('still preserves incomplete imported tables after a removal', async () => {
+    const { tx, updates } = makeTx([base({teamId:'A', played:30}), base({teamId:'B', played:30})], []);
+    await recomputeStoredStandings(tx as any, 's1', 'c1', previous);
+    expect(updates).toHaveLength(0);
+  });
+});

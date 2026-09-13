@@ -6,12 +6,13 @@ import AdminVenueEditorClient from '@/components/AdminVenueEditorClient';
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     venueId?: string;
-  };
+  }>;
 };
 
-export default async function AdminVenuesPage({ searchParams }: PageProps) {
+export default async function AdminVenuesPage({ searchParams: searchParamsPromise }: PageProps) {
+  const searchParams = await searchParamsPromise;
   const user = await getCurrentUser();
 
   if (!user || user.role !== 'ADMIN') {

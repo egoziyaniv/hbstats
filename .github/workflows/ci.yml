@@ -31,6 +31,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hbstats_test
       - run: npx tsc --noEmit
+      - run: npm run build
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hbstats_test
+          JWT_SECRET: ci-secret-at-least-32-bytes-long-xx
       - run: npm test
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hbstats_test

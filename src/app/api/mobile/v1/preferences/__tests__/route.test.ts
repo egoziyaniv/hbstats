@@ -1,8 +1,7 @@
 import { GET, PUT } from '../route';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-import { hashPassword } from '@/lib/auth';
-import { signAccessToken } from '@/lib/jwt';
+import { hashPassword, issueMobileSession } from '@/lib/auth';
 import type { PreferencesPayload } from '@shared/types/mobile-api';
 
 beforeAll(() => {
@@ -23,7 +22,7 @@ describe('/api/mobile/v1/preferences contract', () => {
       },
     });
     userId = user.id;
-    accessToken = signAccessToken(userId);
+    accessToken = (await issueMobileSession(user)).accessToken;
   });
 
   afterAll(async () => {

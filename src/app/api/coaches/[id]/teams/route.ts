@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 // Returns a coach's aliases + the teams they coached (grouped by club, since
 // each Team row is per-season), with per-team match counts and seasons.
 // Match counts come from GameLineupEntry COACH rows matched on the coach's aliases.
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

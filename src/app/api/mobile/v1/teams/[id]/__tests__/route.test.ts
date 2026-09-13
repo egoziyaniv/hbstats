@@ -9,7 +9,7 @@ function mkReq(id: string): NextRequest {
 
 describe('GET /api/mobile/v1/teams/:id — TeamPayload contract', () => {
   test('returns 404 for non-existent team', async () => {
-    const res = await GET(mkReq('bogus'), { params: { id: 'bogus' } });
+    const res = await GET(mkReq('bogus'), { params: Promise.resolve({ id: 'bogus' }) });
     expect(res.status).toBe(404);
   });
 
@@ -28,7 +28,7 @@ describe('GET /api/mobile/v1/teams/:id — TeamPayload contract', () => {
       console.warn('No teams in dev DB — skipping');
       return;
     }
-    const res = await GET(mkReq(team.id), { params: { id: team.id } });
+    const res = await GET(mkReq(team.id), { params: Promise.resolve({ id: team.id }) });
     expect(res.status).toBe(200);
     const body = (await res.json()) as TeamPayload;
     expect(body.team.id).toBe(team.id);

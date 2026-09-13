@@ -4,7 +4,8 @@ import type { PlayerMatchHistoryPayload } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   // Resolve canonical + linked Player ids so we cover season-specific rows.
   const root = await prisma.player.findUnique({
     where: { id: params.id },

@@ -12,7 +12,8 @@ const CATEGORY_HE: Record<ClubPageDetail['category'], string> = {
   CULTURE: 'תרבות',
 };
 
-export default async function ClubDetailPage({ params }: { params: { slug: string } }) {
+export default async function ClubDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const page = await getClubPage(params.slug);
   if (!page) notFound();
 

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import {
   storeRefreshToken,
@@ -14,6 +15,10 @@ const mockGet = SecureStore.getItemAsync as jest.Mock;
 const mockDelete = SecureStore.deleteItemAsync as jest.Mock;
 
 beforeEach(() => {
+  const legacy = new Map<string, string>();
+  (AsyncStorage.setItem as jest.Mock).mockImplementation(async (key, value) => { legacy.set(key, value); });
+  (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key) => legacy.get(key) ?? null);
+  (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (key) => { legacy.delete(key); });
   mockSet.mockClear();
   mockGet.mockClear();
   mockDelete.mockClear();
@@ -72,4 +77,25 @@ describe('auth token storage', () => {
     mockGet.mockResolvedValue('not-json');
     expect(await loadUser()).toBeNull();
   });
+});
+
+
+test('rejects secure write failure without persisting a plaintext token', async () => {
+  await AsyncStorage.removeItem('hbs_refresh');
+  mockSet.mockRejectedValueOnce(new Error('keychain unavailable'));
+  await expect(storeRefreshToken('secret')).rejects.toThrow('keychain unavailable');
+  expect(await AsyncStorage.getItem('hbs_refresh')).toBeNull();
+});
+
+test('discards legacy plaintext credentials even when Keychain is unavailable', async () => {
+  await AsyncStorage.setItem('hbs_refresh', 'legacy-secret');
+  mockGet.mockRejectedValueOnce(new Error('keychain unavailable'));
+  expect(await loadRefreshToken()).toBeNull();
+  expect(await AsyncStorage.getItem('hbs_refresh')).toBeNull();
+});
+
+test('clears obsolete plaintext token after secure rotation', async () => {
+  await AsyncStorage.setItem('hbs_refresh', 'obsolete');
+  await storeRefreshToken('rotated');
+  expect(await AsyncStorage.getItem('hbs_refresh')).toBeNull();
 });

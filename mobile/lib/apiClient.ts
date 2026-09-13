@@ -45,8 +45,8 @@ async function performRefresh(): Promise<string | null> {
   }
 
   const body = (await res.json()) as { accessToken: string; refreshToken: string };
-  setAccessToken(body.accessToken);
   await storeRefreshToken(body.refreshToken);
+  setAccessToken(body.accessToken);
   return body.accessToken;
 }
 

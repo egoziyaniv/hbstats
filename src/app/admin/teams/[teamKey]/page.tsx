@@ -7,11 +7,13 @@ import AdminTeamEditorClient from '@/components/AdminTeamEditorClient';
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
-  params: { teamKey: string };
-  searchParams?: { season?: string };
+  params: Promise<{ teamKey: string }>;
+  searchParams?: Promise<{ season?: string }>;
 };
 
-export default async function AdminTeamEditorPage({ params, searchParams }: PageProps) {
+export default async function AdminTeamEditorPage({ params: paramsPromise, searchParams: searchParamsPromise }: PageProps) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
   const user = await getCurrentUser();
 
   if (!user || user.role !== 'ADMIN') {

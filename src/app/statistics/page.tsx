@@ -71,10 +71,11 @@ function isGoalkeeper(position: string | null | undefined) {
 }
 
 export default async function StatisticsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { season?: string; teamId?: string; competitionId?: string; view?: string };
+  searchParams?: Promise<{ season?: string; teamId?: string; competitionId?: string; view?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const seasons = await prisma.season.findMany({
     orderBy: { year: 'desc' },

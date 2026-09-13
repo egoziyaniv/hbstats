@@ -4,8 +4,9 @@ import { getRequestUser } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   const viewer = await getRequestUser(request);
 
   if (!viewer || viewer.role !== 'ADMIN') {

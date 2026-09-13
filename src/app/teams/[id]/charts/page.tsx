@@ -3,7 +3,8 @@ import { TeamChartsView } from '@/components/Charts';
 import { formatPlayerName } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 
-export default async function TeamChartsPage({ params }: { params: { id: string } }) {
+export default async function TeamChartsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const team = await prisma.team.findUnique({
     where: { id: params.id },
     include: {

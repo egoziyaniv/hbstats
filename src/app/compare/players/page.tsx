@@ -72,7 +72,8 @@ async function fetchPlayerStats(playerId: string): Promise<PlayerStats | null> {
   };
 }
 
-export default async function ComparePlayersPage({ searchParams }: { searchParams: { a?: string; b?: string; c?: string } }) {
+export default async function ComparePlayersPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ a?: string; b?: string; c?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
 
   // Hydrate the picker with seasons/teams already known for the selected players

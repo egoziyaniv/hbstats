@@ -79,7 +79,8 @@ function buildMatchCard(
   };
 }
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const { id } = params;
   const raw = await getMobileTeamPayload(id);
 

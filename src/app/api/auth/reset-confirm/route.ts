@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
   // used, invalidate ALL existing sessions, and burn any other outstanding
   // reset tokens for this user.
   await prisma.$transaction([
+    prisma.$queryRaw`SELECT id FROM users WHERE id = ${record.userId} FOR UPDATE`,
     prisma.user.update({
       where: { id: record.userId },
       data: { password: newHash, passwordChangedAt: new Date() },

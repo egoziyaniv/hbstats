@@ -11,7 +11,8 @@ function monogram(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('');
 }
 
-export default async function SongPage({ params }: { params: { slug: string } }) {
+export default async function SongPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const song = await prisma.song.findUnique({
     where: { slug: decodeURIComponent(params.slug) },
     include: { player: { select: { id: true, nameHe: true } } },

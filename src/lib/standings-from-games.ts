@@ -225,9 +225,9 @@ export function shouldDeriveStandings(
  *
  * Safety guards (this writes to authoritative data):
  *  - Only updates teams that ALREADY have a Standing row — never invents rows.
- *  - Never reduces a row's `played` below its stored value, so a season whose
- *    games are only partially imported (but whose standings were imported whole
- *    from IFA/API) is left untouched rather than corrupted by a low game count.
+ *  - Requires enough games to account for the stored `played` value. A known
+ *    previousGame lets removals/cancellations prove completeness before the
+ *    edit; partially imported seasons still keep their authoritative totals.
  *  - Preserves pointsAdjustment / groupName. Recomputes `position` only when the
  *    table has no playoff groups (group ordering is non-trivial and rarely edited).
  *
@@ -237,6 +237,7 @@ export async function recomputeStoredStandings(
   tx: Prisma.TransactionClient,
   seasonId: string,
   competitionId: string | null,
+  previousGame?: GameForStandings & { id: string; seasonId: string; competitionId: string | null; status: string },
 ): Promise<number> {
   if (!competitionId) return 0;
   const existing = await tx.standing.findMany({ where: { seasonId, competitionId } });
@@ -244,7 +245,7 @@ export async function recomputeStoredStandings(
 
   const games = await tx.game.findMany({
     where: { seasonId, competitionId, status: 'COMPLETED', homeScore: { not: null }, awayScore: { not: null } },
-    select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+    select: { id: true, homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
   });
 
   type Tally = { played: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number; points: number };
@@ -269,7 +270,21 @@ export async function recomputeStoredStandings(
   const hasGroups = existing.some((s) => /championship|relegation/i.test(s.groupNameEn || ''));
   const passesGuard = (row: (typeof existing)[number]) => {
     const d = tally.get(row.teamId);
-    return !!d && d.played >= row.played;
+    if (!d) return false;
+    // Judge import completeness before the edit, not after removing its result.
+    // Only restore the known previous contribution; missing historical fixtures
+    // still prevent overwriting an authoritative imported table.
+    let beforePlayed = d.played;
+    if (previousGame) {
+      const current = games.find((g) => g.id === previousGame.id);
+      if (current && tally.has(current.homeTeamId) && tally.has(current.awayTeamId)
+        && [current.homeTeamId, current.awayTeamId].includes(row.teamId)) beforePlayed--;
+      if (previousGame.seasonId === seasonId && previousGame.competitionId === competitionId
+        && previousGame.status === 'COMPLETED' && previousGame.homeScore !== null && previousGame.awayScore !== null
+        && tally.has(previousGame.homeTeamId) && tally.has(previousGame.awayTeamId)
+        && [previousGame.homeTeamId, previousGame.awayTeamId].includes(row.teamId)) beforePlayed++;
+    }
+    return Math.max(d.played, beforePlayed) >= row.played;
   };
 
   // Recompute positions only in the no-playoff-group case (safe + common).

@@ -6,7 +6,8 @@ import type { SongDetail } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(_request: NextRequest, { params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const slug = decodeURIComponent(params.slug);
   const s = await prisma.song.findUnique({
     where: { slug },

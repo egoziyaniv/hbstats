@@ -8,10 +8,11 @@ export const dynamic = 'force-dynamic';
 const DEFAULT_COMPETITION_ID = 'comp_liga_haal';
 
 export default async function TeamsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { season?: string; competitionId?: string };
+  searchParams?: Promise<{ season?: string; competitionId?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId =
     searchParams?.season || seasons.find((s) => s.year <= 2025)?.id || seasons[0]?.id;

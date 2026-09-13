@@ -7,13 +7,14 @@ import AdminGameEditorClient from '@/components/AdminGameEditorClient';
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     season?: string;
     gameId?: string;
-  };
+  }>;
 };
 
-export default async function AdminGamesPage({ searchParams }: PageProps) {
+export default async function AdminGamesPage({ searchParams: searchParamsPromise }: PageProps) {
+  const searchParams = await searchParamsPromise;
   const user = await getCurrentUser();
 
   if (!user || user.role !== 'ADMIN') {

@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-12",
+  "backend": {
+    "suitesPassed": 35,
+    "suitesFailed": 12,
+    "testsPassed": 167,
+    "testsFailed": 42,
+    "limitation": "PostgreSQL localhost:5432 unavailable; failures are database initialization or assertions receiving that error"
+  },
+  "mobile": {
+    "suitesPassed": 11,
+    "testsPassed": 37,
+    "snapshotsPassed": 5,
+    "limitation": "Open handle warning; runner interrupted after results"
+  },
+  "typecheck": {
+    "backend": "passed",
+    "mobile": "passed"
+  },
+  "productionBuild": "not run"
+}

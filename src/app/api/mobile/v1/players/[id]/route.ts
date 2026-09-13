@@ -45,7 +45,8 @@ function extractFlashscoreExtras(additionalInfo: unknown): {
   };
 }
 
-export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const { id } = params;
   const raw = await getMobilePlayerPayload(id);
 

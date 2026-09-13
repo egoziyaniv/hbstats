@@ -37,10 +37,11 @@ function buildHref(params: { scope?: Scope; from?: number; to?: number }): strin
 }
 
 export default async function AllTimeTablePage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { from?: string; to?: string; scope?: string };
+  searchParams?: Promise<{ from?: string; to?: string; scope?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const scopeParam = searchParams?.scope;
   const scope: Scope = scopeParam === 'home' || scopeParam === 'away' ? scopeParam : 'all';
 

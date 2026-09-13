@@ -131,10 +131,11 @@ function getNextGame(teamId: string, games: LeagueGame[]) {
 }
 
 export default async function StandingsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { season?: string; view?: string; round?: string; competition?: string; phase?: string };
+  searchParams?: Promise<{ season?: string; view?: string; round?: string; competition?: string; phase?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const currentSeasonStartYear = getCurrentSeasonStartYear();
   const allSeasons = await prisma.season.findMany({

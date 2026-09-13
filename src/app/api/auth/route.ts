@@ -75,18 +75,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'האימייל כבר רשום במערכת.' }, { status: 409 });
     }
 
-    // Use transaction to prevent race condition on first-user admin assignment
-    const user = await prisma.$transaction(async (tx) => {
-      const usersCount = await tx.user.count();
-      return tx.user.create({
-        data: {
-          email,
-          name,
-          password: await hashPassword(password),
-          role: usersCount === 0 ? UserRole.ADMIN : UserRole.USER,
-        },
-      });
-    });
+    // Hash before opening a transaction: bcrypt must not hold DB locks.
+    const passwordHash = await hashPassword(password);
+    let user;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        user = await prisma.$transaction(async (tx) => {
+          const usersCount = await tx.user.count();
+          return tx.user.create({ data: {
+            email, name, password: passwordHash,
+            role: usersCount === 0 ? UserRole.ADMIN : UserRole.USER,
+          } });
+        }, { isolationLevel: 'Serializable' });
+        break;
+      } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === 'P2002') return NextResponse.json({ error: 'האימייל כבר רשום במערכת.' }, { status: 409 });
+        if (code !== 'P2034') throw error;
+      }
+    }
+    if (!user) return NextResponse.json({ error: 'נסה להירשם שוב בעוד רגע.' }, { status: 503 });
 
     await createSession(user.id);
     await logActivity({

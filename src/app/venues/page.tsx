@@ -5,10 +5,11 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export default async function VenuesPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { q?: string; city?: string; season?: string; competition?: string; view?: string };
+  searchParams?: Promise<{ q?: string; city?: string; season?: string; competition?: string; view?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const query = searchParams?.q?.trim() || '';
   const selectedCity = searchParams?.city || 'all';

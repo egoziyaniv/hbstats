@@ -67,10 +67,11 @@ function buildPlayersFilterFields({
 const DEFAULT_COMPETITION_ID = 'comp_liga_haal';
 
 export default async function PlayersPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { season?: string; teamId?: string; view?: string; competitionId?: string };
+  searchParams?: Promise<{ season?: string; teamId?: string; view?: string; competitionId?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const seasons = await prisma.season.findMany({
     orderBy: { year: 'desc' },

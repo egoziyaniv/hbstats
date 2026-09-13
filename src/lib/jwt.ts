@@ -8,23 +8,24 @@ function getSecret(): string {
   return secret;
 }
 
-export function signAccessToken(userId: string): string {
-  return jwt.sign({ userId }, getSecret(), {
+export function signAccessToken(userId: string, sessionId: string, issuedAt = new Date()): string {
+  return jwt.sign({ userId, sessionId, iat: Math.floor(issuedAt.getTime() / 1000) }, getSecret(), {
     algorithm: 'HS256',
     expiresIn: ACCESS_TOKEN_TTL_SECONDS,
   });
 }
 
-export function verifyAccessToken(token: string): { userId: string } | null {
+export function verifyAccessToken(token: string): { userId: string; sessionId: string } | null {
   try {
     const decoded = jwt.verify(token, getSecret(), { algorithms: ['HS256'] });
     if (
       typeof decoded === 'object' &&
       decoded !== null &&
       'userId' in decoded &&
-      typeof (decoded as { userId: unknown }).userId === 'string'
+      typeof decoded.userId === 'string' &&
+      typeof decoded.sessionId === 'string' && decoded.sessionId.length > 0
     ) {
-      return { userId: (decoded as { userId: string }).userId };
+      return { userId: decoded.userId, sessionId: decoded.sessionId };
     }
     return null;
   } catch {

@@ -76,12 +76,14 @@ type PlayerGameDetail = {
 };
 
 export default async function PlayerPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { id: string };
-  searchParams?: { view?: string; season?: string; filter?: string; tab?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ view?: string; season?: string; filter?: string; tab?: string }>;
 }) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
   const displayMode = searchParams?.view === 'premier' ? 'premier' : await getDisplayMode();
   const matchedPlayer = await prisma.player.findFirst({
     where: {

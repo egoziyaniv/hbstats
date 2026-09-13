@@ -22,16 +22,17 @@ const eventLabels: Record<string, string> = {
 };
 
 export default async function GamesPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: {
+  searchParams?: Promise<{
     season?: string;
     competitionId?: string;
     round?: string;
     teamId?: string;
     view?: string;
-  };
+  }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const currentUser = await getCurrentUser();
   const seasons = await prisma.season.findMany({

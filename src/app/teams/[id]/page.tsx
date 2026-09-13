@@ -79,12 +79,14 @@ function formatDate(date: Date, withTime = false) {
 }
 
 export default async function TeamPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { id: string };
-  searchParams?: { view?: string; tab?: string; squadSeason?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ view?: string; tab?: string; squadSeason?: string }>;
 }) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const selectedTab = normalizeTeamPremierTab(searchParams?.tab);
   const team = await prisma.team.findUnique({

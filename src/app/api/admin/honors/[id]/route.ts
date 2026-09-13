@@ -13,7 +13,8 @@ function deriveYear(rawYear: unknown, seasonLabel: string, fallback: number): nu
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const auth = await getRequestUser(request);
   if (!auth || auth.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await readJson(request);
@@ -37,7 +38,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json(honor);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const auth = await getRequestUser(request);
   if (!auth || auth.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   await prisma.clubHonor.delete({ where: { id: params.id } });

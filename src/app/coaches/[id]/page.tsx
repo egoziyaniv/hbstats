@@ -5,7 +5,8 @@ import { buildCoachProfile } from '@/lib/coach-stats';
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
-export default async function CoachProfilePage({ params }: { params: { id: string } }) {
+export default async function CoachProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const { coach, tenures } = await buildCoachProfile(params.id);
   if (!coach) notFound();
 

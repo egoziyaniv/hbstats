@@ -38,17 +38,29 @@ export async function buildGoalTimingForTeam(teamId: string): Promise<GoalTiming
   const rows = await prisma.$queryRaw<Array<{
     minute: number;
     event_team: string;
+    team_id: string | null;
+    type: string;
+    home_name_he: string;
+    home_name_en: string;
+    away_name_he: string;
+    away_name_en: string;
     home_team_id: string;
     away_team_id: string;
   }>>`
     SELECT
       ge.minute AS minute,
       ge.team AS event_team,
+      ge."teamId" AS team_id,
+      ge.type AS type,
+      ht."nameHe" AS home_name_he, ht."nameEn" AS home_name_en,
+      at."nameHe" AS away_name_he, at."nameEn" AS away_name_en,
       g."homeTeamId" AS home_team_id,
       g."awayTeamId" AS away_team_id
     FROM "game_events" ge
     JOIN "games" g ON g.id = ge."gameId"
-    WHERE ge.type IN ('GOAL', 'PENALTY_GOAL')
+    JOIN "teams" ht ON ht.id = g."homeTeamId"
+    JOIN "teams" at ON at.id = g."awayTeamId"
+    WHERE ge.type IN ('GOAL', 'PENALTY_GOAL', 'OWN_GOAL')
       AND g."seasonId" = ${team.seasonId}
       AND (g."homeTeamId" = ${team.id} OR g."awayTeamId" = ${team.id})
   `;
@@ -63,15 +75,20 @@ export async function buildGoalTimingForTeam(teamId: string): Promise<GoalTiming
 
   for (const r of rows) {
     const idx = bucketIndex(r.minute);
-    // Did this event's team match ours? Compare by Hebrew name fragment OR by
-    // game side. We rely on the same team string the event was tagged with,
-    // falling back to the home/away comparison via the game.
-    const ourName = team.nameHe || team.nameEn;
-    if (r.event_team && (r.event_team === ourName || r.event_team.includes(ourName) || ourName.includes(r.event_team))) {
-      buckets[idx].scored++;
-    } else {
-      buckets[idx].conceded++;
+    // Linked identity wins over labels supplied by a different source.
+    let eventTeamId = r.team_id;
+    if (!eventTeamId && r.event_team) {
+      const label = r.event_team.trim().toLowerCase();
+      const homeMatch = [r.home_name_he, r.home_name_en].some((n) => n?.trim().toLowerCase() === label);
+      const awayMatch = [r.away_name_he, r.away_name_en].some((n) => n?.trim().toLowerCase() === label);
+      if (homeMatch !== awayMatch) eventTeamId = homeMatch ? r.home_team_id : r.away_team_id;
     }
+    if (eventTeamId !== r.home_team_id && eventTeamId !== r.away_team_id) continue;
+    const scoringTeamId = r.type === 'OWN_GOAL'
+      ? (eventTeamId === r.home_team_id ? r.away_team_id : r.home_team_id)
+      : eventTeamId;
+    if (scoringTeamId === team.id) buckets[idx].scored++;
+    else buckets[idx].conceded++;
   }
 
   return buckets;

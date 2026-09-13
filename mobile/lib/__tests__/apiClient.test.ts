@@ -1,5 +1,5 @@
-import { setAccessToken } from '../auth';
-import { apiClient } from '../apiClient';
+import { setAccessToken, getAccessToken } from '../auth';
+import { apiClient, ensureAccessToken } from '../apiClient';
 import * as SecureStore from 'expo-secure-store';
 import { server } from '../../__tests__/msw/server';
 
@@ -146,4 +146,15 @@ describe('apiClient 401-refresh-retry', () => {
     await expect(apiClient.get('/home')).rejects.toThrow();
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('hbs_refresh');
   });
+});
+
+
+test('does not activate a refreshed access token when secure rotation cannot be saved', async () => {
+  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('refresh-1');
+  (SecureStore.setItemAsync as jest.Mock).mockRejectedValueOnce(new Error('keychain unavailable'));
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+    accessToken: 'must-not-activate', refreshToken: 'rotated',
+  }), { status: 200 }));
+  await expect(ensureAccessToken()).rejects.toThrow('keychain unavailable');
+  expect(getAccessToken()).toBeNull();
 });

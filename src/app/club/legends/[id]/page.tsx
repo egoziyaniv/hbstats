@@ -20,7 +20,8 @@ function monogram(name: string): string {
     .join('');
 }
 
-export default async function LegendPage({ params }: { params: { id: string } }) {
+export default async function LegendPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const legend = await getLegend(params.id);
   if (!legend) notFound();
 

@@ -5,7 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   // Only return teams that actually have at least one player on record for
   // this season — surfacing empty placeholder teams (e.g. lower-division
   // duplicates) just confuses the picker.

@@ -9,6 +9,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  await prisma.session.deleteMany({ where: { userId: user.id } });
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
+    await tx.session.deleteMany({ where: { userId: user.id } });
+  });
   return new NextResponse(null, { status: 204 });
 }

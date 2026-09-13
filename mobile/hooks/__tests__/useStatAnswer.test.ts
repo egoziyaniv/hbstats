@@ -6,7 +6,7 @@ import { server } from '../../__tests__/msw/server';
 import { useStatAnswer } from '../useStatAnswer';
 
 const wrapper = ({ children }: { children: ReactNode }) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   return React.createElement(QueryClientProvider, { client }, children);
 };
 

@@ -41,12 +41,14 @@ const eventLabels: Record<string, string> = {
 type GamePremierTab = 'overview' | 'stats' | 'events' | 'lineups';
 
 export default async function GamePage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { id: string };
-  searchParams?: { view?: string; tab?: string; formation?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ view?: string; tab?: string; formation?: string }>;
 }) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
   const selectedTab = normalizeGamePremierTab(searchParams?.tab);
   const currentUser = await getCurrentUser();

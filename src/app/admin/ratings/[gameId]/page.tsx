@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 
 const SOURCES = ['api-football', 'sofascore', 'fotmob', 'admin'] as const;
 
-export default async function AdminRatingsForGamePage({ params }: { params: { gameId: string } }) {
+export default async function AdminRatingsForGamePage({ params: paramsPromise }: { params: Promise<{ gameId: string }> }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return (

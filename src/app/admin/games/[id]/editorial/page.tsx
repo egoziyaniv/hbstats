@@ -8,10 +8,11 @@ import GameEditorialClient from '@/components/admin/GameEditorialClient';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminGameEditorialPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const params = await paramsPromise;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') redirect('/login');
 

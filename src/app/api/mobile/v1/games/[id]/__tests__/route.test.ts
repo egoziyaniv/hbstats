@@ -9,7 +9,7 @@ function mkReq(id: string): NextRequest {
 
 describe('GET /api/mobile/v1/games/:id — MatchPayload contract', () => {
   test('returns 404 for non-existent match', async () => {
-    const res = await GET(mkReq('non-existent-id'), { params: { id: 'non-existent-id' } });
+    const res = await GET(mkReq('non-existent-id'), { params: Promise.resolve({ id: 'non-existent-id' }) });
     expect(res.status).toBe(404);
   });
 
@@ -19,7 +19,7 @@ describe('GET /api/mobile/v1/games/:id — MatchPayload contract', () => {
       console.warn('No matches in dev DB — skipping');
       return;
     }
-    const res = await GET(mkReq(game.id), { params: { id: game.id } });
+    const res = await GET(mkReq(game.id), { params: Promise.resolve({ id: game.id }) });
     expect(res.status).toBe(200);
     const body = (await res.json()) as MatchPayload;
     expect(body.match.id).toBe(game.id);

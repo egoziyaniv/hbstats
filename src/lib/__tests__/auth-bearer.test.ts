@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getRequestUser } from '../auth';
+import { getRequestUser, issueMobileSession } from '../auth';
 import { signAccessToken } from '../jwt';
 import prisma from '../prisma';
 
@@ -9,6 +9,7 @@ beforeAll(() => {
 
 describe('getRequestUser with Bearer header', () => {
   let userId: string;
+  let accessToken: string;
 
   beforeAll(async () => {
     const user = await prisma.user.create({
@@ -20,6 +21,7 @@ describe('getRequestUser with Bearer header', () => {
       },
     });
     userId = user.id;
+    accessToken = (await issueMobileSession(user)).accessToken;
   });
 
   afterAll(async () => {
@@ -27,7 +29,7 @@ describe('getRequestUser with Bearer header', () => {
   });
 
   test('returns user when Authorization: Bearer <jwt> is valid', async () => {
-    const token = signAccessToken(userId);
+    const token = accessToken;
     const req = new NextRequest('http://localhost/test', {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -50,7 +52,7 @@ describe('getRequestUser with Bearer header', () => {
   });
 
   test('returns null when Bearer token is for a non-existent user', async () => {
-    const token = signAccessToken('non-existent-user-id');
+    const token = signAccessToken('non-existent-user-id', 'non-existent-session');
     const req = new NextRequest('http://localhost/test', {
       headers: { authorization: `Bearer ${token}` },
     });

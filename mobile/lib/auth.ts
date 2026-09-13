@@ -16,31 +16,19 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
-// Keychain-first storage with an AsyncStorage fallback. Properly-signed device
-// builds use the iOS Keychain (encrypted, the secure default). When the Keychain
-// is unavailable — e.g. an unsigned/ad-hoc simulator dev build that lacks the
-// keychain-access-group entitlement, where SecureStore throws "a required
-// entitlement isn't present" — we transparently fall back to AsyncStorage so
-// auth still works. The fallback never triggers on real signed builds.
+// Credentials have one authoritative store. Discard legacy plaintext copies;
+// users whose credentials existed only there must sign in again.
 async function secureSet(key: string, value: string): Promise<void> {
-  try {
-    await SecureStore.setItemAsync(key, value, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-  } catch {
-    await AsyncStorage.setItem(key, value);
-  }
+  await AsyncStorage.removeItem(key);
+  await SecureStore.setItemAsync(key, value, {
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
 }
 
 async function secureGet(key: string): Promise<string | null> {
+  await AsyncStorage.removeItem(key);
   try {
-    const v = await SecureStore.getItemAsync(key);
-    if (v != null) return v;
-  } catch {
-    // fall through to AsyncStorage
-  }
-  try {
-    return await AsyncStorage.getItem(key);
+    return await SecureStore.getItemAsync(key);
   } catch {
     return null;
   }

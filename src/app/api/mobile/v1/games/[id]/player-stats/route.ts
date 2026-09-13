@@ -4,7 +4,8 @@ import type { GamePlayerStatsPayload } from '@shared/types/mobile-api';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const rows = await prisma.gamePlayerStats.findMany({
     where: { gameId: params.id },
     orderBy: [{ minutes: 'desc' }, { rating: 'desc' }],

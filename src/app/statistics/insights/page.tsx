@@ -284,10 +284,11 @@ const CATEGORIES: Array<{ key: CategoryKey; label: string }> = [
 ];
 
 export default async function StatisticsInsightsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { season?: string; cat?: CategoryKey };
+  searchParams?: Promise<{ season?: string; cat?: CategoryKey }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId = searchParams?.season || seasons.find((s) => s.year <= 2025)?.id || seasons[0]?.id;
   const selectedSeason = seasons.find((s) => s.id === selectedSeasonId);

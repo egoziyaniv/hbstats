@@ -9,7 +9,8 @@ import { RECORD_CATEGORIES } from '@/lib/history/records-engine';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const team = await prisma.team.findUnique({
     where: { id: params.id },
     select: { id: true, nameHe: true, nameEn: true, seasonId: true },

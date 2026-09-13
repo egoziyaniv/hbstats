@@ -269,6 +269,8 @@ export async function PUT(request: NextRequest) {
 
     const statsData = buildGameStatsData(gameStats);
     const game = await prisma.$transaction(async (tx) => {
+      const previousGame = await tx.game.findUnique({ where: { id } });
+      if (!previousGame) throw new Error("Game not found");
       const updatedGame = await tx.game.update({
         where: { id },
         data: {
@@ -329,7 +331,10 @@ export async function PUT(request: NextRequest) {
         homeTeamId !== undefined ||
         awayTeamId !== undefined;
       if (affectsStandings) {
-        await recomputeStoredStandings(tx, updatedGame.seasonId, updatedGame.competitionId);
+        await recomputeStoredStandings(tx, updatedGame.seasonId, updatedGame.competitionId, previousGame);
+        if (previousGame.seasonId !== updatedGame.seasonId || previousGame.competitionId !== updatedGame.competitionId) {
+          await recomputeStoredStandings(tx, previousGame.seasonId, previousGame.competitionId, previousGame);
+        }
       }
 
       return updatedGame;
@@ -366,7 +371,12 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await prisma.game.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      const previousGame = await tx.game.findUnique({ where: { id } });
+      if (!previousGame) throw new Error('Game not found');
+      await tx.game.delete({ where: { id } });
+      await recomputeStoredStandings(tx, previousGame.seasonId, previousGame.competitionId, previousGame);
+    });
     clearHistoryCaches();
     return NextResponse.json({ success: true });
   } catch (error: any) {

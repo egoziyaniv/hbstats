@@ -104,7 +104,8 @@ async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWo
   return rows.map((r) => ({ canonicalId: r.canon, name: r.name || '—', team: r.team || '—', value: r.total, matches: r.matches }));
 }
 
-export default async function AdvancedStatsPage({ searchParams }: { searchParams?: { season?: string; player?: string; metric?: string; pos?: string } }) {
+export default async function AdvancedStatsPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<{ season?: string; player?: string; metric?: string; pos?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const seasons = await prisma.season.findMany({ where: { year: { gte: 2016 } }, orderBy: { year: 'desc' }, select: { id: true, name: true, year: true } });
   const selected = (searchParams?.season && seasons.find((s) => s.id === searchParams.season)) || seasons[0];
   const position = searchParams?.pos && ['GK', 'DEF', 'MID', 'FWD'].includes(searchParams.pos) ? searchParams.pos : null;

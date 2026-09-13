@@ -4,7 +4,7 @@ import React, { ReactNode } from 'react';
 import { useHome } from '../useHome';
 
 const wrapper = ({ children }: { children: ReactNode }) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   return React.createElement(QueryClientProvider, { client }, children);
 };
 

@@ -37,12 +37,12 @@
 # ── Derived content ───────────────────────────────────────────────────────────
 30 4 * * * cd /home/hbs/hbstats && npx tsx scripts/rebuild-records.ts >> /home/hbs/logs/rebuild-records.log 2>&1
 30 3 * * * /home/hbs/hbstats/scripts/cron-refresh-ai.sh >> /home/hbs/logs/ai-refresh.log 2>&1
-0 9 * * * cd /home/hbs/hbstats && curl -s -H "x-cron-secret: $(grep ^CRON_SECRET= .env | cut -d= -f2)" "http://localhost:3100/api/cron/on-this-day" >> /home/hbs/logs/on-this-day.log 2>&1
+0 9 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/call-cron.js on-this-day >> /home/hbs/logs/on-this-day.log 2>&1
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 */3 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-matches.js --execute >> /home/hbs/logs/notify-matches.log 2>&1
 */10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-reminders.js --execute >> /home/hbs/logs/notify-reminders.log 2>&1
-*/10 * * * * cd /home/hbs/hbstats && curl -s -H "x-cron-secret: $(grep ^CRON_SECRET= .env | cut -d= -f2)" "http://localhost:3100/api/cron/notify-news" >> /home/hbs/logs/notify-news.log 2>&1
+*/10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/call-cron.js notify-news >> /home/hbs/logs/notify-news.log 2>&1
 
 # ── Backups ───────────────────────────────────────────────────────────────────
 0 2 * * * /home/hbs/hbstats/scripts/backup-db.sh >> /home/hbs/logs/db-backup.log 2>&1

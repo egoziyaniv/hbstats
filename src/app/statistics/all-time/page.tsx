@@ -20,7 +20,8 @@ const RANGES: Array<{ id: string; label: string; sinceYear?: number }> = [
 
 export const metadata = { title: 'דירוג כל הזמנים' };
 
-export default async function AllTimeStatsPage({ searchParams }: { searchParams: { cat?: string; range?: string } }) {
+export default async function AllTimeStatsPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ cat?: string; range?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const selected = CATEGORIES.find((c) => c.id === searchParams.cat) || CATEGORIES[0];
   const range = RANGES.find((r) => r.id === searchParams.range) || RANGES[0];
   const rows = await buildUnifiedLeaderboard(selected.id, 100, range.sinceYear);

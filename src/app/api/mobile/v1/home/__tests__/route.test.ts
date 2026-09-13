@@ -1,8 +1,7 @@
 import { GET } from '../route';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-import { hashPassword } from '@/lib/auth';
-import { signAccessToken } from '@/lib/jwt';
+import { hashPassword, issueMobileSession } from '@/lib/auth';
 import type { HomePayload } from '@shared/types/mobile-api';
 
 beforeAll(() => {
@@ -29,7 +28,7 @@ describe('GET /api/mobile/v1/home — HomePayload contract', () => {
       },
     });
     userId = user.id;
-    accessToken = signAccessToken(userId);
+    accessToken = (await issueMobileSession(user)).accessToken;
   });
 
   afterAll(async () => {
