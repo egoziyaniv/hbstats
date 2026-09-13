@@ -233,6 +233,150 @@ export interface ClubSeasonsPayload {
   seasons: ClubSeasonRow[];
 }
 
+// ---------- Club season dossier ----------
+
+export type SeasonDossierCoverage = 'COMPLETE' | 'PARTIAL' | 'UNKNOWN';
+export type SeasonDossierSourceScope = 'METRICS' | 'EDITORIAL' | 'BOTH';
+export type SeasonDossierStatus = 'DRAFT' | 'PUBLISHED';
+export type SeasonDossierMetricKey = 'matches' | 'wins' | 'goalsFor' | 'leaguePosition';
+
+export interface SeasonDossierSource {
+  id: string;
+  momentId: string | null;
+  labelHe: string;
+  provider: string;
+  url: string;
+  scope: SeasonDossierSourceScope;
+  competitionId: string | null;
+  coverageStatus: SeasonDossierCoverage;
+  coverageFrom: string | null;
+  coverageTo: string | null;
+  verifiedAt: string | null;
+  noteHe: string | null;
+}
+
+export interface SeasonDossierEvidenceGame {
+  id: string;
+  dateTime: string;
+  status: MatchStatus;
+  competitionId: string | null;
+  competitionNameHe: string | null;
+  roundNameHe: string | null;
+  isHome: boolean;
+  opponent: TeamSummary;
+  goalsFor: number | null;
+  goalsAgainst: number | null;
+  result: 'W' | 'D' | 'L' | null;
+}
+
+export interface SeasonDossierMetric<K extends SeasonDossierMetricKey = SeasonDossierMetricKey> {
+  key: K;
+  value: number | null;
+  coverage: SeasonDossierCoverage;
+  evidenceGames?: SeasonDossierEvidenceGame[];
+  sourceIds?: string[];
+}
+
+export type SeasonDossierMetrics = [
+  SeasonDossierMetric<'matches'>,
+  SeasonDossierMetric<'wins'>,
+  SeasonDossierMetric<'goalsFor'>,
+  SeasonDossierMetric<'leaguePosition'>,
+];
+
+export interface SeasonDossierMoment {
+  id: string;
+  eventDate: string;
+  titleHe: string;
+  bodyHe: string | null;
+  imageUrl: string | null;
+  displayOrder: number;
+  game: SeasonDossierEvidenceGame | null;
+  sources: SeasonDossierSource[];
+}
+
+export interface SeasonDossierSquadPlayer {
+  playerId: string;
+  nameHe: string;
+  nameEn: string | null;
+  photoUrl: string | null;
+  position: string | null;
+  jerseyNumber: number | null;
+  appearances: number | null;
+  starts: number | null;
+  minutes: number | null;
+  goals: number | null;
+  assists: number | null;
+}
+
+export interface SeasonDossierCoach {
+  id: string | null;
+  nameHe: string;
+  nameEn: string | null;
+  photoUrl: string | null;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export interface SeasonDossierStanding {
+  competitionId: string;
+  competitionNameHe: string;
+  position: number | null;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+  coverage: SeasonDossierCoverage;
+}
+
+export interface SeasonDossierHonor {
+  competitionHe: string;
+  place: HonorPlace;
+}
+
+export interface SeasonDossierCompetition {
+  id: string;
+  nameHe: string;
+  nameEn: string;
+  logoUrl: string | null;
+  type: string;
+}
+
+export interface SeasonDossierCompetitionGroup {
+  competition: SeasonDossierCompetition;
+  games: SeasonDossierEvidenceGame[];
+}
+
+export interface SeasonDossierGameGroup {
+  labelHe: string;
+  competitionId: string | null;
+  games: SeasonDossierEvidenceGame[];
+}
+
+export interface SeasonDossierPayload {
+  season: { id: string; year: number; name: string };
+  team: TeamSummary;
+  status: SeasonDossierStatus;
+  asOf: string;
+  editorial: {
+    introHe: string | null;
+    summaryHe: string | null;
+    heroImageUrl: string | null;
+  };
+  metrics: SeasonDossierMetrics;
+  sources: SeasonDossierSource[];
+  moments: SeasonDossierMoment[];
+  squad: SeasonDossierSquadPlayer[];
+  coach: SeasonDossierCoach | null;
+  standing: SeasonDossierStanding | null;
+  honors: SeasonDossierHonor[];
+  competitions: SeasonDossierCompetition[];
+  games: SeasonDossierGameGroup[];
+}
+
 export interface VenueGameRow {
   id: string;
   dateISO: string;

@@ -8,30 +8,30 @@ datasource db {
 }
 
 model User {
-  id                        String           @id @default(cuid())
-  email                     String           @unique
+  id                        String               @id @default(cuid())
+  email                     String               @unique
   name                      String
   password                  String?
-  googleSub                 String?          @unique
-  appleSub                  String?          @unique
-  role                      UserRole         @default(USER)
-  createdAt                 DateTime         @default(now())
-  updatedAt                 DateTime         @updatedAt
+  googleSub                 String?              @unique
+  appleSub                  String?              @unique
+  role                      UserRole             @default(USER)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
   avatarUrl                 String?
-  isActive                  Boolean          @default(true)
+  isActive                  Boolean              @default(true)
   passwordChangedAt         DateTime?
-  favoriteCompetitionApiIds Int[]            @default([])
-  favoriteTeamApiIds        Int[]            @default([])
-  homeLeagueScope           String           @default("FAVORITES") // FAVORITES | LIGAT_HAAL | ALL — home next/last-game/predictions league filter
-  colorScheme               String           @default("auto")
-  theme                     String           @default("modern")
-  notifyGoals               Boolean          @default(true)
-  notifyResults             Boolean          @default(true)
-  notifyReminders           Boolean          @default(true)
-  notifyNews                Boolean          @default(true)
-  notifyOnThisDay           Boolean          @default(true)
+  favoriteCompetitionApiIds Int[]                @default([])
+  favoriteTeamApiIds        Int[]                @default([])
+  homeLeagueScope           String               @default("FAVORITES") // FAVORITES | LIGAT_HAAL | ALL — home next/last-game/predictions league filter
+  colorScheme               String               @default("auto")
+  theme                     String               @default("modern")
+  notifyGoals               Boolean              @default(true)
+  notifyResults             Boolean              @default(true)
+  notifyReminders           Boolean              @default(true)
+  notifyNews                Boolean              @default(true)
+  notifyOnThisDay           Boolean              @default(true)
   activityLogs              ActivityLog[]
-  fetchJobs                 FetchJob[]       @relation("FetchJobInitiator")
+  fetchJobs                 FetchJob[]           @relation("FetchJobInitiator")
   mergeOperations           MergeOperation[]
   sessions                  Session[]
   passwordResetTokens       PasswordResetToken[]
@@ -56,12 +56,12 @@ model PushToken {
 
 // Per-game dedupe state for match push notifications (goals + final result).
 model GameNotificationState {
-  gameId        String   @id
-  lastHomeScore Int      @default(0)
-  lastAwayScore Int      @default(0)
-  notifiedFinal Boolean  @default(false)
-  notifiedReminder Boolean @default(false)
-  updatedAt     DateTime @updatedAt
+  gameId           String   @id
+  lastHomeScore    Int      @default(0)
+  lastAwayScore    Int      @default(0)
+  notifiedFinal    Boolean  @default(false)
+  notifiedReminder Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
 
   @@map("game_notification_state")
 }
@@ -145,6 +145,7 @@ model Season {
   teamStats           TeamStatistics[]
   sofascoreTeamStats  SofascoreTeamStats[]
   teams               Team[]
+  clubSeasonDossiers  ClubSeasonDossier[]
 
   @@map("seasons")
 }
@@ -174,6 +175,7 @@ model Competition {
   playerStats         PlayerStatistics[]
   standings           Standing[]
   teamStats           TeamStatistics[]
+  clubSeasonSources   ClubSeasonSource[]
 
   @@map("competitions")
 }
@@ -242,6 +244,7 @@ model Team {
   coachAssignments   TeamCoachAssignment[]
   teamStats          TeamStatistics[]
   sofascoreStats     SofascoreTeamStats[]
+  clubSeasonDossiers ClubSeasonDossier[]
   season             Season                        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   venue              Venue?                        @relation("TeamVenue", fields: [venueId], references: [id])
 
@@ -533,6 +536,7 @@ model Game {
   liveSnapshots       LiveGameSnapshot[]
   injuries            PlayerInjury[]
   winnerOdds          WinnerOdds[]
+  clubSeasonMoments   ClubSeasonMoment[]
 
   @@index([seasonId, competitionId])
   @@index([homeTeamId])
@@ -600,35 +604,35 @@ model GameLineupEntry {
 }
 
 model Standing {
-  id                     String       @id @default(cuid())
+  id                     String      @id @default(cuid())
   position               Int
-  played                 Int          @default(0)
-  wins                   Int          @default(0)
-  draws                  Int          @default(0)
-  losses                 Int          @default(0)
-  goalsFor               Int          @default(0)
-  goalsAgainst           Int          @default(0)
-  points                 Int          @default(0)
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  played                 Int         @default(0)
+  wins                   Int         @default(0)
+  draws                  Int         @default(0)
+  losses                 Int         @default(0)
+  goalsFor               Int         @default(0)
+  goalsAgainst           Int         @default(0)
+  points                 Int         @default(0)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
   teamId                 String
   seasonId               String
-  cleanSheets            Int          @default(0)
+  cleanSheets            Int         @default(0)
   competitionId          String
   form                   String?
-  pointsAdjustment       Int          @default(0)
+  pointsAdjustment       Int         @default(0)
   pointsAdjustmentNoteHe String?
   additionalInfo         Json?
   descriptionEn          String?
   descriptionHe          String?
-  goalsDiff              Int          @default(0)
+  goalsDiff              Int         @default(0)
   groupNameEn            String?
   groupNameHe            String?
   statusEn               String?
   statusHe               String?
-  competition            Competition  @relation(fields: [competitionId], references: [id])
-  season                 Season       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  team                   Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  competition            Competition @relation(fields: [competitionId], references: [id])
+  season                 Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  team                   Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   // Unique per competition: a team can hold a league row AND a cup group row in
   // the same season without one clobbering the other (code-review H7).
@@ -1204,27 +1208,28 @@ model FetchJob {
 }
 
 model MediaAsset {
-  id           String         @id @default(cuid())
-  kind         MediaAssetKind
-  title        String?
-  originalName String?
-  filePath     String
-  mimeType     String?
-  sizeBytes    Int?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  teamId       String?
-  playerId     String?
-  displayOrder Int            @default(0)
-  isPrimary    Boolean        @default(false)
-  seasonId     String?
-  venueId      String?
-  gameId       String?
-  player       Player?        @relation("PlayerAssets", fields: [playerId], references: [id])
-  season       Season?        @relation(fields: [seasonId], references: [id])
-  team         Team?          @relation("TeamAssets", fields: [teamId], references: [id])
-  venue        Venue?         @relation("VenueAssets", fields: [venueId], references: [id])
-  game         Game?          @relation("GameAssets", fields: [gameId], references: [id])
+  id                String             @id @default(cuid())
+  kind              MediaAssetKind
+  title             String?
+  originalName      String?
+  filePath          String
+  mimeType          String?
+  sizeBytes         Int?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  teamId            String?
+  playerId          String?
+  displayOrder      Int                @default(0)
+  isPrimary         Boolean            @default(false)
+  seasonId          String?
+  venueId           String?
+  gameId            String?
+  player            Player?            @relation("PlayerAssets", fields: [playerId], references: [id])
+  season            Season?            @relation(fields: [seasonId], references: [id])
+  team              Team?              @relation("TeamAssets", fields: [teamId], references: [id])
+  venue             Venue?             @relation("VenueAssets", fields: [venueId], references: [id])
+  game              Game?              @relation("GameAssets", fields: [gameId], references: [id])
+  clubSeasonMoments ClubSeasonMoment[]
 
   @@index([seasonId])
   @@index([venueId])
@@ -1888,6 +1893,96 @@ enum ClubPageCategory {
   CULTURE
 }
 
+enum ClubSeasonSourceScope {
+  METRICS
+  EDITORIAL
+  BOTH
+}
+
+enum DataCoverageStatus {
+  COMPLETE
+  PARTIAL
+  UNKNOWN
+}
+
+model ClubSeasonDossier {
+  id           String    @id @default(cuid())
+  seasonId     String
+  teamId       String
+  introHe      String?
+  summaryHe    String?
+  heroImageUrl String?
+  isPublished  Boolean   @default(false)
+  publishedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  moments ClubSeasonMoment[]
+  sources ClubSeasonSource[]
+
+  @@unique([seasonId, teamId])
+  @@index([seasonId])
+  @@index([teamId])
+  @@index([isPublished, publishedAt])
+  @@map("club_season_dossiers")
+}
+
+model ClubSeasonMoment {
+  id           String   @id @default(cuid())
+  dossierId    String
+  eventDate    DateTime
+  titleHe      String
+  bodyHe       String?
+  gameId       String?
+  mediaAssetId String?
+  imageUrl     String?
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dossier    ClubSeasonDossier  @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  game       Game?              @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  mediaAsset MediaAsset?        @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  sources    ClubSeasonSource[]
+
+  @@index([dossierId, eventDate])
+  @@index([dossierId, displayOrder])
+  @@index([gameId])
+  @@index([mediaAssetId])
+  @@map("club_season_moments")
+}
+
+model ClubSeasonSource {
+  id             String                @id @default(cuid())
+  dossierId      String
+  momentId       String?
+  labelHe        String
+  provider       String
+  url            String
+  scope          ClubSeasonSourceScope
+  competitionId  String?
+  coverageStatus DataCoverageStatus    @default(UNKNOWN)
+  coverageFrom   DateTime?
+  coverageTo     DateTime?
+  verifiedAt     DateTime?
+  noteHe         String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  dossier     ClubSeasonDossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  moment      ClubSeasonMoment? @relation(fields: [momentId], references: [id], onDelete: SetNull)
+  competition Competition?      @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+
+  @@index([dossierId, scope])
+  @@index([momentId])
+  @@index([competitionId])
+  @@map("club_season_sources")
+}
+
 model ClubPage {
   id           String           @id @default(cuid())
   slug         String           @unique
@@ -1947,12 +2042,12 @@ model Song {
 
 model RecordEntry {
   id         String   @id @default(cuid())
-  category   String   // e.g. "biggest_win", "fastest_goal" — see records-engine CATEGORIES
-  scope      String   // "league" | "club:<clubKey>"
+  category   String // e.g. "biggest_win", "fastest_goal" — see records-engine CATEGORIES
+  scope      String // "league" | "club:<clubKey>"
   rank       Int
-  valueNum   Float?   // sortable magnitude (margin, minute, count…)
-  labelHe    String   // display line, superlative-framed
-  detailHe   String?  // secondary line (date · competition · opponent)
+  valueNum   Float? // sortable magnitude (margin, minute, count…)
+  labelHe    String // display line, superlative-framed
+  detailHe   String? // secondary line (date · competition · opponent)
   clubKey    String?
   playerId   String?
   gameId     String?
@@ -1966,7 +2061,7 @@ model RecordEntry {
 
 model StatNarrative {
   id          String   @id @default(cuid())
-  questionKey String   // "<id>[:<clubKey>][:<rivalKey>]"
+  questionKey String // "<id>[:<clubKey>][:<rivalKey>]"
   dataVersion String
   text        String
   createdAt   DateTime @default(now())
