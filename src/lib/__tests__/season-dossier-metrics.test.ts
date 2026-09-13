@@ -33,6 +33,14 @@ const completeMetricSource = {
   scope: 'METRICS' as const,
   competitionId: null,
   coverageStatus: 'COMPLETE' as const,
+  coverageFrom: new Date('2026-06-01T00:00:00.000Z'),
+  coverageTo: new Date('2026-09-30T00:00:00.000Z'),
+  verifiedAt: new Date('2026-10-01T00:00:00.000Z'),
+};
+
+const coverageWindow = {
+  from: new Date('2026-07-01T00:00:00.000Z'),
+  to: new Date('2027-06-30T23:59:59.999Z'),
 };
 
 describe('season dossier metric game qualification', () => {
@@ -180,6 +188,7 @@ describe('calculateSeasonMetrics', () => {
       { position: 2, competitionId: 'league' },
       [completeMetricSource, { ...completeMetricSource, competitionId: 'league' }],
       new Date('2026-09-13T12:34:56+03:00'),
+      coverageWindow,
     );
 
     expect(metrics.map(({ key, value, coverage }) => ({ key, value, coverage }))).toEqual([
@@ -224,6 +233,7 @@ describe('calculateSeasonMetrics', () => {
       { position: null, competitionId: 'league' },
       [completeMetricSource],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics.map((metric) => metric.value)).toEqual([null, null, null, null]);
@@ -249,6 +259,7 @@ describe('calculateSeasonMetrics', () => {
       { position: null, competitionId: 'league' },
       [],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics.slice(0, 3).map(({ value, coverage }) => ({ value, coverage }))).toEqual([
@@ -275,6 +286,7 @@ describe('calculateSeasonMetrics', () => {
         { ...completeMetricSource, competitionId: 'cup', coverageStatus: 'PARTIAL' as const },
       ],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
@@ -296,6 +308,7 @@ describe('calculateSeasonMetrics', () => {
       { position: 1, competitionId: 'league' },
       [{ ...completeMetricSource, competitionId: 'league' }],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
@@ -326,6 +339,7 @@ describe('calculateSeasonMetrics', () => {
         { ...completeMetricSource, competitionId: 'cup' },
       ],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
@@ -348,6 +362,7 @@ describe('calculateSeasonMetrics', () => {
       { position: 4, competitionId: 'national-league' },
       [{ ...completeMetricSource, competitionId: 'national-league' }],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics[3]).toMatchObject({ value: 4, coverage: 'COMPLETE', evidenceGameIds: [] });
@@ -371,6 +386,7 @@ describe('calculateSeasonMetrics', () => {
       { position: 4, competitionId: 'national-league' },
       [{ ...completeMetricSource, competitionId: 'league' }],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics[3]).toMatchObject({ value: 4, coverage: 'PARTIAL', evidenceGameIds: [] });
@@ -386,6 +402,7 @@ describe('calculateSeasonMetrics', () => {
         { ...completeMetricSource, competitionId: 'cup', coverageStatus: 'PARTIAL' as const },
       ],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics.slice(0, 3).map((metric) => metric.coverage)).toEqual([
@@ -405,8 +422,58 @@ describe('calculateSeasonMetrics', () => {
       { position: 4, competitionId: 'national-league' },
       [completeMetricSource],
       new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
     );
 
     expect(metrics[3]).toMatchObject({ value: 4, coverage: 'COMPLETE', evidenceGameIds: [] });
+  });
+
+  it.each([
+    [
+      'starts after the season window',
+      { coverageFrom: new Date('2026-07-02T00:00:00.000Z') },
+    ],
+    [
+      'ends before the relevant as-of date',
+      { coverageTo: new Date('2026-09-12T23:59:59.999Z') },
+    ],
+    ['has no verification date', { verifiedAt: null }],
+    [
+      'was verified before its declared coverage end',
+      { verifiedAt: new Date('2026-09-29T23:59:59.999Z') },
+    ],
+  ])('does not accept COMPLETE coverage when the source %s', (_label, override) => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [game()],
+      { position: 1, competitionId: 'league' },
+      [{ ...completeMetricSource, ...override }],
+      new Date('2026-09-13T09:00:00.000Z'),
+      coverageWindow,
+    );
+
+    expect(metrics.map((metric) => metric.coverage)).toEqual([
+      'PARTIAL',
+      'PARTIAL',
+      'PARTIAL',
+      'PARTIAL',
+    ]);
+  });
+
+  it('caps the required source interval at the season end for final coverage', () => {
+    const metrics = calculateSeasonMetrics(
+      TEAM_ID,
+      [game()],
+      { position: 1, competitionId: 'league' },
+      [{
+        ...completeMetricSource,
+        coverageTo: coverageWindow.to,
+        verifiedAt: new Date('2027-07-01T00:00:00.000Z'),
+      }],
+      new Date('2027-08-01T00:00:00.000Z'),
+      coverageWindow,
+    );
+
+    expect(metrics.every((metric) => metric.coverage === 'COMPLETE')).toBe(true);
   });
 });

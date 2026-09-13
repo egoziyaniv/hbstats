@@ -1,8 +1,4 @@
-import type {
-  SeasonDossierCoverage,
-  SeasonDossierMetrics,
-  SeasonDossierSource,
-} from '@shared/types/mobile-api';
+import type { SeasonDossierCoverage, SeasonDossierMetrics } from '@shared/types/mobile-api';
 
 export type SeasonDossierCompetitionInput = {
   id: string;
@@ -25,10 +21,19 @@ export type SeasonDossierGameInput = {
   competition: SeasonDossierCompetitionInput | null;
 };
 
-export type SeasonDossierMetricSourceInput = Pick<
-  SeasonDossierSource,
-  'scope' | 'competitionId' | 'coverageStatus'
->;
+export type SeasonDossierMetricSourceInput = {
+  scope: 'METRICS' | 'EDITORIAL' | 'BOTH';
+  competitionId: string | null;
+  coverageStatus: 'COMPLETE' | 'PARTIAL' | 'UNKNOWN';
+  coverageFrom: Date | null;
+  coverageTo: Date | null;
+  verifiedAt: Date | null;
+};
+
+export type SeasonDossierCoverageWindow = {
+  from: Date;
+  to: Date;
+};
 
 export type SeasonDossierStandingInput = {
   position: number | null;
@@ -112,11 +117,20 @@ function metricSources(sources: readonly SeasonDossierMetricSourceInput[]) {
 function hasCompleteCoverage(
   sources: readonly SeasonDossierMetricSourceInput[],
   competitionId: string,
+  coverageWindow: SeasonDossierCoverageWindow,
+  asOf: Date,
 ): boolean {
+  const relevantTo = new Date(Math.min(asOf.getTime(), coverageWindow.to.getTime()));
   return metricSources(sources).some(
     (source) =>
       source.coverageStatus === 'COMPLETE' &&
-      (source.competitionId === null || source.competitionId === competitionId),
+      (source.competitionId === null || source.competitionId === competitionId) &&
+      source.coverageFrom !== null &&
+      source.coverageTo !== null &&
+      source.verifiedAt !== null &&
+      source.coverageFrom.getTime() <= coverageWindow.from.getTime() &&
+      source.coverageTo.getTime() >= relevantTo.getTime() &&
+      source.verifiedAt.getTime() >= source.coverageTo.getTime(),
   );
 }
 
@@ -131,6 +145,7 @@ export function calculateSeasonMetrics(
   standing: SeasonDossierStandingInput,
   sources: readonly SeasonDossierMetricSourceInput[],
   asOf: Date,
+  coverageWindow: SeasonDossierCoverageWindow,
 ): SeasonDossierMetrics {
   const completedOfficialGames = games.flatMap((game) => {
     const involvesTeam = game.homeTeamId === teamId || game.awayTeamId === teamId;
@@ -189,7 +204,10 @@ export function calculateSeasonMetrics(
     hasGameBasis &&
     [...expectedCompetitionIds].every((competitionId) => {
       const group = competitionGroups.get(competitionId);
-      return (!group || group.invalidMatches === 0) && hasCompleteCoverage(sources, competitionId);
+      return (
+        (!group || group.invalidMatches === 0) &&
+        hasCompleteCoverage(sources, competitionId, coverageWindow, asOf)
+      );
     });
   const aggregateCoverage = coverageForBasis(hasGameBasis, allCompetitionCoverageComplete);
   const evidenceGameIds = basis.map(({ game }) => game.id);
@@ -202,7 +220,8 @@ export function calculateSeasonMetrics(
       value: group.matches > 0 ? group[field] : null,
       coverage: coverageForBasis(
         group.matches > 0,
-        group.invalidMatches === 0 && hasCompleteCoverage(sources, group.competition.id),
+        group.invalidMatches === 0 &&
+          hasCompleteCoverage(sources, group.competition.id, coverageWindow, asOf),
       ),
     }));
 
@@ -244,7 +263,8 @@ export function calculateSeasonMetrics(
       value: standing.position,
       coverage: coverageForBasis(
         standing.position !== null,
-        standing.competitionId !== null && hasCompleteCoverage(sources, standing.competitionId),
+        standing.competitionId !== null &&
+          hasCompleteCoverage(sources, standing.competitionId, coverageWindow, asOf),
       ),
       computedAt,
       competitionBreakdown: [],

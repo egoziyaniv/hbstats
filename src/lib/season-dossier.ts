@@ -29,6 +29,20 @@ function iso(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
 
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function compareDates(left: Date, right: Date): number {
+  return left.getTime() - right.getTime();
+}
+
+function compareNullableDatesDesc(left: Date | null, right: Date | null): number {
+  if (left === null) return right === null ? 0 : 1;
+  if (right === null) return -1;
+  return right.getTime() - left.getTime();
+}
+
 function teamSummary(team: {
   id: string;
   apiFootballId: number | null;
@@ -94,7 +108,7 @@ export async function buildSeasonDossier(
 ): Promise<SeasonDossierPayload | null> {
   const season = await prisma.season.findUnique({
     where: { id: seasonId },
-    select: { id: true, year: true, name: true },
+    select: { id: true, year: true, name: true, startDate: true, endDate: true },
   });
   if (!season || !PILOT_YEARS.has(season.year)) return null;
 
@@ -110,7 +124,7 @@ export async function buildSeasonDossier(
   });
   if (!team) return null;
 
-  const [dossier, rawGames, standingRows, players, coachAssignment, honorRows] = await Promise.all([
+  const [dossier, rawGames, standingRows, players, coachAssignments, honorRows] = await Promise.all([
     prisma.clubSeasonDossier.findUnique({
       where: { seasonId_teamId: { seasonId: season.id, teamId: team.id } },
       select: {
@@ -131,7 +145,7 @@ export async function buildSeasonDossier(
             gameId: true,
             mediaAsset: { select: { filePath: true } },
           },
-          orderBy: [{ eventDate: 'asc' }, { displayOrder: 'asc' }],
+          orderBy: [{ eventDate: 'asc' }, { displayOrder: 'asc' }, { id: 'asc' }],
         },
         sources: {
           select: {
@@ -147,8 +161,9 @@ export async function buildSeasonDossier(
             coverageTo: true,
             verifiedAt: true,
             noteHe: true,
+            createdAt: true,
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         },
       },
     }),
@@ -198,7 +213,7 @@ export async function buildSeasonDossier(
           select: { id: true, apiFootballId: true, nameEn: true, nameHe: true, logoUrl: true },
         },
       },
-      orderBy: { dateTime: 'asc' },
+      orderBy: [{ dateTime: 'asc' }, { id: 'asc' }],
     }),
     prisma.standing.findMany({
       where: {
@@ -221,6 +236,7 @@ export async function buildSeasonDossier(
         competitionId: true,
         competition: { select: { id: true, apiFootballId: true, nameHe: true } },
       },
+      orderBy: [{ competitionId: 'asc' }, { id: 'asc' }],
     }),
     prisma.player.findMany({
       where: { teamId: team.id },
@@ -234,6 +250,9 @@ export async function buildSeasonDossier(
         playerStats: {
           where: { seasonId: season.id },
           select: {
+            id: true,
+            competitionId: true,
+            updatedAt: true,
             appearances: true,
             gamesPlayed: true,
             starts: true,
@@ -242,13 +261,19 @@ export async function buildSeasonDossier(
             assists: true,
             position: true,
           },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
         },
       },
-      orderBy: [{ jerseyNumber: 'asc' }, { nameHe: 'asc' }],
+      orderBy: [
+        { jerseyNumber: { sort: 'asc', nulls: 'last' } },
+        { nameHe: 'asc' },
+        { id: 'asc' },
+      ],
     }),
-    prisma.teamCoachAssignment.findFirst({
+    prisma.teamCoachAssignment.findMany({
       where: { teamId: team.id, seasonId: season.id },
       select: {
+        id: true,
         coachId: true,
         apiFootballCoachId: true,
         coachNameEn: true,
@@ -257,33 +282,50 @@ export async function buildSeasonDossier(
         endDate: true,
         coach: { select: { id: true, nameEn: true, nameHe: true, photoUrl: true } },
       },
-      orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [
+        { startDate: { sort: 'desc', nulls: 'last' } },
+        { id: 'asc' },
+      ],
     }),
     prisma.clubHonor.findMany({
       where: { year: season.year },
       select: { competitionHe: true, place: true },
-      orderBy: { displayOrder: 'asc' },
+      orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
     }),
   ]);
 
   const visibleDossier = dossier && (includeDrafts || dossier.isPublished) ? dossier : null;
-  const visibleMoments = (visibleDossier?.moments ?? []).filter(
-    (moment) => includeDrafts || moment.isPublished,
-  );
+  const visibleMoments = (visibleDossier?.moments ?? [])
+    .filter((moment) => includeDrafts || moment.isPublished)
+    .sort(
+      (left, right) =>
+        compareDates(left.eventDate, right.eventDate) ||
+        left.displayOrder - right.displayOrder ||
+        compareText(left.id, right.id),
+    );
   const visibleMomentIds = new Set(visibleMoments.map((moment) => moment.id));
-  const visibleSources = (visibleDossier?.sources ?? []).filter(
-    (source) => source.momentId === null || visibleMomentIds.has(source.momentId),
-  );
-  const dossierSources = visibleSources.filter((source) => source.momentId === null).map(mapSource);
-  const metricSources = dossierSources.filter(
+  const visibleSources = (visibleDossier?.sources ?? [])
+    .filter((source) => source.momentId === null || visibleMomentIds.has(source.momentId))
+    .sort(
+      (left, right) =>
+        compareDates(left.createdAt, right.createdAt) || compareText(left.id, right.id),
+    );
+  const dossierSourceRows = visibleSources.filter((source) => source.momentId === null);
+  const dossierSources = dossierSourceRows.map(mapSource);
+  const metricSources = dossierSourceRows.filter(
     (source) => source.scope === 'METRICS' || source.scope === 'BOTH',
   );
 
-  const officialGames = rawGames.filter(
-    (game) =>
-      game.status !== 'CANCELLED' &&
-      competitionBucket(game.competition as SeasonDossierGameInput['competition']) !== null,
-  );
+  const officialGames = rawGames
+    .filter(
+      (game) =>
+        game.status !== 'CANCELLED' &&
+        competitionBucket(game.competition as SeasonDossierGameInput['competition']) !== null,
+    )
+    .sort(
+      (left, right) =>
+        compareDates(left.dateTime, right.dateTime) || compareText(left.id, right.id),
+    );
   const evidenceGames = new Map<string, SeasonDossierEvidenceGame>();
   for (const game of officialGames) {
     const isHome = game.homeTeamId === team.id;
@@ -314,6 +356,7 @@ export async function buildSeasonDossier(
     { position: standing?.position ?? null, competitionId: standing?.competitionId ?? null },
     metricSources,
     asOf,
+    { from: season.startDate, to: season.endDate },
   );
   const leaguePositionCoverage = metrics[3].coverage as SeasonDossierCoverage;
 
@@ -343,15 +386,68 @@ export async function buildSeasonDossier(
     gameGroups.set(groupKey, group);
   }
 
+  const effectiveStats = (stats: typeof players[number]['playerStats']) => {
+    const aggregateRows = stats
+      .filter((stat) => stat.competitionId === null)
+      .sort(
+        (left, right) =>
+          compareNullableDatesDesc(left.updatedAt, right.updatedAt) || compareText(left.id, right.id),
+      );
+    return aggregateRows.length ? [aggregateRows[0]] : stats.filter((stat) => stat.competitionId !== null);
+  };
   const sumStats = (
-    stats: typeof players[number]['playerStats'],
+    stats: ReturnType<typeof effectiveStats>,
     field: 'starts' | 'minutesPlayed' | 'goals' | 'assists',
   ) => (stats.length ? stats.reduce((total, row) => total + row[field], 0) : null);
+
+  const squad = [...players]
+    .sort((left, right) => {
+      if (left.jerseyNumber === null) return right.jerseyNumber === null ? compareText(left.id, right.id) : 1;
+      if (right.jerseyNumber === null) return -1;
+      return (
+        left.jerseyNumber - right.jerseyNumber ||
+        compareText(left.nameHe, right.nameHe) ||
+        compareText(left.id, right.id)
+      );
+    })
+    .map((player) => {
+      const stats = effectiveStats(player.playerStats);
+      return {
+        playerId: player.id,
+        nameHe: player.nameHe,
+        nameEn: player.nameEn,
+        photoUrl: player.photoUrl,
+        position: player.position ?? stats[0]?.position ?? null,
+        jerseyNumber: player.jerseyNumber,
+        appearances: stats.length
+          ? stats.reduce((total, stat) => total + (stat.appearances ?? stat.gamesPlayed), 0)
+          : null,
+        starts: sumStats(stats, 'starts'),
+        minutes: sumStats(stats, 'minutesPlayed'),
+        goals: sumStats(stats, 'goals'),
+        assists: sumStats(stats, 'assists'),
+      };
+    });
+
+  const coachAssignment = [...coachAssignments].sort(
+    (left, right) =>
+      compareNullableDatesDesc(left.startDate, right.startDate) || compareText(left.id, right.id),
+  )[0] ?? null;
+
+  const games = [...gameGroups.values()].sort((left, right) => {
+    const leftDate = left.games[0]?.dateTime ?? '';
+    const rightDate = right.games[0]?.dateTime ?? '';
+    return (
+      compareText(leftDate, rightDate) ||
+      compareText(left.competitionId, right.competitionId) ||
+      compareText(left.labelHe, right.labelHe)
+    );
+  });
 
   return {
     season: { id: season.id, year: season.year, name: season.name },
     team: teamSummary(team),
-    status: season.year === 2026 ? 'CURRENT' : 'FINAL',
+    status: asOf.getTime() <= season.endDate.getTime() ? 'CURRENT' : 'FINAL',
     asOf: asOf.toISOString(),
     editorial: visibleDossier
       ? {
@@ -374,24 +470,7 @@ export async function buildSeasonDossier(
         .filter((source) => source.momentId === moment.id)
         .map(mapSource),
     })),
-    squad: players.map((player) => ({
-      playerId: player.id,
-      nameHe: player.nameHe,
-      nameEn: player.nameEn,
-      photoUrl: player.photoUrl,
-      position: player.position ?? player.playerStats[0]?.position ?? null,
-      jerseyNumber: player.jerseyNumber,
-      appearances: player.playerStats.length
-        ? player.playerStats.reduce(
-            (total, stat) => total + (stat.appearances ?? stat.gamesPlayed),
-            0,
-          )
-        : null,
-      starts: sumStats(player.playerStats, 'starts'),
-      minutes: sumStats(player.playerStats, 'minutesPlayed'),
-      goals: sumStats(player.playerStats, 'goals'),
-      assists: sumStats(player.playerStats, 'assists'),
-    })),
+    squad,
     coach: coachAssignment
       ? {
           id: coachAssignment.coach?.id ?? coachAssignment.coachId ?? null,
@@ -426,6 +505,6 @@ export async function buildSeasonDossier(
       : null,
     honors: honorRows,
     competitions: [...competitionsById.values()],
-    games: [...gameGroups.values()],
+    games,
   };
 }
