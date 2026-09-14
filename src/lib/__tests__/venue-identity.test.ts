@@ -1,4 +1,5 @@
 import { canonicalizeVenueIdentity, resolveCanonicalVenueId } from '@/lib/venue-identity';
+import venueCatalog from '@/data/israeli-venue-catalog.json';
 
 describe('Turner venue identity', () => {
   test.each([
@@ -24,6 +25,14 @@ describe('Turner venue identity', () => {
 
   test('does not merge the unrelated Turners Cross stadium in Cork', () => {
     expect(canonicalizeVenueIdentity({ name: "Turner's Cross", city: 'Cork', apiFootballId: 863 })).toBeNull();
+  });
+
+  test('has a licensed Wikimedia Commons image', () => {
+    expect(venueCatalog.venueImages['cmoycq3bj000iapure270zz7e']).toMatchObject({
+      license: 'CC BY-SA 4.0',
+      credit: 'The devious diesel',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    });
   });
 
   test.each([
