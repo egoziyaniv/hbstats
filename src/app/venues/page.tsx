@@ -3,6 +3,7 @@ import { getDisplayMode } from '@/lib/display-mode';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+const PAGE_SIZE = 60;
 
 function imageAttribution(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -18,7 +19,7 @@ function imageAttribution(value: unknown) {
 export default async function VenuesPage({
   searchParams: searchParamsPromise,
 }: {
-  searchParams?: Promise<{ q?: string; city?: string; season?: string; competition?: string; view?: string }>;
+  searchParams?: Promise<{ q?: string; city?: string; season?: string; competition?: string; view?: string; page?: string }>;
 }) {
   const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
@@ -26,6 +27,7 @@ export default async function VenuesPage({
   const selectedCity = searchParams?.city || 'all';
   const selectedSeasonId = searchParams?.season || 'all';
   const selectedCompetitionId = searchParams?.competition || 'all';
+  const requestedPage = Math.max(1, Number.parseInt(searchParams?.page || '1', 10) || 1);
 
   // Fetch filter options
   const [citiesRaw, seasons, competitions] = await Promise.all([
@@ -84,8 +86,31 @@ export default async function VenuesPage({
     venueWhere.id = { in: venueIds };
   }
 
-  const venues = await prisma.venue.findMany({
+  const venueHeaders = await prisma.venue.findMany({
     where: venueWhere,
+    select: {
+      id: true,
+      nameHe: true,
+      nameEn: true,
+      countryHe: true,
+      countryEn: true,
+      _count: { select: { teams: true, games: true } },
+    },
+  });
+  venueHeaders.sort((a, b) => {
+    const aIsraeli = a.countryHe === 'ישראל' || a.countryEn?.toLowerCase() === 'israel';
+    const bIsraeli = b.countryHe === 'ישראל' || b.countryEn?.toLowerCase() === 'israel';
+    if (aIsraeli && !bIsraeli) return -1;
+    if (!aIsraeli && bIsraeli) return 1;
+    return (a.nameHe || a.nameEn).localeCompare(b.nameHe || b.nameEn, 'he');
+  });
+  const totalPages = Math.max(1, Math.ceil(venueHeaders.length / PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pageIds = venueHeaders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((venue) => venue.id);
+  const pageOrder = new Map(pageIds.map((id, index) => [id, index]));
+
+  const venues = await prisma.venue.findMany({
+    where: { id: { in: pageIds } },
     include: {
       teams: {
         select: {
@@ -109,21 +134,14 @@ export default async function VenuesPage({
         orderBy: [{ dateTime: 'desc' }],
       },
     },
-    orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }],
   });
+  venues.sort((a, b) => (pageOrder.get(a.id) ?? 0) - (pageOrder.get(b.id) ?? 0));
 
   const now = new Date();
 
-  // Determine Israeli venue IDs (venues used in Israeli competitions)
-  const israeliVenueIdSet = new Set<string>();
-  for (const venue of venues) {
-    for (const game of venue.games) {
-      if (game.competition?.countryEn === 'Israel' || game.competition?.countryHe === 'ישראל') {
-        israeliVenueIdSet.add(venue.id);
-        break;
-      }
-    }
-  }
+  const israeliVenueIdSet = new Set(venueHeaders
+    .filter((venue) => venue.countryHe === 'ישראל' || venue.countryEn?.toLowerCase() === 'israel')
+    .map((venue) => venue.id));
 
   const venueCards = venues.map((venue) => {
     // Deduplicate home teams: group seasons per team name
@@ -163,12 +181,16 @@ export default async function VenuesPage({
     };
   });
 
-  // Sort: Israeli venues first, then alphabetically
-  venueCards.sort((a, b) => {
-    if (a.isIsraeli && !b.isIsraeli) return -1;
-    if (!a.isIsraeli && b.isIsraeli) return 1;
-    return (a.nameHe || a.nameEn).localeCompare(b.nameHe || b.nameEn, 'he');
-  });
+  const pageHref = (page: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (selectedCity !== 'all') params.set('city', selectedCity);
+    if (selectedSeasonId !== 'all') params.set('season', selectedSeasonId);
+    if (selectedCompetitionId !== 'all') params.set('competition', selectedCompetitionId);
+    params.set('view', displayMode);
+    params.set('page', String(page));
+    return `/venues?${params.toString()}`;
+  };
 
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
@@ -230,9 +252,9 @@ export default async function VenuesPage({
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <SummaryBox label="אצטדיונים" value={String(venueCards.length)} />
-          <SummaryBox label="קבוצות בית" value={String(venueCards.reduce((sum, v) => sum + v.homeTeams.length, 0))} />
-          <SummaryBox label="משחקים שמורים" value={String(venueCards.reduce((sum, v) => sum + v.games.length, 0))} />
+          <SummaryBox label="אצטדיונים" value={String(venueHeaders.length)} />
+          <SummaryBox label="שיוכי קבוצות" value={String(venueHeaders.reduce((sum, venue) => sum + venue._count.teams, 0))} />
+          <SummaryBox label="משחקים שמורים" value={String(venueHeaders.reduce((sum, venue) => sum + venue._count.games, 0))} />
         </section>
 
         <section className="grid gap-6 xl:grid-cols-2">
@@ -338,6 +360,14 @@ export default async function VenuesPage({
             </div>
           ) : null}
         </section>
+
+        {totalPages > 1 ? (
+          <nav aria-label="עמודי אצטדיונים" className="flex items-center justify-center gap-3">
+            {currentPage > 1 ? <Link href={pageHref(currentPage - 1)} className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-700 hover:bg-stone-50">העמוד הקודם</Link> : null}
+            <span className="text-sm font-semibold text-stone-500">עמוד {currentPage} מתוך {totalPages}</span>
+            {currentPage < totalPages ? <Link href={pageHref(currentPage + 1)} className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-700 hover:bg-stone-50">העמוד הבא</Link> : null}
+          </nav>
+        ) : null}
       </div>
     </div>
   );
