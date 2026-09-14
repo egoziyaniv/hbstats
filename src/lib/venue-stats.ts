@@ -15,7 +15,16 @@ export async function buildVenueStats(venueId: string): Promise<VenueStatsPayloa
   });
   if (!venue) return null;
 
-  const bsTeams = await prisma.team.findMany({ where: { apiFootballId: BS_AF }, select: { id: true } });
+  const bsTeams = await prisma.team.findMany({
+    where: {
+      OR: [
+        { apiFootballId: BS_AF },
+        { nameHe: { in: ['הפועל באר שבע', 'הפועל ב״ש'] } },
+        { nameEn: { equals: 'Hapoel Beer Sheva', mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true },
+  });
   const bsIds = new Set(bsTeams.map((t) => t.id));
 
   const games = await prisma.game.findMany({
