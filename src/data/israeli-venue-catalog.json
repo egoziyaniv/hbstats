@@ -1,0 +1,1088 @@
+{
+  "canonicalVenues": [
+    {
+      "id": "cmoycq3cj000uapur20qg6i0y",
+      "apiFootballId": 3403,
+      "nameEn": "Acre Municipal Stadium",
+      "nameHe": "האצטדיון העירוני עכו",
+      "cityEn": "Accre",
+      "cityHe": "עכו",
+      "aliasIds": [
+        "cmq8urg1u5a0hfhiahn8sy0yz",
+        "cmoycq3ah000aapur7vurj7rj"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Acre Municipal Stadium",
+        "Acre Municipal Stadium ('Akko (Accre))",
+        "האצטדיון העירוני עכו"
+      ],
+      "cityAliases": [
+        "'Akko (Accre)",
+        "Accre"
+      ]
+    },
+    {
+      "id": "cmoycq3bt000mapurbkiamphm",
+      "apiFootballId": 3404,
+      "nameEn": "Afula Illit Stadium",
+      "nameHe": "האצטדיון העירוני עפולה עילית",
+      "cityEn": "Afula",
+      "cityHe": "עפולה",
+      "aliasIds": [
+        "cmoycq3cw000zapurf18edkv8"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Afula Illit Stadium",
+        "Afula Illit Stadium (Afula)",
+        "האצטדיון העירוני עפולה עילית"
+      ],
+      "cityAliases": [
+        "Afula"
+      ]
+    },
+    {
+      "id": "cmoycq3fd003uapurrjvv756n",
+      "apiFootballId": 4552,
+      "nameEn": "Azor Stadium",
+      "nameHe": "אצטדיון אזור",
+      "cityEn": "Azor",
+      "cityHe": "אזור",
+      "aliasIds": [
+        "cmoycq3e8001vapur95phw1yn"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Azor Stadium",
+        "Azor Stadium (Azor)",
+        "אצטדיון אזור"
+      ],
+      "cityAliases": [
+        "Azor"
+      ]
+    },
+    {
+      "id": "cmoycq3f5003dapur2fbdxx01",
+      "apiFootballId": 4573,
+      "nameEn": "Baqa al-Gharbiyye Stadium",
+      "nameHe": "האצטדיון העירוני באקה אל-גרבייה",
+      "cityEn": "Baqa al-Gharbiyye",
+      "cityHe": "באקה אל-גרבייה",
+      "aliasIds": [
+        "cmoycq3ea001yapurfvvvc1i7"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Baqa al-Gharbiyye Stadium",
+        "Baqa al-Gharbiyye Stadium (Baqa al-Gharbiyye)",
+        "האצטדיון העירוני באקה אל-גרבייה"
+      ],
+      "cityAliases": [
+        "Baqa al-Gharbiyye"
+      ]
+    },
+    {
+      "id": "cmoycq3b4000fapure14xc2zm",
+      "apiFootballId": 10592,
+      "nameEn": "Bloomfield Stadium",
+      "nameHe": "אצטדיון בלומפילד",
+      "cityEn": "Tel-Aviv-Yāfā (Tel-Aviv)",
+      "cityHe": "תל אביב",
+      "aliasIds": [
+        "cmoycq3c2000papurvov6heir"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Bloomfield",
+        "Bloomfield Stadium",
+        "אצטדיון בלומפילד"
+      ],
+      "cityAliases": [
+        "Tel Aviv",
+        "Tel-Aviv-Yāfā (Tel-Aviv)"
+      ]
+    },
+    {
+      "id": "cmoycq3es002oapurqfqz3318",
+      "apiFootballId": 4682,
+      "nameEn": "Buina Nujeidat Stadium",
+      "nameHe": "אצטדיון בועיינה נוג׳ידאת",
+      "cityEn": "Bu'eine Nujeidat",
+      "cityHe": "בועיינה נוג׳ידאת",
+      "aliasIds": [
+        "cmoycq3e2001oapurji677gyv"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Buina Nujeidat Stadium",
+        "Buina Nujeidat Stadium (Bu'eine Nujeidat)",
+        "אצטדיון בועיינה נוג׳ידאת"
+      ],
+      "cityAliases": [
+        "Bu'eine Nujeidat"
+      ]
+    },
+    {
+      "id": "cmoycq3ev002uapurw18x90gu",
+      "apiFootballId": 4549,
+      "nameEn": "Dimona Municipal Stadium",
+      "nameHe": "האצטדיון העירוני דימונה",
+      "cityEn": "Dimona",
+      "cityHe": "דימונה",
+      "aliasIds": [
+        "cmoycq3dz001lapur5yrsdulg"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Dimona Municipal Stadium",
+        "Dimona Municipal Stadium (Dimona)",
+        "האצטדיון העירוני דימונה"
+      ],
+      "cityAliases": [
+        "Dimona"
+      ]
+    },
+    {
+      "id": "cmoycq3c3000qapursc3var11",
+      "apiFootballId": 3402,
+      "nameEn": "Doha Stadium",
+      "nameHe": "אצטדיון דוחה",
+      "cityEn": "Sakhnin",
+      "cityHe": "סכנין",
+      "aliasIds": [
+        "cmoycq3ac0007apur86q71vw6"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Doha Stadium",
+        "Doha Stadium (Sakhnin)",
+        "אצטדיון דוחה"
+      ],
+      "cityAliases": [
+        "Sakhnin"
+      ]
+    },
+    {
+      "id": "cmoycq3cb000sapurx7i2pkpn",
+      "apiFootballId": 3407,
+      "nameEn": "Green Stadium",
+      "nameHe": "האצטדיון הירוק",
+      "cityEn": "Nazareth Illit",
+      "cityHe": "נוף הגליל",
+      "aliasIds": [
+        "cmoyvmzbk02mumgzheix826d4",
+        "cmoycq3cy0010apurzqp017kv"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Green Stadium",
+        "Green Stadium (Nazareth Illit)",
+        "האצטדיון הירוק"
+      ],
+      "cityAliases": [
+        "Nazareth Illit",
+        "Nof HaGalil"
+      ]
+    },
+    {
+      "id": "cmoycq3ft004oapurjsya35gl",
+      "apiFootballId": 4551,
+      "nameEn": "Gush Yael Stadium",
+      "nameHe": "אצטדיון גוש יעל",
+      "cityEn": "Yael",
+      "cityHe": "גוש יעל",
+      "aliasIds": [
+        "cmoycq3e4001qapurxw2lw37p"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Gush Yael Stadium",
+        "Gush Yael Stadium (Yael)",
+        "אצטדיון גוש יעל"
+      ],
+      "cityAliases": [
+        "Yael"
+      ]
+    },
+    {
+      "id": "cmoycq3aw000eapurqv6tt595",
+      "apiFootballId": 3408,
+      "nameEn": "HaMoshava Stadium",
+      "nameHe": "אצטדיון המושבה",
+      "cityEn": "Petach-Tikva",
+      "cityHe": "פתח תקווה",
+      "aliasIds": [
+        "cmoyvmzco02n5mgzhjjsn0ste",
+        "cmoycq39h0000apurasom5fkc"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "HaMoshava Stadium",
+        "HaMoshava Stadium (Pétaḥ-Tiqva (Petach-Tikva))",
+        "אצטדיון המושבה"
+      ],
+      "cityAliases": [
+        "Petach-Tikva",
+        "Petah Tikva"
+      ]
+    },
+    {
+      "id": "cmoycq3de001aapur7q9ogfu0",
+      "apiFootballId": 3410,
+      "nameEn": "Haberfeld Stadium",
+      "nameHe": "אצטדיון הברפלד",
+      "cityEn": "Rishon LeZion",
+      "cityHe": "ראשון לציון",
+      "aliasIds": [
+        "cmq8urg015a0dfhianqlonini",
+        "cmoycq3cs000xapuru6gcuwjc"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Haberfeld Stadium",
+        "Haberfeld Stadium (Rishon le-Zion (Rishon LeZion))",
+        "אצטדיון הברפלד"
+      ],
+      "cityAliases": [
+        "Rishon LeZion",
+        "Rishon le-Zion (Rishon LeZion)"
+      ]
+    },
+    {
+      "id": "cmoycq3eu002rapur4k5bduo1",
+      "apiFootballId": 4570,
+      "nameEn": "Holon Municipal Stadium",
+      "nameHe": "האצטדיון העירוני חולון",
+      "cityEn": "Holon",
+      "cityHe": "חולון",
+      "aliasIds": [
+        "cmoycq3ef0025apur9dlwdufz"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Holon Municipal Stadium",
+        "Holon Municipal Stadium (Holon)",
+        "האצטדיון העירוני חולון"
+      ],
+      "cityAliases": [
+        "Holon"
+      ]
+    },
+    {
+      "id": "cmoycq3dg001bapur1vxwphr9",
+      "apiFootballId": 3413,
+      "nameEn": "Ilut Stadium",
+      "nameHe": "אצטדיון עילוט",
+      "cityEn": "Ilut",
+      "cityHe": "עילוט",
+      "aliasIds": [
+        "cmoycq3d30012apurj2bfp1rr"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Ilut Stadium",
+        "Ilut Stadium (Ilut)",
+        "אצטדיון עילוט"
+      ],
+      "cityAliases": [
+        "Ilut"
+      ]
+    },
+    {
+      "id": "cmoycq3fk0046apurg81n8icf",
+      "apiFootballId": null,
+      "nameEn": "Jisr al-Zarqa Stadium",
+      "nameHe": "אצטדיון ג׳סר א-זרקא",
+      "cityEn": "Jisr az-Zarqa",
+      "cityHe": "ג׳סר א-זרקא",
+      "aliasIds": [
+        "cmoycq3ed0022apurwmko7kzk"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Jisr al-Zarqa Stadium",
+        "Jisr al-Zarqa Stadium (Jisr az-Zarqa)",
+        "אצטדיון ג׳סר א-זרקא"
+      ],
+      "cityAliases": [
+        "Jisr az-Zarqa"
+      ]
+    },
+    {
+      "id": "cmoycq3f5003eapurgqlpynld",
+      "apiFootballId": 4559,
+      "nameEn": "Kaukab Stadium",
+      "nameHe": "אצטדיון כאוכב",
+      "cityEn": "Kaukab Abu al-Hija",
+      "cityHe": "כאוכב אבו אל-היג׳א",
+      "aliasIds": [
+        "cmoycq3ek002bapurbzjht68i"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Kaukab Stadium",
+        "Kaukab Stadium (Kaukab Abu al-Hija)",
+        "אצטדיון כאוכב"
+      ],
+      "cityAliases": [
+        "Kaukab Abu al-Hija"
+      ]
+    },
+    {
+      "id": "cmoycq3ew002vapurifnhboam",
+      "apiFootballId": 4560,
+      "nameEn": "Kfar Kana Stadium",
+      "nameHe": "אצטדיון כפר כנא",
+      "cityEn": "Kfar Kana",
+      "cityHe": "כפר כנא",
+      "aliasIds": [
+        "cmoycq3ei0029apurakpjvbc8"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Kfar Kana Stadium",
+        "Kfar Kana Stadium (Kfar Kana)",
+        "אצטדיון כפר כנא"
+      ],
+      "cityAliases": [
+        "Kfar Kana"
+      ]
+    },
+    {
+      "id": "cmoycq3bk000japurv6vs9nau",
+      "apiFootballId": 3420,
+      "nameEn": "Kiryat-Shmona Municipal Stadium",
+      "nameHe": "האצטדיון העירוני קריית שמונה",
+      "cityEn": "Kiryat-Shmona",
+      "cityHe": "קריית שמונה",
+      "aliasIds": [
+        "cmoycq39x0002apurmrgt12oc"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Kiryat-Shmona Municipal Stadium",
+        "Kiryat-Shmona Municipal Stadium (Kiryat-Shmona)",
+        "האצטדיון העירוני קריית שמונה"
+      ],
+      "cityAliases": [
+        "Kiryat-Shmona"
+      ]
+    },
+    {
+      "id": "cmoycq3bw000napurhrh2vl7b",
+      "apiFootballId": 4540,
+      "nameEn": "Levita Stadium",
+      "nameHe": "אצטדיון לויטה",
+      "cityEn": "Kfar-Saba",
+      "cityHe": "כפר סבא",
+      "aliasIds": [
+        "cmoycq3af0009apurhdzcno62"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Levita Stadium",
+        "Levita Stadium (Kfar-Saba)",
+        "אצטדיון לויטה"
+      ],
+      "cityAliases": [
+        "Kfar-Saba"
+      ]
+    },
+    {
+      "id": "cmoycq3bm000kapur8i33nrc2",
+      "apiFootballId": 3406,
+      "nameEn": "Lod Municipal Stadium",
+      "nameHe": "אצטדיון בני רגב",
+      "cityEn": "Bnei-Lod",
+      "cityHe": "לוד",
+      "aliasIds": [
+        "cmoycq3d50013apur0zps0lbl"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Lod Municipal Stadium",
+        "Lod Municipal Stadium (Bnei-Lod)",
+        "אצטדיון בני רגב"
+      ],
+      "cityAliases": [
+        "Bnei-Lod"
+      ]
+    },
+    {
+      "id": "cmoycq3fa003papurjnn36c4f",
+      "apiFootballId": 4589,
+      "nameEn": "Maccabi Field",
+      "nameHe": "מגרש מכבי כפר קאסם",
+      "cityEn": "Kafr Qasim",
+      "cityHe": "כפר קאסם",
+      "aliasIds": [
+        "cmoycq3e7001uapurww6fj97g"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Maccabi Field",
+        "Maccabi Field (Kafr Qasim)",
+        "מגרש מכבי כפר קאסם"
+      ],
+      "cityAliases": [
+        "Kafr Qasim"
+      ]
+    },
+    {
+      "id": "cmoycq3g20055apurm3beel6g",
+      "apiFootballId": 21200,
+      "nameEn": "Mikha Reisser Field 4",
+      "nameHe": "מגרש מיכה רייסר 4",
+      "cityEn": "Be'er Sheva",
+      "cityHe": "באר שבע",
+      "aliasIds": [
+        "cmoycq3fy004zapurh8284eli"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Mikha Reisser Field 4",
+        "מגרש מיכה רייסר 4"
+      ],
+      "cityAliases": [
+        "Be'er Sheva",
+        "Beer Sheva"
+      ]
+    },
+    {
+      "id": "cmoycq3f4003bapurht6xeun1",
+      "apiFootballId": 4576,
+      "nameEn": "Modi'in Municipal Stadium",
+      "nameHe": "האצטדיון העירוני מודיעין",
+      "cityEn": "Modi&apos;in Makabim-Re&apos;ut",
+      "cityHe": "מודיעין-מכבים-רעות",
+      "aliasIds": [
+        "cmoycq3dx001japurub0ybxb8"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Modi'in Municipal Stadium",
+        "Modi'in Municipal Stadium (Modi'in Makabim-Re'ut)",
+        "האצטדיון העירוני מודיעין"
+      ],
+      "cityAliases": [
+        "Modi&apos;in Makabim-Re&apos;ut"
+      ]
+    },
+    {
+      "id": "cmoycq3f9003napurb5f0qyme",
+      "apiFootballId": 4563,
+      "nameEn": "Moshava Training Field",
+      "nameHe": "מגרש האימונים המושבה",
+      "cityEn": "Petach-Tikva",
+      "cityHe": "פתח תקווה",
+      "aliasIds": [
+        "cmoycq3eg0026apurq72x9ny3"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Moshava Training Field",
+        "Moshava Training Field (Pétaḥ-Tiqva (Petach-Tikva))",
+        "מגרש האימונים המושבה"
+      ],
+      "cityAliases": [
+        "Petach-Tikva"
+      ]
+    },
+    {
+      "id": "cmoycq3ep002kapurz3djjwsd",
+      "apiFootballId": 4583,
+      "nameEn": "Municipal Stadium",
+      "nameHe": "האצטדיון העירוני מעלות-תרשיחא",
+      "cityEn": "Ma'alot-Tarshiha",
+      "cityHe": "מעלות-תרשיחא",
+      "aliasIds": [
+        "cmoycq3e6001tapur23oovqji"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Municipal Stadium",
+        "Municipal Stadium (Ma'alot-Tarshiha)",
+        "האצטדיון העירוני מעלות-תרשיחא"
+      ],
+      "cityAliases": [
+        "Ma'alot-Tarshiha"
+      ]
+    },
+    {
+      "id": "cmoycq3f00033apure8xe8n2o",
+      "apiFootballId": 4564,
+      "nameEn": "Municipal Stadium",
+      "nameHe": "האצטדיון העירוני מגדל העמק",
+      "cityEn": "Migdal HaEmek",
+      "cityHe": "מגדל העמק",
+      "aliasIds": [
+        "cmoycq3ej002aapuro97pgp90"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Municipal Stadium",
+        "Municipal Stadium (Migdal HaEmek)",
+        "האצטדיון העירוני מגדל העמק"
+      ],
+      "cityAliases": [
+        "Migdal HaEmek"
+      ]
+    },
+    {
+      "id": "cmoycq3g6005eapurrksqtyk5",
+      "apiFootballId": 4566,
+      "nameEn": "Municipal Stadium",
+      "nameHe": "האצטדיון העירוני רמות מנשה",
+      "cityEn": "Ramot Menashe",
+      "cityHe": "רמות מנשה",
+      "aliasIds": [
+        "cmoycq3e9001xapur0fyhec2z"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Municipal Stadium",
+        "Municipal Stadium (Ramot Menashe)",
+        "האצטדיון העירוני רמות מנשה"
+      ],
+      "cityAliases": [
+        "Ramot Menashe"
+      ]
+    },
+    {
+      "id": "cmoycq3ey002yapur6wsi0kcx",
+      "apiFootballId": 3417,
+      "nameEn": "Municipal Stadium Herzliya",
+      "nameHe": "האצטדיון העירוני הרצליה",
+      "cityEn": "Herzliya",
+      "cityHe": "הרצליה",
+      "aliasIds": [
+        "cmoycq3d60014apurgvsi03um"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Municipal Stadium Herzliya",
+        "Municipal Stadium Herzliya (Herzliya)",
+        "האצטדיון העירוני הרצליה"
+      ],
+      "cityAliases": [
+        "Herzliya"
+      ]
+    },
+    {
+      "id": "cmoycq3ez0030apurmhksb44o",
+      "apiFootballId": 3412,
+      "nameEn": "Municipal Stadium Kafr Qasim",
+      "nameHe": "האצטדיון העירוני כפר קאסם",
+      "cityEn": "Kafr Qasim",
+      "cityHe": "כפר קאסם",
+      "aliasIds": [
+        "cmoycq3el002dapurjfez844s"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Municipal Stadium Kafr Qasim",
+        "Municipal Stadium Kafr Qasim (Kafr Qasim)",
+        "האצטדיון העירוני כפר קאסם"
+      ],
+      "cityAliases": [
+        "Kafr Qasim"
+      ]
+    },
+    {
+      "id": "cmoycq3bp000lapuryeijzojy",
+      "apiFootballId": 2610,
+      "nameEn": "National Stadium Ramat Gan",
+      "nameHe": "האצטדיון הלאומי רמת גן",
+      "cityEn": "Ramat Gan",
+      "cityHe": "רמת גן",
+      "aliasIds": [
+        "cmoycq3aj000bapurna93vbet"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "National Stadium Ramat Gan",
+        "National Stadium Ramat Gan (Ramat Gan)",
+        "האצטדיון הלאומי רמת גן"
+      ],
+      "cityAliases": [
+        "Ramat Gan"
+      ]
+    },
+    {
+      "id": "cmq9883he5ehifhiahhv9tajv",
+      "apiFootballId": 3415,
+      "nameEn": "Nes Tziona Stadium",
+      "nameHe": "אצטדיון נס ציונה",
+      "cityEn": "Ness Ziona",
+      "cityHe": "נס ציונה",
+      "aliasIds": [
+        "cmoycq3g7005gapur0jnov3hj",
+        "cmq8urfz95a0bfhiaksihe3zx",
+        "cmoycq3cf000tapura1iw2ze9",
+        "cmoycq3cu000yapur0742x1k1"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Nes Tziona Stadium",
+        "Nes Tziona Stadium (Nes Tziyona (Ness Ziona))",
+        "Ness Ziona Stadium",
+        "אצטדיון נס ציונה"
+      ],
+      "cityAliases": [
+        "Nes Tziyona (Ness Ziona)",
+        "Ness Ziona"
+      ]
+    },
+    {
+      "id": "cmoycq3ev002tapurtzp8m8a7",
+      "apiFootballId": 3416,
+      "nameEn": "Nesher Municipal Stadium",
+      "nameHe": "האצטדיון העירוני נשר",
+      "cityEn": "Nesher",
+      "cityHe": "נשר",
+      "aliasIds": [
+        "cmoycq3d80015apur0ytick3t",
+        "cmoycq3f20036apurpnx7tmk6",
+        "cmoycq3d90016apurff5xmoij"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Nesher Municipal Stadium",
+        "Nesher Municipal Stadium (Nesher)",
+        "Nesher Stadium",
+        "Nesher Stadium (Nesher)",
+        "האצטדיון העירוני נשר"
+      ],
+      "cityAliases": [
+        "Nesher"
+      ]
+    },
+    {
+      "id": "cmoycq3c5000rapur851cozvb",
+      "apiFootballId": 11941,
+      "nameEn": "Netanya Stadium",
+      "nameHe": "אצטדיון נתניה",
+      "cityEn": "Netanya",
+      "cityHe": "נתניה",
+      "aliasIds": [
+        "cmoycq3au000dapuri2outj3b",
+        "cmoycq3a80006apurcqlwd86z"
+      ],
+      "apiFootballAliases": [
+        869
+      ],
+      "nameAliases": [
+        "Netanya Stadium",
+        "Winner Stadium",
+        "Winner Stadium (Netanya)",
+        "אצטדיון נתניה"
+      ],
+      "cityAliases": [
+        "Netanya"
+      ]
+    },
+    {
+      "id": "cmoycq3fn004dapurh9qb32d1",
+      "apiFootballId": 4556,
+      "nameEn": "Neve Hadar Stadium",
+      "nameHe": "אצטדיון נווה הדר",
+      "cityEn": "Hod HaSharon",
+      "cityHe": "הוד השרון",
+      "aliasIds": [
+        "cmoycq3e0001mapur1vm7iqar"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Neve Hadar Stadium",
+        "Neve Hadar Stadium (Hod HaSharon)",
+        "אצטדיון נווה הדר"
+      ],
+      "cityAliases": [
+        "Hod HaSharon"
+      ]
+    },
+    {
+      "id": "cmoycq3fa003oapur8k2qoh1c",
+      "apiFootballId": null,
+      "nameEn": "New Tiberias Municipal Stadium",
+      "nameHe": "האצטדיון העירוני החדש טבריה",
+      "cityEn": "Tiberias",
+      "cityHe": "טבריה",
+      "aliasIds": [
+        "cmoycq3eh0027apury6j7l88t"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "New Tiberias Municipal Stadium",
+        "New Tiberias Municipal Stadium (Tiberias)",
+        "האצטדיון העירוני החדש טבריה"
+      ],
+      "cityAliases": [
+        "Tiberias"
+      ]
+    },
+    {
+      "id": "cmoycq3eq002lapur9qwvifp0",
+      "apiFootballId": 4543,
+      "nameEn": "Ramat Gan Artificial Pitch",
+      "nameHe": "המגרש הסינתטי רמת גן",
+      "cityEn": "Ramat Gan",
+      "cityHe": "רמת גן",
+      "aliasIds": [
+        "cmoycq3ec0021apur27qhmdy9"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Ramat Gan Artificial Pitch",
+        "Ramat Gan Artificial Pitch (Ramat Gan)",
+        "המגרש הסינתטי רמת גן"
+      ],
+      "cityAliases": [
+        "Ramat Gan"
+      ]
+    },
+    {
+      "id": "cmoycq3dj001dapur88v779j7",
+      "apiFootballId": 3401,
+      "nameEn": "Ramla Municipal Stadium",
+      "nameHe": "האצטדיון העירוני רמלה",
+      "cityEn": "Ramla",
+      "cityHe": "רמלה",
+      "aliasIds": [
+        "cmoycq3d00011apur5pan68hp"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Ramla Municipal Stadium",
+        "Ramla Municipal Stadium (Ramla)",
+        "האצטדיון העירוני רמלה"
+      ],
+      "cityAliases": [
+        "Ramla"
+      ]
+    },
+    {
+      "id": "cmoycq3f30038apurycmxde2y",
+      "apiFootballId": null,
+      "nameEn": "Sachnin Training Field",
+      "nameHe": "מגרש האימונים סכנין",
+      "cityEn": "Sakhnin",
+      "cityHe": "סכנין",
+      "aliasIds": [
+        "cmoycq3e1001napuryug8olt4"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Sachnin Training Field",
+        "Sachnin Training Field (Sakhnin)",
+        "מגרש האימונים סכנין"
+      ],
+      "cityAliases": [
+        "Sakhnin"
+      ]
+    },
+    {
+      "id": "cmoycq3al000capurnoomjigx",
+      "apiFootballId": 868,
+      "nameEn": "Sammy Ofer Stadium",
+      "nameHe": "אצטדיון סמי עופר",
+      "cityEn": "Haifa",
+      "cityHe": "חיפה",
+      "aliasIds": [
+        "cmoycq3a50005apur9q6fqks0"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Sammy Ofer Stadium",
+        "Sammy Ofer Stadium (Haifa)",
+        "אצטדיון סמי עופר"
+      ],
+      "cityAliases": [
+        "Haifa"
+      ]
+    },
+    {
+      "id": "cmoycq3f30039apurktxu6779",
+      "apiFootballId": 4580,
+      "nameEn": "Sderot Municipal Stadium",
+      "nameHe": "האצטדיון העירוני שדרות",
+      "cityEn": "Sderot",
+      "cityHe": "שדרות",
+      "aliasIds": [
+        "cmoycq3ef0024apurwyoxk03q"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Sderot Municipal Stadium",
+        "Sderot Municipal Stadium (Sderot)",
+        "האצטדיון העירוני שדרות"
+      ],
+      "cityAliases": [
+        "Sderot"
+      ]
+    },
+    {
+      "id": "cmoycq3dd0019apur1gwmkkv1",
+      "apiFootballId": 3405,
+      "nameEn": "Sela Stadium",
+      "nameHe": "אצטדיון סלה",
+      "cityEn": "Ashkelon",
+      "cityHe": "אשקלון",
+      "aliasIds": [
+        "cmoycq39v0001apur5g2gz6nt"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Sela Stadium",
+        "Sela Stadium (Ashkelon)",
+        "אצטדיון סלה"
+      ],
+      "cityAliases": [
+        "Ashkelon"
+      ]
+    },
+    {
+      "id": "cmoycq3f9003lapurqna35aff",
+      "apiFootballId": null,
+      "nameEn": "Sha'ab Stadium",
+      "nameHe": "אצטדיון שעב",
+      "cityEn": "Sha'ab",
+      "cityHe": "שעב",
+      "aliasIds": [
+        "cmoycq3ee0023apurj6tqzntz"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Sha'ab Stadium",
+        "Sha'ab Stadium (Sha'ab)",
+        "אצטדיון שעב"
+      ],
+      "cityAliases": [
+        "Sha'ab"
+      ]
+    },
+    {
+      "id": "cmoycq3dw001iapurkjzpb5fo",
+      "apiFootballId": 4561,
+      "nameEn": "Shkhunat Hatikva Stadium",
+      "nameHe": "אצטדיון שכונת התקווה",
+      "cityEn": "Tel Aviv",
+      "cityHe": "תל אביב",
+      "aliasIds": [
+        "cmoycq3eb001zapurbthvw9n3"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Shkhunat Hatikva Stadium",
+        "Shkhunat Hatikva Stadium (Tel Aviv)",
+        "אצטדיון שכונת התקווה"
+      ],
+      "cityAliases": [
+        "Tel Aviv"
+      ]
+    },
+    {
+      "id": "cmoycq3bb000gapurnxebjt5g",
+      "apiFootballId": 866,
+      "nameEn": "Teddi Malcha Stadium",
+      "nameHe": "אצטדיון טדי",
+      "cityEn": "Jerusalem",
+      "cityHe": "ירושלים",
+      "aliasIds": [
+        "cmoycq3a20004apur7hpwpxta",
+        "cmoycq3cm000vapurwlji8skv"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Teddi Malcha Stadium",
+        "Teddi Malcha Stadium (Jerusalem)",
+        "Teddy Stadium",
+        "אצטדיון טדי"
+      ],
+      "cityAliases": [
+        "Jerusalem"
+      ]
+    },
+    {
+      "id": "cmoycq3ex002xapurndwc8er0",
+      "apiFootballId": 4591,
+      "nameEn": "Tira Municipal Stadium",
+      "nameHe": "האצטדיון העירוני טירה",
+      "cityEn": "Tira",
+      "cityHe": "טירה",
+      "aliasIds": [
+        "cmoycq3ec0020apura9i45wtb"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Tira Municipal Stadium",
+        "Tira Municipal Stadium (Tira)",
+        "האצטדיון העירוני טירה"
+      ],
+      "cityAliases": [
+        "Tira"
+      ]
+    },
+    {
+      "id": "cmoycq3eu002sapur75vfv2pd",
+      "apiFootballId": 3411,
+      "nameEn": "Umm al-Fahm Municipal Stadium",
+      "nameHe": "האצטדיון העירוני אום אל-פחם",
+      "cityEn": "Umm al-Fahm",
+      "cityHe": "אום אל-פחם",
+      "aliasIds": [
+        "cmoycq3e5001rapuri7txw8ke"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Umm al-Fahm Municipal Stadium",
+        "Umm al-Fahm Municipal Stadium (Umm al-Fahm)",
+        "האצטדיון העירוני אום אל-פחם"
+      ],
+      "cityAliases": [
+        "Umm al-Fahm"
+      ]
+    },
+    {
+      "id": "cmoycq3bj000iapure270zz7e",
+      "apiFootballId": 867,
+      "nameEn": "Yaakov Turner Toto Stadium",
+      "nameHe": "אצטדיון טוטו טרנר",
+      "cityEn": "Beer Sheva",
+      "cityHe": "באר שבע",
+      "aliasIds": [
+        "cmoycq3a00003apuryts2re7e",
+        "cmoycq3bz000oapur26pffweg",
+        "cmq5he64z01hm5j5xvpa75p9j"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Toto Turner Stadium",
+        "Yaakov Turner Toto Stadium",
+        "Yaakov Turner Toto Stadium (Be’ér Shéva (Beer Sheva) )",
+        "אצטדיון טוטו טרנר",
+        "באר שבע אצטדיון טוטו ע\"ש טרנר"
+      ],
+      "cityAliases": [
+        "Be'er Sheva",
+        "Beer Sheva",
+        "Be’ér Shéva"
+      ]
+    },
+    {
+      "id": "cmoycq3db0018apurcqtyfha5",
+      "apiFootballId": 3409,
+      "nameEn": "Yankele Grundman Stadium",
+      "nameHe": "אצטדיון גרונדמן",
+      "cityEn": "Ramat-ha’Sharon",
+      "cityHe": "רמת השרון",
+      "aliasIds": [
+        "cmoycq3do001fapurmkiaudvu",
+        "cmoycq3cq000wapurbatgb83p"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Grundman Stadium",
+        "Yankele Grundman Stadium",
+        "Yankele Grundman Stadium (Ramat-ha’Sharon)",
+        "אצטדיון גרונדמן"
+      ],
+      "cityAliases": [
+        "Ramat-ha’Sharon"
+      ]
+    },
+    {
+      "id": "cmoycq3bg000hapurr7lk2r7i",
+      "apiFootballId": 3419,
+      "nameEn": "Yud-Alef Stadium",
+      "nameHe": "אצטדיון הי״א",
+      "cityEn": "Ashdod",
+      "cityHe": "אשדוד",
+      "aliasIds": [
+        "cmoycq3ae0008apurqzggqycv"
+      ],
+      "apiFootballAliases": [],
+      "nameAliases": [
+        "Yud-Alef Stadium",
+        "Yud-Alef Stadium (Ašdod (Ashdod))",
+        "אצטדיון הי״א"
+      ],
+      "cityAliases": [
+        "Ashdod"
+      ]
+    }
+  ],
+  "venueImages": {
+    "cmoycq3cj000uapur20qg6i0y": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Acre_Municipal_Stadium15.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Acre_Municipal_Stadium15.jpg",
+      "license": "Public domain",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+    },
+    "cmoycq3bt000mapurbkiamphm": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Afula_Municipal_Stadium_%281%29.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Afula_Municipal_Stadium_(1).jpg",
+      "license": "CC BY-SA 3.0",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "cmoycq3aw000eapurqv6tt595": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/6d/HaMoshava_Stadium%2C_June_2016_03.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:HaMoshava_Stadium,_June_2016_03.jpg",
+      "license": "CC BY-SA 4.0",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    "cmoycq3de001aapur7q9ogfu0": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Haberfeld-stadium-rishon-lezion-00001-september-2016.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haberfeld-stadium-rishon-lezion-00001-september-2016.jpg",
+      "license": "CC0",
+      "credit": "Rakoon",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    "cmoycq3bm000kapur8i33nrc2": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/%D7%90%D7%A6%D7%98%D7%93%D7%99%D7%95%D7%9F_%D7%9C%D7%95%D7%93_%D7%A2%D7%9C_%D7%A9%D7%9D_%D7%91%D7%A0%D7%99_%D7%A8%D7%92%D7%91_%28%D7%99%D7%95%D7%A0%D7%AA%D7%9F_%D7%92%D7%99%D7%A0%D7%96%D7%91%D7%95%D7%A8%D7%92%29_01.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:אצטדיון_לוד_על_שם_בני_רגב_(יונתן_גינזבורג)_01.jpg",
+      "license": "CC BY-SA 3.0",
+      "credit": "יונתן גינזבורג",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "cmoycq3bk000japurv6vs9nau": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/92/Kiryat_Shmona_Municipal_Stadium.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kiryat_Shmona_Municipal_Stadium.jpg",
+      "license": "Public domain",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+    },
+    "cmq9883he5ehifhiahhv9tajv": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b8/Ness_Ziona_Stadium_%2810%29.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ness_Ziona_Stadium_(10).jpg",
+      "license": "CC BY-SA 3.0",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "cmoycq3cb000sapurx7i2pkpn": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/82/Green_Stadium01.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Green_Stadium01.jpg",
+      "license": "Public domain",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+    },
+    "cmoycq3bb000gapurnxebjt5g": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Teddy-stadium-jerusalem-november-2016-0002.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Teddy-stadium-jerusalem-november-2016-0002.jpg",
+      "license": "CC0",
+      "credit": "Rakoon",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    "cmoycq3c5000rapur851cozvb": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Netanya-Stadium_05.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Netanya-Stadium_05.JPG",
+      "license": "CC BY-SA 3.0",
+      "credit": "Little Savage",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    }
+  }
+}

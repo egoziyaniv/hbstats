@@ -20,6 +20,9 @@ env.*
 
 # Local raw data archives (FootyStats / scraper dumps — too large for git)
 data/
+!src/data/
+!src/data/israeli-venue-catalog.json
+!src/data/israeli-venue-translations.json
 
 # Python
 .venv/

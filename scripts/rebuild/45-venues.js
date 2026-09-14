@@ -13,23 +13,38 @@
 
 'use strict';
 const { PrismaClient } = require('@prisma/client');
+const venueCatalog = require('../../src/data/israeli-venue-catalog.json');
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes('--apply');
-
-const TURNER_NAMES = new Set([
-  'yaakov turner toto stadium',
-  'yaakov turner toto stadium be er sheva beer sheva',
-  'toto turner stadium',
-]);
 
 function normalizeVenueName(value) {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[׳״'’`\"()]/g, ' ')
     .replace(/[^a-zA-Z0-9\u0590-\u05FF]+/g, ' ').trim().toLowerCase();
 }
 
+const catalogByApiId = new Map();
+const catalogByName = new Map();
+const catalogHebrew = new Map();
+for (const entry of venueCatalog.canonicalVenues) {
+  if (entry.apiFootballId != null) catalogByApiId.set(entry.apiFootballId, entry);
+  for (const aliasId of entry.apiFootballAliases) catalogByApiId.set(aliasId, entry);
+  for (const name of entry.nameAliases) {
+    const key = normalizeVenueName(name);
+    catalogByName.set(key, [...(catalogByName.get(key) || []), entry]);
+  }
+  catalogHebrew.set(entry.nameEn, entry.nameHe);
+}
+
 function canonicalVenue(venue) {
-  if (venue.apiVenueId !== 867 && !TURNER_NAMES.has(normalizeVenueName(venue.nameEn))) return venue;
-  return { ...venue, apiVenueId: 867, nameEn: 'Yaakov Turner Toto Stadium', cityEn: 'Beer Sheva' };
+  const apiMatch = venue.apiVenueId != null ? catalogByApiId.get(venue.apiVenueId) : null;
+  const nameMatches = catalogByName.get(normalizeVenueName(venue.nameEn)) || [];
+  const normalizedCity = venue.cityEn ? normalizeVenueName(venue.cityEn) : null;
+  const nameMatch = normalizedCity
+    ? nameMatches.find((entry) => entry.cityAliases.some((city) => normalizeVenueName(city) === normalizedCity))
+    : nameMatches.length === 1 ? nameMatches[0] : null;
+  const entry = apiMatch || nameMatch;
+  if (!entry) return venue;
+  return { ...venue, apiVenueId: entry.apiFootballId, nameEn: entry.nameEn, cityEn: entry.cityEn };
 }
 
 // Hebrew translations for common Israeli stadiums
@@ -57,6 +72,7 @@ const VENUE_HE = {
 };
 
 function venueHebrew(nameEn, cityEn) {
+  if (catalogHebrew.has(nameEn)) return catalogHebrew.get(nameEn);
   if (VENUE_HE[nameEn]) return VENUE_HE[nameEn];
   // Fallback: "אצטדיון <city>" if city known
   if (cityEn && /^[A-Za-z]/.test(cityEn)) return `אצטדיון ${cityEn}`;

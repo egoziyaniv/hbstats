@@ -11,7 +11,7 @@ export async function buildVenueStats(venueId: string): Promise<VenueStatsPayloa
   venueId = resolveCanonicalVenueId(venueId);
   const venue = await prisma.venue.findUnique({
     where: { id: venueId },
-    select: { id: true, nameHe: true, nameEn: true, cityHe: true, cityEn: true, capacity: true, imageUrl: true },
+    select: { id: true, nameHe: true, nameEn: true, cityHe: true, cityEn: true, capacity: true, imageUrl: true, additionalInfo: true },
   });
   if (!venue) return null;
 
@@ -89,8 +89,19 @@ export async function buildVenueStats(venueId: string): Promise<VenueStatsPayloa
     ? { avg: Math.round(atts.reduce((a, b) => a + b, 0) / atts.length), max: Math.max(...atts) }
     : null;
 
+  const imageInfo = venue.additionalInfo && typeof venue.additionalInfo === 'object' && !Array.isArray(venue.additionalInfo)
+    ? venue.additionalInfo as Record<string, unknown>
+    : null;
+  const imageAttribution = imageInfo &&
+    typeof imageInfo.imageCredit === 'string' &&
+    typeof imageInfo.imageLicense === 'string' &&
+    typeof imageInfo.imageLicenseUrl === 'string' &&
+    typeof imageInfo.imageSourceUrl === 'string'
+    ? { credit: imageInfo.imageCredit, license: imageInfo.imageLicense, licenseUrl: imageInfo.imageLicenseUrl, sourceUrl: imageInfo.imageSourceUrl }
+    : null;
+
   return {
-    venue: { id: venue.id, nameHe: venue.nameHe, cityHe: venue.cityHe, capacity: venue.capacity, imageUrl: venue.imageUrl },
+    venue: { id: venue.id, nameHe: venue.nameHe, cityHe: venue.cityHe, capacity: venue.capacity, imageUrl: venue.imageUrl, imageAttribution },
     totalGames: games.length,
     bsRecord: bsPlayed > 0 ? { played: bsPlayed, wins, draws, losses, goalsFor, goalsAgainst } : null,
     biggestWin,

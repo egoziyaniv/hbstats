@@ -1,18 +1,19 @@
-export const TURNER_CANONICAL_VENUE_ID = 'cmoycq3bj000iapure270zz7e';
+import venueCatalog from '@/data/israeli-venue-catalog.json';
 
-const TURNER_LEGACY_VENUE_IDS = new Set([
-  'cmoycq3a00003apuryts2re7e',
-  'cmoycq3bz000oapur26pffweg',
-  'cmq5he64z01hm5j5xvpa75p9j',
-]);
+type VenueCatalogEntry = {
+  id: string;
+  apiFootballId: number | null;
+  nameEn: string;
+  nameHe: string;
+  cityEn: string | null;
+  cityHe: string | null;
+  cityAliases: string[];
+  aliasIds: string[];
+  apiFootballAliases: number[];
+  nameAliases: string[];
+};
 
-const TURNER_NAMES = new Set([
-  'yaakov turner toto stadium',
-  'yaakov turner toto stadium be er sheva beer sheva',
-  'toto turner stadium',
-  'באר שבע אצטדיון טוטו ע ש טרנר',
-  'אצטדיון טוטו טרנר',
-]);
+const entries = venueCatalog.canonicalVenues as VenueCatalogEntry[];
 
 function normalizeVenueName(value: string): string {
   return value
@@ -24,12 +25,27 @@ function normalizeVenueName(value: string): string {
     .toLowerCase();
 }
 
+const byApiFootballId = new Map<number, VenueCatalogEntry>();
+const byName = new Map<string, VenueCatalogEntry[]>();
+const canonicalIdByLegacyId = new Map<string, string>();
+
+for (const entry of entries) {
+  if (entry.apiFootballId != null) byApiFootballId.set(entry.apiFootballId, entry);
+  for (const aliasId of entry.apiFootballAliases) byApiFootballId.set(aliasId, entry);
+  for (const aliasName of entry.nameAliases) {
+    const key = normalizeVenueName(aliasName);
+    byName.set(key, [...(byName.get(key) || []), entry]);
+  }
+  for (const aliasId of entry.aliasIds) canonicalIdByLegacyId.set(aliasId, entry.id);
+}
+
 export type CanonicalVenueIdentity = {
-  apiFootballId: number;
+  id: string;
+  apiFootballId: number | null;
   nameEn: string;
   nameHe: string;
-  cityEn: string;
-  cityHe: string;
+  cityEn: string | null;
+  cityHe: string | null;
 };
 
 export function canonicalizeVenueIdentity(input: {
@@ -37,18 +53,24 @@ export function canonicalizeVenueIdentity(input: {
   city?: string | null;
   apiFootballId?: number | null;
 }): CanonicalVenueIdentity | null {
-  const normalizedName = normalizeVenueName(input.name);
-  if (input.apiFootballId !== 867 && !TURNER_NAMES.has(normalizedName)) return null;
-
+  const apiMatch = input.apiFootballId != null ? byApiFootballId.get(input.apiFootballId) : undefined;
+  const nameMatches = byName.get(normalizeVenueName(input.name)) || [];
+  const normalizedCity = input.city ? normalizeVenueName(input.city) : null;
+  const nameMatch = normalizedCity
+    ? nameMatches.find((candidate) => candidate.cityAliases.some((city) => normalizeVenueName(city) === normalizedCity))
+    : nameMatches.length === 1 ? nameMatches[0] : undefined;
+  const entry = apiMatch || nameMatch;
+  if (!entry) return null;
   return {
-    apiFootballId: 867,
-    nameEn: 'Yaakov Turner Toto Stadium',
-    nameHe: 'אצטדיון טוטו טרנר',
-    cityEn: 'Beer Sheva',
-    cityHe: 'באר שבע',
+    id: entry.id,
+    apiFootballId: entry.apiFootballId,
+    nameEn: entry.nameEn,
+    nameHe: entry.nameHe,
+    cityEn: entry.cityEn,
+    cityHe: entry.cityHe,
   };
 }
 
 export function resolveCanonicalVenueId(venueId: string): string {
-  return TURNER_LEGACY_VENUE_IDS.has(venueId) ? TURNER_CANONICAL_VENUE_ID : venueId;
+  return canonicalIdByLegacyId.get(venueId) || venueId;
 }

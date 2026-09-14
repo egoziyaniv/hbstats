@@ -4,6 +4,17 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+function imageAttribution(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const info = value as Record<string, unknown>;
+  return typeof info.imageCredit === 'string' &&
+    typeof info.imageLicense === 'string' &&
+    typeof info.imageLicenseUrl === 'string' &&
+    typeof info.imageSourceUrl === 'string'
+    ? { credit: info.imageCredit, license: info.imageLicense, licenseUrl: info.imageLicenseUrl, sourceUrl: info.imageSourceUrl }
+    : null;
+}
+
 export default async function VenuesPage({
   searchParams: searchParamsPromise,
 }: {
@@ -99,7 +110,6 @@ export default async function VenuesPage({
       },
     },
     orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }],
-    take: 60,
   });
 
   const now = new Date();
@@ -226,8 +236,9 @@ export default async function VenuesPage({
         </section>
 
         <section className="grid gap-6 xl:grid-cols-2">
-          {venueCards.map((venue) => (
-            <article key={venue.id} className="modern-card overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+          {venueCards.map((venue) => {
+            const attribution = imageAttribution(venue.additionalInfo);
+            return <article key={venue.id} className="modern-card overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
               <div className="hero-featured-match p-5 text-white">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -255,7 +266,17 @@ export default async function VenuesPage({
                     </div>
                   </div>
                   {venue.imageUrl ? (
-                    <img src={venue.imageUrl} alt={venue.nameHe || venue.nameEn} className="h-20 w-28 rounded-xl object-cover opacity-80" />
+                    <div className="text-left">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={venue.imageUrl} alt={venue.nameHe || venue.nameEn} className="h-20 w-28 rounded-xl object-cover opacity-80" />
+                      {attribution ? (
+                        <span className="mt-1 block max-w-28 truncate text-[9px] text-white/65">
+                          <a href={attribution.sourceUrl} target="_blank" rel="noreferrer" className="hover:text-white hover:underline">{attribution.credit}</a>
+                          {' · '}
+                          <a href={attribution.licenseUrl} target="_blank" rel="noreferrer" className="hover:text-white hover:underline">{attribution.license}</a>
+                        </span>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -308,8 +329,8 @@ export default async function VenuesPage({
                   </div>
                 </div>
               </div>
-            </article>
-          ))}
+            </article>;
+          })}
 
           {venueCards.length === 0 ? (
             <div className="col-span-full rounded-[28px] border border-dashed border-stone-300 bg-white p-8 text-center text-stone-500">

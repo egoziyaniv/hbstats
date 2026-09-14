@@ -19,8 +19,17 @@ export default async function VenuePage({ params: paramsPromise }: { params: Pro
       {/* hero */}
       <section className="modern-card overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
         {s.venue.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.venue.imageUrl} alt={s.venue.nameHe} className="h-48 w-full object-cover" />
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.venue.imageUrl} alt={s.venue.nameHe} className="h-48 w-full object-cover" />
+            {s.venue.imageAttribution ? (
+              <span className="absolute bottom-2 left-2 rounded-md bg-black/65 px-2 py-1 text-[10px] font-semibold text-white">
+                צילום: <a href={s.venue.imageAttribution.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-stone-200">{s.venue.imageAttribution.credit}</a>
+                {' · '}
+                <a href={s.venue.imageAttribution.licenseUrl} target="_blank" rel="noreferrer" className="underline hover:text-stone-200">{s.venue.imageAttribution.license}</a>
+              </span>
+            ) : null}
+          </div>
         ) : (
           <div className="h-24 w-full bg-gradient-to-bl from-[var(--accent-deep)] to-[var(--accent)]" />
         )}

@@ -392,7 +392,14 @@ export interface VenueGameRow {
   attendance: number | null;
 }
 export interface VenueStatsPayload {
-  venue: { id: string; nameHe: string; cityHe: string | null; capacity: number | null; imageUrl: string | null };
+  venue: {
+    id: string;
+    nameHe: string;
+    cityHe: string | null;
+    capacity: number | null;
+    imageUrl: string | null;
+    imageAttribution: { credit: string; license: string; licenseUrl: string; sourceUrl: string } | null;
+  };
   totalGames: number;
   bsRecord: { played: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number } | null;
   biggestWin: { gameId: string; scoreHe: string; opponentHe: string; dateISO: string } | null;

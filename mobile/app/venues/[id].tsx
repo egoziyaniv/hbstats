@@ -9,6 +9,7 @@ import { Card } from '@/design-system/Card';
 import { Section } from '@/design-system/Section';
 import { BottomNav } from '@/design-system/BottomNav';
 import { theme } from '@/design-system/theme';
+import { openExternalUrl } from '@/lib/openExternal';
 
 function heDate(iso: string): string {
   const d = new Date(iso);
@@ -57,7 +58,19 @@ export default function VenueScreen() {
       >
         {/* hero */}
         <View style={{ paddingHorizontal: 16 }}>
-          {img ? <Image source={{ uri: img }} style={{ width: '100%', height: 170, borderRadius: 14, backgroundColor: theme.ink[100], marginBottom: 10 }} resizeMode="cover" /> : null}
+          {img ? <Image source={{ uri: img }} style={{ width: '100%', height: 170, borderRadius: 14, backgroundColor: theme.ink[100], marginBottom: 6 }} resizeMode="cover" /> : null}
+          {img && data.venue.imageAttribution ? (
+            <View style={{ flexDirection: rtlRow(), justifyContent: 'flex-start', marginBottom: 8, gap: 4 }}>
+              <Text style={{ color: theme.ink[500], fontSize: 10 }}>צילום:</Text>
+              <Pressable onPress={() => openExternalUrl(data.venue.imageAttribution?.sourceUrl)}>
+                <Text style={{ color: brand.accent, fontSize: 10, textDecorationLine: 'underline' }}>{data.venue.imageAttribution.credit}</Text>
+              </Pressable>
+              <Text style={{ color: theme.ink[500], fontSize: 10 }}>·</Text>
+              <Pressable onPress={() => openExternalUrl(data.venue.imageAttribution?.licenseUrl)}>
+                <Text style={{ color: brand.accent, fontSize: 10, textDecorationLine: 'underline' }}>{data.venue.imageAttribution.license}</Text>
+              </Pressable>
+            </View>
+          ) : null}
           <Text style={{ color: theme.ink[900], fontSize: 22, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' }}>{data.venue.nameHe}</Text>
           <Text style={{ color: theme.ink[500], fontSize: 13, fontWeight: '700', textAlign: 'right', marginTop: 3 }}>
             {[data.venue.cityHe, data.venue.capacity ? `${data.venue.capacity.toLocaleString('he-IL')} מושבים` : null].filter(Boolean).join(' · ')}

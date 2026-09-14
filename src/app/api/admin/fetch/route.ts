@@ -11,6 +11,7 @@ import { storePlayerPhotoLocally, storeTeamLogoLocally } from '@/lib/media-stora
 import { transliterateSeasonPlayers } from '@/lib/player-transliteration';
 import { sweepStaleJobs } from '@/lib/job-sweeper';
 import { canonicalizeVenueIdentity } from '@/lib/venue-identity';
+import { translateIsraeliVenue } from '@/lib/israeli-venue-translation';
 
 type FetchBody = {
   season?: string;
@@ -935,7 +936,8 @@ export async function POST(request: NextRequest) {
         ? canonicalizeVenueIdentity({ name: nameEn, city: cityEn, apiFootballId })
         : null;
 
-      if (canonical) return `api-${canonical.apiFootballId}`;
+      if (canonical?.apiFootballId != null) return `api-${canonical.apiFootballId}`;
+      if (canonical) return `name-${canonical.nameEn}-${canonical.cityEn || ''}-Israel`;
       if (apiFootballId) return `api-${apiFootballId}`;
       if (nameEn) return `name-${nameEn}-${cityEn || ''}-${countryEn || ''}`;
       return null;
@@ -959,6 +961,7 @@ export async function POST(request: NextRequest) {
         city: rawCityEn,
         apiFootballId: rawApiFootballId,
       });
+      const translatedIsraeli = translateIsraeliVenue(nameEn, rawCityEn);
 
       const venueData = {
         // API-Football sometimes returns id=0 as a "no real venue id" sentinel.
@@ -966,11 +969,11 @@ export async function POST(request: NextRequest) {
         // many NULLs) instead of colliding on the apiFootballId unique index.
         apiFootballId: canonical?.apiFootballId ?? rawApiFootballId,
         nameEn: canonical?.nameEn ?? nameEn,
-        nameHe: canonical?.nameHe ?? translateName(nameEn),
+        nameHe: canonical?.nameHe ?? translatedIsraeli?.nameHe ?? translateName(nameEn),
         addressEn: typeof venue?.address === 'string' && venue.address ? venue.address : null,
         addressHe: typeof venue?.address === 'string' && venue.address ? translateName(venue.address) : null,
         cityEn: canonical?.cityEn ?? rawCityEn,
-        cityHe: canonical?.cityHe ?? (rawCityEn ? translateName(rawCityEn) : null),
+        cityHe: canonical?.cityHe ?? translatedIsraeli?.cityHe ?? (rawCityEn ? translateName(rawCityEn) : null),
         countryEn: typeof venue?.country === 'string' && venue.country ? venue.country : null,
         countryHe: typeof venue?.country === 'string' && venue.country ? translateName(venue.country) : null,
         capacity: typeof venue?.capacity === 'number' ? venue.capacity : null,
@@ -978,18 +981,18 @@ export async function POST(request: NextRequest) {
         imageUrl: typeof venue?.image === 'string' && venue.image ? venue.image : null,
       };
 
-      const existingVenue =
-        venueData.apiFootballId
-          ? await prisma.venue.findUnique({
-              where: { apiFootballId: venueData.apiFootballId },
-            })
-          : await prisma.venue.findFirst({
-              where: {
-                nameEn: venueData.nameEn,
-                ...(venueData.cityEn ? { cityEn: venueData.cityEn } : {}),
-                ...(venueData.countryEn ? { countryEn: venueData.countryEn } : {}),
-              },
-            });
+      const existingByApi = venueData.apiFootballId
+        ? await prisma.venue.findUnique({ where: { apiFootballId: venueData.apiFootballId } })
+        : null;
+      const existingVenue = existingByApi || (canonical
+        ? await prisma.venue.findUnique({ where: { id: canonical.id } })
+        : await prisma.venue.findFirst({
+            where: {
+              nameEn: venueData.nameEn,
+              ...(venueData.cityEn ? { cityEn: venueData.cityEn } : {}),
+              ...(venueData.countryEn ? { countryEn: venueData.countryEn } : {}),
+            },
+          }));
 
       const mergedVenueData = {
         ...venueData,
