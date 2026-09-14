@@ -43,9 +43,10 @@ export default async function ClubSeasonsPage() {
                       className={`border-b border-stone-100 transition hover:bg-stone-50 ${champion ? 'bg-amber-50/60' : ''}`}
                     >
                       <td className="whitespace-nowrap px-3 py-2.5 font-bold text-stone-900">
-                        <Link href={`/games?season=${s.seasonId}&teamId=${s.teamId}`} className="hover:text-[var(--accent)] hover:underline">
+                        <Link href={s.year === 2025 || s.year === 2026 ? `/club/seasons/${s.seasonId}` : `/games?season=${s.seasonId}&teamId=${s.teamId}`} className="hover:text-[var(--accent)] hover:underline">
                           {s.name}
                         </Link>
+                        {(s.year === 2025 || s.year === 2026) && <Link href={`/games?season=${s.seasonId}&teamId=${s.teamId}`} className="mr-2 text-[11px] font-semibold text-stone-500 underline">לכל המשחקים</Link>}
                       </td>
                       <td className="px-2 py-2.5 text-center font-black text-stone-900">
                         {s.position === 1 ? <span className="text-amber-600">1</span> : s.position}
