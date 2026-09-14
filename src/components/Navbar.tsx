@@ -374,14 +374,16 @@ export default function Navbar() {
 
             {/* Right area: Search + user (desktop) */}
             <div className="flex shrink-0 items-center gap-2">
-              <GlobalSearch
-                query={query}
-                setQuery={setQuery}
-                results={results}
-                loading={loadingResults}
-                clearResults={() => setResults([])}
-                isModern
-              />
+              <div className="hidden md:block">
+                <GlobalSearch
+                  query={query}
+                  setQuery={setQuery}
+                  results={results}
+                  loading={loadingResults}
+                  clearResults={() => setResults([])}
+                  isModern
+                />
+              </div>
 
               {/* Mobile hamburger */}
               <button

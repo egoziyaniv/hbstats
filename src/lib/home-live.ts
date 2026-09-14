@@ -798,8 +798,11 @@ export async function getHomepageLiveSnapshots(
     try {
       await refreshGlobalHomepageLiveSnapshots();
     } catch (error) {
-      if (!isApiFootballRateLimitError(error)) {
-        throw error;
+      // A public page must keep serving cached (or empty) live data when the
+      // upstream feed is unavailable or not configured. Cron remains the
+      // authoritative refresh path and records its own failures.
+      if (process.env.NODE_ENV !== 'test' && !isApiFootballRateLimitError(error)) {
+        console.error('Homepage live refresh failed');
       }
     }
   }

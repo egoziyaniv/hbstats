@@ -60,8 +60,8 @@ export default function SeasonDossierClient({ dossier }: { dossier: SeasonDossie
         </div>
       </section>
 
-      <nav aria-label="חלקי תיק העונה" className="sticky top-0 z-20 overflow-x-auto border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur">
-        <div className="mx-auto flex w-max min-w-full max-w-6xl gap-2 px-4 py-3 text-sm font-bold sm:justify-center">{[['story','הסיפור'],['moments','רגעים'],['squad','סגל'],['standing','טבלה'],['matches','משחקים']].map(([id,label]) => <a key={id} href={`#${id}`} className="whitespace-nowrap rounded-full bg-stone-100 px-4 py-2 hover:bg-red-100">{label}</a>)}</div>
+      <nav aria-label="חלקי תיק העונה" className="sticky top-0 z-20 overflow-hidden border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap justify-center gap-2 px-4 py-3 text-sm font-bold">{[['story','הסיפור'],['moments','רגעים'],['squad','סגל'],['standing','טבלה'],['matches','משחקים']].map(([id,label]) => <a key={id} href={`#${id}`} className="whitespace-nowrap rounded-full bg-stone-100 px-4 py-2 hover:bg-red-100">{label}</a>)}</div>
       </nav>
 
       <div className="mx-auto max-w-6xl space-y-12 px-4 py-10 sm:px-6">

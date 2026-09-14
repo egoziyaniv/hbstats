@@ -82,7 +82,7 @@ function mediaUrl(value: unknown, field: string): string | null {
   return httpUrl(parsedText, field);
 }
 
-function date(value: unknown, field: string, required = false): Date | null {
+function date(value: unknown, field: string, required = false, endOfDay = false): Date | null {
   if (value === null || value === undefined || value === '') {
     if (required) throw new SeasonDossierValidationError(`${field} הוא שדה חובה`);
     return null;
@@ -96,6 +96,7 @@ function date(value: unknown, field: string, required = false): Date | null {
   if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month || parsed.getUTCDate() !== day) {
     throw new SeasonDossierValidationError(`${field} חייב להיות תאריך ISO תקין`);
   }
+  if (endOfDay && value.length === 10) parsed.setUTCHours(23, 59, 59, 999);
   return parsed;
 }
 
@@ -153,8 +154,8 @@ export function parseMomentInput(value: unknown): MomentInput {
 export function parseSourceInput(value: unknown): SourceInput {
   const body = record(value);
   const coverageFrom = date(body.coverageFrom, 'תחילת הכיסוי');
-  const coverageTo = date(body.coverageTo, 'סיום הכיסוי');
-  const verifiedAt = date(body.verifiedAt, 'מועד האימות');
+  const coverageTo = date(body.coverageTo, 'סיום הכיסוי', false, true);
+  const verifiedAt = date(body.verifiedAt, 'מועד האימות', false, true);
   const coverageStatus = enumValue(
     body.coverageStatus,
     ['COMPLETE', 'PARTIAL', 'UNKNOWN'] as const,

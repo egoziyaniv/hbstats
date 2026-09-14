@@ -38,14 +38,17 @@ describe('season dossier validation', () => {
   });
 
   it('accepts only absolute HTTP(S) source URLs and validates ranges', () => {
-    expect(parseSourceInput({
+    const parsed = parseSourceInput({
       labelHe: ' ההתאחדות ', provider: ' IFA ', url: 'https://football.org.il/match/1',
       scope: 'BOTH', competitionId: '', momentId: '', coverageStatus: 'COMPLETE',
       coverageFrom: '2026-07-01', coverageTo: '2027-06-30', verifiedAt: '2027-06-30', noteHe: '',
-    })).toMatchObject({
+    });
+    expect(parsed).toMatchObject({
       labelHe: 'ההתאחדות', provider: 'IFA', scope: 'BOTH', competitionId: null,
       momentId: null, coverageStatus: 'COMPLETE', noteHe: null,
     });
+    expect(parsed.coverageTo?.toISOString()).toBe('2027-06-30T23:59:59.999Z');
+    expect(parsed.verifiedAt?.toISOString()).toBe('2027-06-30T23:59:59.999Z');
     expectInvalid(() => parseSourceInput({ labelHe: 'x', provider: 'y', url: '/relative' }), 'HTTP');
     expectInvalid(() => parseSourceInput({ labelHe: 'x', provider: 'y', url: 'ftp://x.test/a' }), 'HTTP');
     expectInvalid(() => parseSourceInput({
