@@ -3,10 +3,12 @@
 // carries its gameId so the UI links each stat to the match behind it.
 import prisma from '@/lib/prisma';
 import type { VenueStatsPayload, VenueGameRow } from '@shared/types/mobile-api';
+import { resolveCanonicalVenueId } from '@/lib/venue-identity';
 
 const BS_AF = 563;
 
 export async function buildVenueStats(venueId: string): Promise<VenueStatsPayload | null> {
+  venueId = resolveCanonicalVenueId(venueId);
   const venue = await prisma.venue.findUnique({
     where: { id: venueId },
     select: { id: true, nameHe: true, nameEn: true, cityHe: true, cityEn: true, capacity: true, imageUrl: true },

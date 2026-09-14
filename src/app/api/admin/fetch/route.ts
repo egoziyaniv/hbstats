@@ -10,6 +10,7 @@ import { cleanupFutureSeasons } from '@/lib/home-live';
 import { storePlayerPhotoLocally, storeTeamLogoLocally } from '@/lib/media-storage';
 import { transliterateSeasonPlayers } from '@/lib/player-transliteration';
 import { sweepStaleJobs } from '@/lib/job-sweeper';
+import { canonicalizeVenueIdentity } from '@/lib/venue-identity';
 
 type FetchBody = {
   season?: string;
@@ -930,7 +931,11 @@ export async function POST(request: NextRequest) {
       const nameEn = typeof venue.name === 'string' && venue.name ? venue.name : null;
       const cityEn = typeof venue.city === 'string' && venue.city ? venue.city : null;
       const countryEn = typeof venue.country === 'string' && venue.country ? venue.country : null;
+      const canonical = nameEn
+        ? canonicalizeVenueIdentity({ name: nameEn, city: cityEn, apiFootballId })
+        : null;
 
+      if (canonical) return `api-${canonical.apiFootballId}`;
       if (apiFootballId) return `api-${apiFootballId}`;
       if (nameEn) return `name-${nameEn}-${cityEn || ''}-${countryEn || ''}`;
       return null;
@@ -947,18 +952,25 @@ export async function POST(request: NextRequest) {
 
       const nameEn = typeof venue?.name === 'string' && venue.name ? venue.name : null;
       if (!nameEn) return null;
+      const rawApiFootballId = typeof venue?.id === 'number' && venue.id > 0 ? venue.id : null;
+      const rawCityEn = typeof venue?.city === 'string' && venue.city ? venue.city : null;
+      const canonical = canonicalizeVenueIdentity({
+        name: nameEn,
+        city: rawCityEn,
+        apiFootballId: rawApiFootballId,
+      });
 
       const venueData = {
         // API-Football sometimes returns id=0 as a "no real venue id" sentinel.
         // Treat it as null so these rows take the nullable path (Postgres allows
         // many NULLs) instead of colliding on the apiFootballId unique index.
-        apiFootballId: typeof venue?.id === 'number' && venue.id > 0 ? venue.id : null,
-        nameEn,
-        nameHe: translateName(nameEn),
+        apiFootballId: canonical?.apiFootballId ?? rawApiFootballId,
+        nameEn: canonical?.nameEn ?? nameEn,
+        nameHe: canonical?.nameHe ?? translateName(nameEn),
         addressEn: typeof venue?.address === 'string' && venue.address ? venue.address : null,
         addressHe: typeof venue?.address === 'string' && venue.address ? translateName(venue.address) : null,
-        cityEn: typeof venue?.city === 'string' && venue.city ? venue.city : null,
-        cityHe: typeof venue?.city === 'string' && venue.city ? translateName(venue.city) : null,
+        cityEn: canonical?.cityEn ?? rawCityEn,
+        cityHe: canonical?.cityHe ?? (rawCityEn ? translateName(rawCityEn) : null),
         countryEn: typeof venue?.country === 'string' && venue.country ? venue.country : null,
         countryHe: typeof venue?.country === 'string' && venue.country ? translateName(venue.country) : null,
         capacity: typeof venue?.capacity === 'number' ? venue.capacity : null,

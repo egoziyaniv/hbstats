@@ -16,6 +16,22 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes('--apply');
 
+const TURNER_NAMES = new Set([
+  'yaakov turner toto stadium',
+  'yaakov turner toto stadium be er sheva beer sheva',
+  'toto turner stadium',
+]);
+
+function normalizeVenueName(value) {
+  return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[׳״'’`\"()]/g, ' ')
+    .replace(/[^a-zA-Z0-9\u0590-\u05FF]+/g, ' ').trim().toLowerCase();
+}
+
+function canonicalVenue(venue) {
+  if (venue.apiVenueId !== 867 && !TURNER_NAMES.has(normalizeVenueName(venue.nameEn))) return venue;
+  return { ...venue, apiVenueId: 867, nameEn: 'Yaakov Turner Toto Stadium', cityEn: 'Beer Sheva' };
+}
+
 // Hebrew translations for common Israeli stadiums
 const VENUE_HE = {
   'Sammy Ofer Stadium': 'אצטדיון סמי עופר',
@@ -59,9 +75,12 @@ async function main() {
     for (const f of fixtures) {
       const v = f?.fixture?.venue;
       if (!v?.name) continue;
-      const key = v.id != null ? `id:${v.id}` : `name:${v.name}|${v.city || ''}`;
+      const canonical = canonicalVenue({ apiVenueId: v.id ?? null, nameEn: v.name, cityEn: v.city || null });
+      const key = canonical.apiVenueId != null
+        ? `id:${canonical.apiVenueId}`
+        : `name:${canonical.nameEn}|${canonical.cityEn || ''}`;
       if (!venueMap.has(key)) {
-        venueMap.set(key, { apiVenueId: v.id ?? null, nameEn: v.name, cityEn: v.city || null, fixtureIds: [] });
+        venueMap.set(key, { ...canonical, fixtureIds: [] });
       }
       const fxId = f?.fixture?.id;
       if (fxId) venueMap.get(key).fixtureIds.push(fxId);
