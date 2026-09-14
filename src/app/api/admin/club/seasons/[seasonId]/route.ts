@@ -19,7 +19,13 @@ export async function GET(_request: NextRequest, context: Context) {
   if (!dossier) return NextResponse.json({ error: 'תיק העונה לא נמצא' }, { status: 404 });
   const row = await prisma.clubSeasonDossier.findUnique({
     where: { seasonId_teamId: { seasonId, teamId: dossier.team.id } },
-    select: { isPublished: true, publishedAt: true },
+    select: {
+      isPublished: true,
+      publishedAt: true,
+      moments: {
+        select: { id: true, isPublished: true, gameId: true, mediaAssetId: true, imageUrl: true },
+      },
+    },
   });
   return NextResponse.json({
     dossier,
@@ -27,6 +33,7 @@ export async function GET(_request: NextRequest, context: Context) {
       isPublished: row?.isPublished ?? false,
       publishedAt: row?.publishedAt?.toISOString() ?? null,
     },
+    momentAdmin: Object.fromEntries((row?.moments ?? []).map((moment) => [moment.id, moment])),
   });
 }
 

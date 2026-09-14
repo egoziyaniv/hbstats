@@ -20,6 +20,7 @@ describe('season dossier validation', () => {
     expectInvalid(() => parseDossierInput({ introHe: 'א'.repeat(1001) }), '1,000');
     expectInvalid(() => parseDossierInput({ summaryHe: 'א'.repeat(4001) }), '4,000');
     expectInvalid(() => parseDossierInput({ heroImageUrl: 'javascript:alert(1)' }), 'HTTP');
+    expect(parseDossierInput({ heroImageUrl: '/uploads/seasons/cover.jpg' }).heroImageUrl).toBe('/uploads/seasons/cover.jpg');
   });
 
   it('parses strict moment data and limits', () => {

@@ -75,6 +75,13 @@ function httpUrl(value: unknown, field: string, required = false): string | null
   }
 }
 
+function mediaUrl(value: unknown, field: string): string | null {
+  const parsedText = text(value, field, 2_048);
+  if (!parsedText) return null;
+  if (parsedText.startsWith('/') && !parsedText.startsWith('//')) return parsedText;
+  return httpUrl(parsedText, field);
+}
+
 function date(value: unknown, field: string, required = false): Date | null {
   if (value === null || value === undefined || value === '') {
     if (required) throw new SeasonDossierValidationError(`${field} הוא שדה חובה`);
@@ -124,7 +131,7 @@ export function parseDossierInput(value: unknown): DossierInput {
   return {
     introHe: text(body.introHe, 'פתיח', 1_000),
     summaryHe: text(body.summaryHe, 'סיכום', 4_000),
-    heroImageUrl: httpUrl(body.heroImageUrl, 'תמונת שער'),
+    heroImageUrl: mediaUrl(body.heroImageUrl, 'תמונת שער'),
     isPublished: boolean(body.isPublished, false),
   };
 }
@@ -137,7 +144,7 @@ export function parseMomentInput(value: unknown): MomentInput {
     bodyHe: text(body.bodyHe, 'תיאור הרגע', 2_000, true)!,
     gameId: text(body.gameId, 'משחק', 128),
     mediaAssetId: text(body.mediaAssetId, 'מדיה', 128),
-    imageUrl: httpUrl(body.imageUrl, 'תמונת הרגע'),
+    imageUrl: mediaUrl(body.imageUrl, 'תמונת הרגע'),
     displayOrder: integer(body.displayOrder),
     isPublished: boolean(body.isPublished, true),
   };
