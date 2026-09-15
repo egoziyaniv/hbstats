@@ -56,3 +56,21 @@ describe('buildClubTrend', () => {
     ]);
   });
 });
+
+describe('pickClubArchiveGame', () => {
+  it('chooses the most recent completed game from an earlier season for the selected club', async () => {
+    const { pickClubArchiveGame } = await import('@/lib/home-club-hub');
+    expect(pickClubArchiveGame('hbs', 'current', [
+      { id: 'current-game', seasonId: 'current', status: 'COMPLETED', homeTeamId: 'hbs', awayTeamId: 'other', dateTime: new Date('2026-09-01') },
+      { id: 'older-game', seasonId: 'previous', status: 'COMPLETED', homeTeamId: 'other', awayTeamId: 'hbs', dateTime: new Date('2026-05-01') },
+      { id: 'scheduled', seasonId: 'previous', status: 'SCHEDULED', homeTeamId: 'hbs', awayTeamId: 'other', dateTime: new Date('2026-05-02') },
+    ])).toMatchObject({ id: 'older-game' });
+  });
+
+  it('returns null when there is no completed historical match for the club', async () => {
+    const { pickClubArchiveGame } = await import('@/lib/home-club-hub');
+    expect(pickClubArchiveGame('hbs', 'current', [
+      { id: 'scheduled', seasonId: 'previous', status: 'SCHEDULED', homeTeamId: 'hbs', awayTeamId: 'other', dateTime: new Date('2026-05-02') },
+    ])).toBeNull();
+  });
+});

@@ -36,6 +36,7 @@ model User {
   sessions                  Session[]
   passwordResetTokens       PasswordResetToken[]
   pushTokens                PushToken[]
+  matchAttendances          UserMatchAttendance[]
 
   @@map("users")
 }
@@ -538,6 +539,7 @@ model Game {
   injuries            PlayerInjury[]
   winnerOdds          WinnerOdds[]
   clubSeasonMoments   ClubSeasonMoment[]
+  matchAttendances    UserMatchAttendance[]
 
   @@index([seasonId, competitionId])
   @@index([homeTeamId])
@@ -545,6 +547,18 @@ model Game {
   @@index([seasonId, dateTime])
   @@index([status, dateTime])
   @@map("games")
+}
+
+model UserMatchAttendance {
+  userId    String
+  gameId    String
+  createdAt DateTime @default(now())
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameId])
+  @@index([gameId])
+  @@map("user_match_attendances")
 }
 
 model GameEvent {

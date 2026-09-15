@@ -25,6 +25,7 @@ import { FotmobUnavailableBlock } from '@/components/FotmobUnavailableBlock';
 import { GameEditorialBlock } from '@/components/GameEditorialBlock';
 import type { FotmobPlayerRating, FotmobUnavailablePlayer } from '@shared/types/mobile-api';
 import { MatchInfoCard } from '@/components/MatchInfoCard';
+import MatchdayAttendanceButton from '@/components/MatchdayAttendanceButton';
 
 const eventLabels: Record<string, string> = {
   GOAL: 'שער',
@@ -101,6 +102,13 @@ export default async function GamePage({
   if (!game) {
     notFound();
   }
+
+  const attendance = currentUser
+    ? await prisma.userMatchAttendance.findUnique({
+        where: { userId_gameId: { userId: currentUser.id, gameId: game.id } },
+        select: { gameId: true },
+      })
+    : null;
 
   // Each substitution is stored as an inverse SUBSTITUTION_IN + SUBSTITUTION_OUT
   // pair — drop the IN when its paired OUT exists so we render ONE "חילוף" event
@@ -255,6 +263,7 @@ export default async function GamePage({
         matchPreview={matchPreview}
         predictedFormation={predictedFormation}
         isLoggedIn={!!currentUser}
+        initiallyAttended={Boolean(attendance)}
         hasDetailedStats={hasDetailedStats}
         selectedTab={selectedTab}
         adminEditorProps={adminEditorProps}
@@ -454,6 +463,7 @@ function PremierGameView({
   matchPreview,
   predictedFormation,
   isLoggedIn,
+  initiallyAttended,
   hasDetailedStats,
   selectedTab,
   adminEditorProps,
@@ -472,6 +482,7 @@ function PremierGameView({
   matchPreview: MatchPreview | null;
   predictedFormation: import('@/lib/predicted-lineup').FormationId;
   isLoggedIn: boolean;
+  initiallyAttended: boolean;
   hasDetailedStats: boolean;
   selectedTab: GamePremierTab;
   adminEditorProps: any;
@@ -524,6 +535,7 @@ function PremierGameView({
                     ) : null;
                   })()}
                 </div>
+                <MatchdayAttendanceButton gameId={game.id} initialAttended={initiallyAttended} isLoggedIn={isLoggedIn} />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

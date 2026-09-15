@@ -20,7 +20,7 @@ import { ClubPointsTrendChart, GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
 import ClubHubBand from '@/components/ClubHubBand';
-import { buildClubSeasonSnapshot, buildClubTrend, resolveHomeClubId } from '@/lib/home-club-hub';
+import { buildClubSeasonSnapshot, buildClubTrend, pickClubArchiveGame, resolveHomeClubId } from '@/lib/home-club-hub';
 
 export const dynamic = 'force-dynamic';
 
@@ -224,6 +224,30 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
   const selectedTeams = selectedHomeClubId ? seasonTeams.filter((team) => team.id === selectedHomeClubId) : [];
   const selectedTeam = selectedTeams[0] || null;
   const selectedTeamIds = selectedTeam ? [selectedTeam.id] : [];
+  const clubArchiveCandidatesPromise = selectedTeam
+    ? prisma.game.findMany({
+        where: {
+          status: 'COMPLETED',
+          OR: [{ homeTeamId: selectedTeam.id }, { awayTeamId: selectedTeam.id }],
+        },
+        select: {
+          id: true,
+          seasonId: true,
+          dateTime: true,
+          status: true,
+          homeTeamId: true,
+          awayTeamId: true,
+          homeScore: true,
+          awayScore: true,
+          homeTeam: { select: { nameHe: true, nameEn: true } },
+          awayTeam: { select: { nameHe: true, nameEn: true } },
+          competition: { select: { nameHe: true, nameEn: true } },
+          season: { select: { name: true } },
+        },
+        orderBy: { dateTime: 'desc' },
+        take: 12,
+      })
+    : Promise.resolve([]);
 
   // Detect stale standings: compare highest round in completed games vs max(played) in stored standings.
   const maxRoundInHomeStandings = rawStandings.length > 0
@@ -760,6 +784,14 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
   const heroSlides: HeroSlide[] = heroSourceDeduped.length
     ? heroSourceDeduped.map(buildHeroSlide)
     : lastGame ? [buildHeroSlide(lastGame)] : [];
+  const clubArchiveGame = selectedTeam
+    ? pickClubArchiveGame(selectedTeam.id, featuredSeason.id, await clubArchiveCandidatesPromise)
+    : null;
+  const clubEvidenceHref = selectedTeam?.apiFootballId === 563
+    ? `/club/seasons/${featuredSeason.id}`
+    : selectedTeam
+      ? `/games?season=${featuredSeason.id}&teamId=${selectedTeam.id}`
+      : null;
 
   return (
     <div className="min-h-screen">
@@ -781,7 +813,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
                 <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-lg font-black text-stone-900">תמונת מצב עונה · {getTeamLabel(selectedTeam)}</h2>
                 <p className="mt-1 text-xs text-stone-500">ליגת העל · משחקים שהושלמו בלבד</p>
               </div>
-              <Link href={`/club/seasons/${featuredSeason.id}`} className="text-xs font-bold text-[var(--accent)] hover:opacity-75">לתיק העונה ←</Link>
+              {clubEvidenceHref ? <Link href={clubEvidenceHref} className="text-xs font-bold text-[var(--accent)] hover:opacity-75">מאיפה המספר? ←</Link> : null}
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
               {[
@@ -815,6 +847,24 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
             ) : (
               <EmptyState text="הגרף יוצג לאחר שלושה משחקי ליגה שהושלמו." />
             )}
+          </section>
+        )}
+
+        {clubArchiveGame && selectedTeam && (
+          <section className="modern-card mb-5 overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+            <div className="bg-[linear-gradient(135deg,#450a0a,#991b1b)] px-5 py-4 text-white">
+              <div className="text-xs font-bold text-white/70">ארכיון אדום · משחק מתועד</div>
+              <h2 className="mt-1 text-lg font-black">{clubArchiveGame.season.name}</h2>
+            </div>
+            <Link href={`/games/${clubArchiveGame.id}`} className="block p-5 transition hover:bg-stone-50">
+              <div className="text-xs font-semibold text-stone-500">{getCompetitionDisplayName(clubArchiveGame.competition)} · {formatDate(clubArchiveGame.dateTime)}</div>
+              <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
+                <span className="text-sm font-black text-stone-900">{getTeamLabel(clubArchiveGame.homeTeam)}</span>
+                <span className="rounded-xl bg-stone-950 px-4 py-2 text-lg font-black tabular-nums text-white">{clubArchiveGame.homeScore}:{clubArchiveGame.awayScore}</span>
+                <span className="text-sm font-black text-stone-900">{getTeamLabel(clubArchiveGame.awayTeam)}</span>
+              </div>
+              <div className="mt-3 text-center text-xs font-bold text-[var(--accent)]">למשחק המלא ולמקור הנתונים ←</div>
+            </Link>
           </section>
         )}
 

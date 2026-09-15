@@ -13,6 +13,15 @@ type HomepageGame = {
   awayScore: number | null;
 };
 
+type HomepageArchiveGame = {
+  id: string;
+  seasonId: string;
+  status: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  dateTime: Date;
+};
+
 export function resolveHomeClubId(
   queryTeamIds: string[],
   favouriteTeamIds: string[],
@@ -86,4 +95,22 @@ export function buildClubTrend(teamId: string, games: HomepageGame[]) {
     points += result === 'W' ? 3 : result === 'D' ? 1 : 0;
     return { match: index + 1, points };
   });
+}
+
+/**
+ * Select a concrete, completed match from before the selected season for the
+ * archive card. The caller supplies an already ordered list, so this remains a
+ * pure selection rule and cannot invent an historical claim when data is thin.
+ */
+export function pickClubArchiveGame<T extends HomepageArchiveGame>(
+  teamId: string,
+  currentSeasonId: string,
+  games: T[],
+): T | null {
+  return games.find(
+    (game) =>
+      game.seasonId !== currentSeasonId &&
+      game.status === 'COMPLETED' &&
+      (game.homeTeamId === teamId || game.awayTeamId === teamId),
+  ) ?? null;
 }

@@ -21,16 +21,13 @@ const TILES: ClubHubTile[] = [
     ),
   },
   {
-    href: '/club',
-    title: 'היכל התהילה',
-    subtitle: 'אגדות ותארים',
+    href: '/club/seasons',
+    title: 'תיקי עונה',
+    subtitle: 'מאזנים, משחקים ומקורות',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON_CLASS} aria-hidden="true">
-        <path d="M6 4h12v4a6 6 0 0 1-12 0V4z" />
-        <path d="M6 5H4a2 2 0 0 0 2 4" />
-        <path d="M18 5h2a2 2 0 0 1-2 4" />
-        <path d="M12 14v3" />
-        <path d="M9 20h6" />
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <path d="M3 9h18M8 3v3M16 3v3" />
       </svg>
     ),
   },
@@ -48,8 +45,8 @@ const TILES: ClubHubTile[] = [
   },
   {
     href: '/history',
-    title: 'היסטוריה ושיאים',
-    subtitle: '26 עונות',
+    title: 'ארכיון והיסטוריה',
+    subtitle: 'שיאים, יריבויות ותארים',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON_CLASS} aria-hidden="true">
         <circle cx="12" cy="12" r="9" />

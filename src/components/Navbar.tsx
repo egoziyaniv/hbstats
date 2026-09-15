@@ -43,6 +43,7 @@ const navLinks: NavItem[] = [
   { href: '/history', label: 'היסטוריה', iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/history/ask', label: 'שיאים ותשובות', iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/songs', label: 'שירים', iconSrc: '/Icons/stats-nav-96.png' },
+  { href: '/matchdays', label: 'המשחקים שלי', iconSrc: '/Icons/games-nav-96.png' },
   { href: '/statistics/best-xi', label: 'הרכב העונה', iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/statistics/insights', label: 'תובנות',  iconSrc: '/Icons/stats-nav-96.png' },
   { href: '/statistics/advanced', label: 'מתקדם',  iconSrc: '/Icons/stats-nav-96.png' },
@@ -60,7 +61,7 @@ const navLinks: NavItem[] = [
 // with the league-wide surfaces kept a click away in the dropdowns.
 const PRIMARY_HREFS = ['/', '/games', '/club', '/songs', '/standings', '/players', '/live'];
 const STATS_HREFS = ['/statistics', '/history', '/history/ask', '/statistics/best-xi', '/statistics/insights', '/statistics/advanced'];
-const MORE_HREFS = ['/teams', '/coaches', '/referees', '/venues', '/compare', '/predictions'];
+const MORE_HREFS = ['/teams', '/coaches', '/referees', '/venues', '/compare', '/predictions', '/matchdays'];
 
 function linksFor(hrefs: string[]): NavItem[] {
   return hrefs.map((h) => navLinks.find((l) => l.href === h)).filter(Boolean) as NavItem[];
