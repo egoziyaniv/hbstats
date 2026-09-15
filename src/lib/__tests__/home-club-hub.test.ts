@@ -1,4 +1,4 @@
-import { buildClubForm, resolveHomeClubId } from '@/lib/home-club-hub';
+import { buildClubForm, buildClubSeasonSnapshot, resolveHomeClubId } from '@/lib/home-club-hub';
 
 const teams = [
   { id: 'hbs', apiFootballId: 563 },
@@ -26,5 +26,17 @@ describe('buildClubForm', () => {
         { status: 'COMPLETED', homeTeamId: 'hbs', awayTeamId: 'other', homeScore: 1, awayScore: 1 },
       ]),
     ).toEqual(['W', 'D']);
+  });
+});
+
+describe('buildClubSeasonSnapshot', () => {
+  it('calculates completed-match totals without treating missing scores as zero', () => {
+    expect(
+      buildClubSeasonSnapshot('hbs', [
+        { status: 'COMPLETED', homeTeamId: 'hbs', awayTeamId: 'other', homeScore: 3, awayScore: 1 },
+        { status: 'COMPLETED', homeTeamId: 'other', awayTeamId: 'hbs', homeScore: 0, awayScore: 2 },
+        { status: 'SCHEDULED', homeTeamId: 'hbs', awayTeamId: 'other', homeScore: null, awayScore: null },
+      ]),
+    ).toEqual({ matches: 2, wins: 2, draws: 0, losses: 0, goalsFor: 5, goalsAgainst: 1 });
   });
 });

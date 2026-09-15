@@ -20,7 +20,7 @@ import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
 import ClubHubBand from '@/components/ClubHubBand';
-import { resolveHomeClubId } from '@/lib/home-club-hub';
+import { buildClubSeasonSnapshot, resolveHomeClubId } from '@/lib/home-club-hub';
 
 export const dynamic = 'force-dynamic';
 
@@ -555,6 +555,18 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       .filter((game) => gameMatchesPreferredTeam(game, selectedTeamIds))
       .filter((game) => gameMatchesPreferredCompetition(game, selectedCompetitionApiIds))[0] ||
     null;
+  const clubSeasonSnapshot = selectedTeam
+    ? buildClubSeasonSnapshot(
+        selectedTeam.id,
+        ligaHaalGames.map((game) => ({
+          status: 'COMPLETED',
+          homeTeamId: game.homeTeamId,
+          awayTeamId: game.awayTeamId,
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+        })),
+      )
+    : null;
 
   const predictions = predictionsRaw
     .filter((prediction) => prediction.game.status !== 'CANCELLED')
@@ -749,6 +761,33 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       <div className="mx-auto max-w-7xl px-4 py-6">
         {/* ── מרכז המועדון: club quick-access band (foregrounds Hapoel Beer Sheva) ── */}
         <ClubHubBand />
+
+        {selectedTeam && clubSeasonSnapshot && (
+          <section className="modern-card mb-5 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-lg font-black text-stone-900">תמונת מצב עונה · {getTeamLabel(selectedTeam)}</h2>
+                <p className="mt-1 text-xs text-stone-500">ליגת העל · משחקים שהושלמו בלבד</p>
+              </div>
+              <Link href={`/club/seasons/${featuredSeason.id}`} className="text-xs font-bold text-[var(--accent)] hover:opacity-75">לתיק העונה ←</Link>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
+              {[
+                ['משחקים', clubSeasonSnapshot.matches],
+                ['ניצחונות', clubSeasonSnapshot.wins],
+                ['תיקו', clubSeasonSnapshot.draws],
+                ['הפסדים', clubSeasonSnapshot.losses],
+                ['שערי זכות', clubSeasonSnapshot.goalsFor],
+                ['שערי חובה', clubSeasonSnapshot.goalsAgainst],
+              ].map(([label, value]) => (
+                <div key={label as string} className="rounded-xl bg-stone-50 px-3 py-3 text-center">
+                  <div className="text-xl font-black text-stone-900">{value}</div>
+                  <div className="mt-1 text-[11px] font-semibold text-stone-500">{label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="grid gap-5 lg:grid-cols-3">
 

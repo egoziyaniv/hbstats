@@ -48,3 +48,32 @@ export function buildClubForm(teamId: string, games: HomepageGame[]): Array<'W' 
     return [score[0] > score[1] ? 'W' : score[0] < score[1] ? 'L' : 'D'];
   });
 }
+
+export function buildClubSeasonSnapshot(teamId: string, games: HomepageGame[]) {
+  return games.reduce(
+    (snapshot, game) => {
+      if (
+        game.status !== 'COMPLETED' ||
+        !Number.isInteger(game.homeScore) ||
+        !Number.isInteger(game.awayScore)
+      ) {
+        return snapshot;
+      }
+      const score =
+        game.homeTeamId === teamId
+          ? [game.homeScore, game.awayScore]
+          : game.awayTeamId === teamId
+            ? [game.awayScore, game.homeScore]
+            : null;
+      if (!score) return snapshot;
+      snapshot.matches++;
+      snapshot.goalsFor += score[0];
+      snapshot.goalsAgainst += score[1];
+      if (score[0] > score[1]) snapshot.wins++;
+      else if (score[0] < score[1]) snapshot.losses++;
+      else snapshot.draws++;
+      return snapshot;
+    },
+    { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 },
+  );
+}
