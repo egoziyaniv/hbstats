@@ -16,11 +16,11 @@ import HomeLivePanel from '@/components/HomeLivePanel';
 import OnThisDayCard from '@/components/OnThisDayCard';
 import { HeroMatchCarousel, type HeroSlide } from '@/components/HeroMatchCarousel';
 import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
-import { GoalMinutesChart } from '@/components/Charts';
+import { ClubPointsTrendChart, GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
 import ClubHubBand from '@/components/ClubHubBand';
-import { buildClubSeasonSnapshot, resolveHomeClubId } from '@/lib/home-club-hub';
+import { buildClubSeasonSnapshot, buildClubTrend, resolveHomeClubId } from '@/lib/home-club-hub';
 
 export const dynamic = 'force-dynamic';
 
@@ -567,6 +567,18 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
         })),
       )
     : null;
+  const clubPointsTrend = selectedTeam
+    ? buildClubTrend(
+        selectedTeam.id,
+        ligaHaalGames.map((game) => ({
+          status: 'COMPLETED',
+          homeTeamId: game.homeTeamId,
+          awayTeamId: game.awayTeamId,
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+        })),
+      )
+    : [];
 
   const predictions = predictionsRaw
     .filter((prediction) => prediction.game.status !== 'CANCELLED')
@@ -786,6 +798,23 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {selectedTeam && (
+          <section className="modern-card mb-5 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-lg font-black text-stone-900">מגמת נקודות · {getTeamLabel(selectedTeam)}</h2>
+                <p className="mt-1 text-xs text-stone-500">צבירה מצטברת במשחקי ליגה שהושלמו</p>
+              </div>
+              <Link href={`/teams/${selectedTeam.id}/charts`} className="text-xs font-bold text-[var(--accent)] hover:opacity-75">לכל הגרפים ←</Link>
+            </div>
+            {clubPointsTrend.length >= 3 ? (
+              <div className="mt-3"><ClubPointsTrendChart data={clubPointsTrend} /></div>
+            ) : (
+              <EmptyState text="הגרף יוצג לאחר שלושה משחקי ליגה שהושלמו." />
+            )}
           </section>
         )}
 
