@@ -37,6 +37,18 @@ function categorize(position: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
   return 'MID';
 }
 
+/** A predicted XI must never include a player with an active injury or ban. */
+export function excludeUnavailablePlayers<T extends { playerId: string; apiFootballId: number | null }>(
+  players: T[],
+  unavailablePlayerIds: Set<string>,
+  unavailableApiPlayerIds: Set<number>,
+): T[] {
+  return players.filter((player) =>
+    !unavailablePlayerIds.has(player.playerId) &&
+    (player.apiFootballId === null || !unavailableApiPlayerIds.has(player.apiFootballId)),
+  );
+}
+
 export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date, lookback = 5, formation: FormationId = '4-4-2'): Promise<PredictedPlayer[]> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -58,6 +70,19 @@ export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date
   });
   if (recent.length === 0) return [];
   const gameIds = recent.map((g) => g.id);
+  const unavailable = await prisma.playerSidelinedEntry.findMany({
+    where: {
+      seasonId: team.seasonId,
+      startDate: { lte: beforeDateTime ?? new Date() },
+      AND: [
+        { OR: [{ endDate: null }, { endDate: { gte: beforeDateTime ?? new Date() } }] },
+        { OR: [{ playerId: { not: null } }, { apiFootballPlayerId: { not: null } }] },
+      ],
+    },
+    select: { playerId: true, apiFootballPlayerId: true },
+  });
+  const unavailablePlayerIds = new Set(unavailable.flatMap((row) => row.playerId ? [row.playerId] : []));
+  const unavailableApiPlayerIds = new Set(unavailable.flatMap((row) => row.apiFootballPlayerId === null ? [] : [row.apiFootballPlayerId]));
 
   // For each player on this team who started in any of these games, count
   // starts. Also fetch their identity for display.
@@ -68,6 +93,7 @@ export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date
     photo: string | null;
     position: string | null;
     jersey: number | null;
+    api_player_id: number | null;
     starts: number;
   }>>`
     SELECT
@@ -77,18 +103,20 @@ export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date
       p."photoUrl" AS photo,
       p.position AS position,
       p."jerseyNumber" AS jersey,
+      p."apiFootballId" AS api_player_id,
       COUNT(*)::int AS starts
     FROM "game_lineup_entries" gle
     JOIN "players" p ON p.id = gle."playerId"
     WHERE gle."gameId" = ANY(${gameIds}::text[])
       AND gle."teamId" = ${team.id}
       AND gle.role = 'STARTER'
-    GROUP BY p.id, p."nameHe", p."nameEn", p."photoUrl", p.position, p."jerseyNumber"
+    GROUP BY p.id, p."nameHe", p."nameEn", p."photoUrl", p.position, p."jerseyNumber", p."apiFootballId"
     ORDER BY starts DESC
   `;
 
-  const candidates: PredictedPlayer[] = rows.map((r) => ({
+  const candidates = excludeUnavailablePlayers(rows.map((r) => ({
     playerId: r.player_id,
+    apiFootballId: r.api_player_id,
     displayName: r.name_he || r.name_en || '—',
     photoUrl: r.photo,
     position: r.position,
@@ -96,7 +124,7 @@ export async function buildPredictedLineup(teamId: string, beforeDateTime?: Date
     jerseyNumber: r.jersey,
     startsInLast5: r.starts,
     totalGamesConsidered: recent.length,
-  }));
+  })), unavailablePlayerIds, unavailableApiPlayerIds).map(({ apiFootballId: _apiFootballId, ...player }) => player);
 
   // Fill the lineup according to the requested formation. If a team has many
   // candidates in one position group, we take the most-frequent starters.
