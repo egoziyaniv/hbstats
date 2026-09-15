@@ -50,8 +50,8 @@ export function HeroMatchCarousel({ slides }: { slides: HeroSlide[] }) {
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-3">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="relative mx-auto max-w-7xl px-4 pb-5 pt-4 sm:px-6">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`h-1.5 w-1.5 rounded-full ${live ? 'animate-pulse bg-yellow-300' : completed ? 'bg-emerald-300' : 'bg-white/50'}`} />
             <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">{s.label}</span>
@@ -60,18 +60,18 @@ export function HeroMatchCarousel({ slides }: { slides: HeroSlide[] }) {
         </div>
 
         {/* key on id re-triggers the fade when the slide changes */}
-        <Link href={`/games/${s.id}`} className="block" aria-label={`${s.homeName} נגד ${s.awayName}`}>
+        <Link href={`/games/${s.id}`} className="block rounded-2xl bg-black/10 px-3 py-4 transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/60" aria-label={`${s.homeName} נגד ${s.awayName}`}>
           <div key={s.id} className="hero-slide-fade text-center">
-            <div className="text-[10px] font-medium text-white/35">{s.competitionName}</div>
-            <div className="mt-2 flex items-center justify-center gap-6 md:gap-12">
+            <div className="text-[11px] font-bold text-white/55">{s.competitionName}</div>
+            <div className="mt-3 flex items-center justify-center gap-5 md:gap-14">
               <div className="min-w-[90px] text-center">
-                <div className="text-lg font-black text-white md:text-2xl leading-tight">{s.homeName}</div>
+                <div className="text-lg font-black text-white md:text-3xl leading-tight">{s.homeName}</div>
                 <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">בית</div>
               </div>
               <div className="flex flex-col items-center">
                 {s.showScore ? (
                   <div className="rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm ring-1 ring-white/10">
-                    <div className="text-3xl font-black tabular-nums text-white md:text-4xl">
+                    <div className="text-3xl font-black tabular-nums text-white md:text-5xl">
                       {s.homeScore}<span className="mx-2 text-white/25">–</span>{s.awayScore}
                     </div>
                     <div className={`mt-0.5 text-center text-[9px] font-bold tracking-widest ${live ? 'animate-pulse text-yellow-300' : 'text-emerald-300'}`}>
@@ -80,18 +80,18 @@ export function HeroMatchCarousel({ slides }: { slides: HeroSlide[] }) {
                   </div>
                 ) : (
                   <div className="rounded-xl bg-white/10 px-6 py-2 backdrop-blur-sm ring-1 ring-white/10">
-                    <div className="text-2xl font-black text-white md:text-3xl">VS</div>
-                    <div className="mt-0.5 text-center text-[10px] text-white/50">{s.dateLabel}</div>
+                    <div className="text-2xl font-black text-white md:text-3xl">נגד</div>
+                    <div className="mt-1 text-center text-[10px] font-semibold text-white/60">{s.dateLabel}</div>
                   </div>
                 )}
               </div>
               <div className="min-w-[90px] text-center">
-                <div className="text-lg font-black text-white md:text-2xl leading-tight">{s.awayName}</div>
+                <div className="text-lg font-black text-white md:text-3xl leading-tight">{s.awayName}</div>
                 <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">חוץ</div>
               </div>
             </div>
             {s.showTeaser ? (
-              <div className="mt-3 text-[11px] font-bold text-white/70">לקראת המשחק · כושר, פציעות ותצוגה ←</div>
+              <div className="mt-4 inline-flex rounded-full bg-[var(--accent)] px-3 py-1.5 text-[11px] font-black text-white">למרכז המשחק · כושר, פציעות והרכבים ←</div>
             ) : null}
           </div>
         </Link>
