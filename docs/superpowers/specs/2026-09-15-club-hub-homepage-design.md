@@ -92,6 +92,15 @@ The UI must distinguish unavailable data from zero. All match-derived facts must
 - Replacing detailed team, game, statistics, or season-dossier pages.
 - New external data providers.
 
+## Player media extension
+
+Player pages include a media section only when verified content exists:
+
+- Existing published player songs are shown through the current Song model, song page, and YouTube thumbnail/link helpers.
+- Match recaps and official player-related YouTube videos may appear as source-labelled cards or privacy-friendly YouTube embeds.
+- Every video retains its originating URL and title. The product does not download, self-host, or fabricate video media.
+- If a player has neither songs nor verified videos, the section is omitted entirely.
+
 ## Acceptance criteria
 
 - Homepage opens with Hapoel Be'er Sheva selected and gives the next live/upcoming/recent match priority.
