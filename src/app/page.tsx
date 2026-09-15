@@ -20,6 +20,7 @@ import { GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
 import ClubHubBand from '@/components/ClubHubBand';
+import { resolveHomeClubId } from '@/lib/home-club-hub';
 
 export const dynamic = 'force-dynamic';
 
@@ -211,19 +212,18 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
 
   const queryTeamIds = parseSearchValues(searchParams?.team);
   const queryLeagueIds = parseSearchValues(searchParams?.league).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0);
-  const favoriteTeamIdsFromUser =
-    queryTeamIds.length > 0
-      ? queryTeamIds
-      : seasonTeams
-          .filter((team) => team.apiFootballId !== null && (storedUser?.favoriteTeamApiIds || []).includes(team.apiFootballId))
-          .map((team) => team.id);
+  const favouriteTeamIds =
+    seasonTeams
+      .filter((team) => team.apiFootballId !== null && (storedUser?.favoriteTeamApiIds || []).includes(team.apiFootballId))
+      .map((team) => team.id);
+  const selectedHomeClubId = resolveHomeClubId(queryTeamIds, favouriteTeamIds, seasonTeams);
   const selectedCompetitionApiIds =
     queryLeagueIds.length > 0
       ? queryLeagueIds
       : resolveHomeLeagueScope(storedUser?.homeLeagueScope, storedUser?.favoriteCompetitionApiIds || []);
-  const selectedTeams = seasonTeams.filter((team) => favoriteTeamIdsFromUser.includes(team.id));
-  const selectedTeam = selectedTeams.length === 1 ? selectedTeams[0] : null;
-  const selectedTeamIds = selectedTeams.map((team) => team.id);
+  const selectedTeams = selectedHomeClubId ? seasonTeams.filter((team) => team.id === selectedHomeClubId) : [];
+  const selectedTeam = selectedTeams[0] || null;
+  const selectedTeamIds = selectedTeam ? [selectedTeam.id] : [];
 
   // Detect stale standings: compare highest round in completed games vs max(played) in stored standings.
   const maxRoundInHomeStandings = rawStandings.length > 0
@@ -743,7 +743,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       <HeroMatchCarousel slides={heroSlides} />
 
       {/* ── Team/League selector ── */}
-      <HomeFilterBar teams={seasonTeams} selectedTeamIds={selectedTeamIds} />
+      <HomeFilterBar teams={seasonTeams} selectedTeamId={selectedTeam?.id || null} />
 
       {/* ── MAIN GRID ── */}
       <div className="mx-auto max-w-7xl px-4 py-6">
