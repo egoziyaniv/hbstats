@@ -77,3 +77,13 @@ export function buildClubSeasonSnapshot(teamId: string, games: HomepageGame[]) {
     { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 },
   );
 }
+
+export function buildClubTrend(teamId: string, games: HomepageGame[]) {
+  let points = 0;
+  const form = buildClubForm(teamId, games);
+
+  return form.map((result, index) => {
+    points += result === 'W' ? 3 : result === 'D' ? 1 : 0;
+    return { match: index + 1, points };
+  });
+}

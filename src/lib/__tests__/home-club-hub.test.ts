@@ -1,4 +1,4 @@
-import { buildClubForm, buildClubSeasonSnapshot, resolveHomeClubId } from '@/lib/home-club-hub';
+import { buildClubForm, buildClubSeasonSnapshot, buildClubTrend, resolveHomeClubId } from '@/lib/home-club-hub';
 
 const teams = [
   { id: 'hbs', apiFootballId: 563 },
@@ -38,5 +38,21 @@ describe('buildClubSeasonSnapshot', () => {
         { status: 'SCHEDULED', homeTeamId: 'hbs', awayTeamId: 'other', homeScore: null, awayScore: null },
       ]),
     ).toEqual({ matches: 2, wins: 2, draws: 0, losses: 0, goalsFor: 5, goalsAgainst: 1 });
+  });
+});
+
+describe('buildClubTrend', () => {
+  it('returns cumulative points in completed match order', () => {
+    expect(
+      buildClubTrend('hbs', [
+        { status: 'COMPLETED', homeTeamId: 'hbs', awayTeamId: 'other', homeScore: 0, awayScore: 1 },
+        { status: 'COMPLETED', homeTeamId: 'hbs', awayTeamId: 'other', homeScore: 2, awayScore: 0 },
+        { status: 'COMPLETED', homeTeamId: 'other', awayTeamId: 'hbs', homeScore: 1, awayScore: 1 },
+      ]),
+    ).toEqual([
+      { match: 1, points: 0 },
+      { match: 2, points: 3 },
+      { match: 3, points: 4 },
+    ]);
   });
 });
