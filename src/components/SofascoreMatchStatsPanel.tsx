@@ -3,7 +3,7 @@
  * grouped by section (Shots / Attack / Passes / Duels / Defending / Goalkeeping).
  *
  * Each stat row shows the away value, the label, and the home value as
- * three columns. The flex container is in the page's RTL context, so the
+ * three columns. An explicit LTR flex container ensures the
  * source-first item (away) appears on the visual LEFT, and the source-last
  * item (home) appears on the visual RIGHT — same side as the home badge.
  */
@@ -102,12 +102,12 @@ function StatRow({ stat }: { stat: Stat }) {
   const labelHe = LABEL_HE[stat.label] || stat.label;
   return (
     <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
-      <div className="flex items-center justify-between gap-3 text-sm">
+      <div dir="ltr" className="flex items-center justify-between gap-3 text-sm">
         <div className="flex flex-col items-start font-black text-stone-900">
           <span>{stat.away}</span>
           {stat.awayExtra ? <span className="text-xs font-semibold text-stone-500">{stat.awayExtra}</span> : null}
         </div>
-        <div className="flex-1 text-center text-xs font-bold text-stone-600">{labelHe}</div>
+        <div dir="rtl" className="flex-1 text-center text-xs font-bold text-stone-600">{labelHe}</div>
         <div className="flex flex-col items-end font-black text-stone-900">
           <span>{stat.home}</span>
           {stat.homeExtra ? <span className="text-xs font-semibold text-stone-500">{stat.homeExtra}</span> : null}

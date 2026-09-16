@@ -541,7 +541,7 @@ function PremierGameView({
               <div className="grid gap-3 sm:grid-cols-2">
                 {/* In RTL pages we render `away / home` so the right side (where the
                     home badge sits) shows the home value to a Hebrew reader. */}
-                <PremierMetricCard label="כדורגל שליטה" value={`${formatPercent(game.gameStats?.awayTeamPossession ?? null)} / ${formatPercent(game.gameStats?.homeTeamPossession ?? null)}`} />
+                <PremierMetricCard label="החזקת כדור" value={`${formatPercent(game.gameStats?.awayTeamPossession ?? null)} / ${formatPercent(game.gameStats?.homeTeamPossession ?? null)}`} />
                 <PremierMetricCard label="בעיטות למסגרת" value={`${formatNumber(game.gameStats?.awayShotsOnTarget ?? null)} / ${formatNumber(game.gameStats?.homeShotsOnTarget ?? null)}`} />
                 <PremierMetricCard label="כרטיסים צהובים" value={`${eventSummary.awayYellowCards} / ${eventSummary.homeYellowCards}`} />
                 <PremierMetricCard label="חילופים" value={`${eventSummary.awaySubstitutions} / ${eventSummary.homeSubstitutions}`} />
@@ -834,7 +834,7 @@ function PremierMetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
       <div className="text-xs font-semibold tracking-[0.18em] text-white/70">{label}</div>
-      <div className="mt-2 text-2xl font-black text-white">{value}</div>
+      <div dir="ltr" className="mt-2 text-right text-2xl font-black text-white">{value}</div>
     </div>
   );
 }
@@ -1395,7 +1395,7 @@ function buildComparisonRows(
 ) {
   return [
     {
-      label: 'אחזקת כדור',
+      label: 'החזקת כדור',
       homeValue: stats?.homeTeamPossession ?? null,
       awayValue: stats?.awayTeamPossession ?? null,
       homeDisplay: formatPercent(stats?.homeTeamPossession ?? null),
@@ -1532,7 +1532,7 @@ function buildSummaryCards(
       note: 'שערים חלקי בעיטות למסגרת',
     },
     {
-      label: 'אחזקת כדור',
+      label: 'החזקת כדור',
       value: `${formatPercent(awayPossession)} / ${formatPercent(homePossession)}`,
       delta: 'בית / חוץ',
       note: 'אחוזי שליטה במשחק',
