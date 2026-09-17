@@ -42,10 +42,10 @@ function StatsTeamTable({
   }, null);
 
   return (
-    <div>
+    <div className="min-w-0">
       <h3 className="mb-2 text-sm font-black text-stone-800">{title}</h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-right text-sm">
+      <div className="max-w-full overflow-x-auto">
+        <table className="min-w-max text-right text-sm">
           <thead>
             <tr className="border-b border-stone-200 text-xs text-stone-500">
               <th className="px-2 py-2.5 text-right font-bold">שחקן</th>

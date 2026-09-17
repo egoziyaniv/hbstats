@@ -10,6 +10,12 @@ type ClubHubTile = {
 const ICON_CLASS = 'h-5 w-5';
 
 const TILES: ClubHubTile[] = [
+  { href: '/club/calendar', title: 'יומן משחקים', subtitle: 'מנוי מתעדכן ליומן שלכם', icon: <span aria-hidden="true" className="text-xl">▦</span> },
+  { href: '/matchdays', title: 'המשחקים שלי', subtitle: 'מאזן, אצטדיונים וזיכרונות', icon: <span aria-hidden="true" className="text-xl">✓</span> },
+  { href: '/club/archive', title: 'ארכיון אוהדים', subtitle: 'סיפורים וכרטיסים מהיציע', icon: <span aria-hidden="true" className="text-xl">▤</span> },
+  { href: '/club/matchday', title: 'מרכז יום משחק', subtitle: 'הכנה, הרכבים ומפגשי עבר', icon: <span aria-hidden="true" className="text-xl">⚽</span> },
+  { href: '/club/eras', title: 'תקופות המועדון', subtitle: 'סיפורים לאורך השנים', icon: <span aria-hidden="true" className="text-xl">◷</span> },
+  { href: '/club/quiz', title: 'חידון השבוע', subtitle: 'כמה אתם זוכרים?', icon: <span aria-hidden="true" className="text-xl">?</span> },
   {
     href: '/club',
     title: 'הקבוצה',

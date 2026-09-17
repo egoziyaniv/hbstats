@@ -11,8 +11,8 @@ import { theme } from '@/design-system/theme';
 
 const GOLD = '#c8952a';
 
-export function seasonDossierRoute(seasonId: string, year: number): string | null {
-  return year === 2025 || year === 2026
+export function seasonDossierRoute(seasonId: string, year: number, dossierAvailable?: boolean): string | null {
+  return (dossierAvailable ?? (year === 2025 || year === 2026))
     ? `/club/seasons/${encodeURIComponent(seasonId)}`
     : null;
 }
@@ -26,8 +26,8 @@ export default function ClubSeasonsScreen() {
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/club' as any); };
 
   // Deep-link a season row to that season's games (set the app-wide season, open the games tab).
-  const openSeason = (seasonId: string, year: number) => {
-    const dossierRoute = seasonDossierRoute(seasonId, year);
+  const openSeason = (seasonId: string, year: number, dossierAvailable?: boolean) => {
+    const dossierRoute = seasonDossierRoute(seasonId, year, dossierAvailable);
     if (dossierRoute) {
       router.push(dossierRoute as any);
       return;
@@ -61,7 +61,7 @@ export default function ClubSeasonsScreen() {
             {seasons.map((s, i) => {
               const champion = s.honors.includes('ליגת העל');
               return (
-                <Pressable key={s.seasonId} onPress={() => openSeason(s.seasonId, s.year)}>
+                <Pressable key={s.seasonId} onPress={() => openSeason(s.seasonId, s.year, s.dossierAvailable)}>
                   <View style={{ flexDirection: rtlRow(), alignItems: 'center', paddingVertical: 11, paddingHorizontal: 12, borderBottomWidth: i === seasons.length - 1 ? 0 : 1, borderBottomColor: theme.ink[100], backgroundColor: champion ? 'rgba(200,149,42,0.08)' : 'transparent' }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.ink[900], textAlign: 'right' }}>{s.name}</Text>

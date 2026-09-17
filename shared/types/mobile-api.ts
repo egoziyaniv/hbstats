@@ -215,6 +215,8 @@ export interface ClubHubPayload {
 }
 
 export interface ClubSeasonRow {
+  /** Public dossier eligibility; optional for older API responses. */
+  dossierAvailable?: boolean;
   seasonId: string;
   year: number;
   name: string;

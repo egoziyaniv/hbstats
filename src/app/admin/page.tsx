@@ -483,7 +483,6 @@ export default async function AdminPage({
     .sort((a, b) => a.displayNameEn.localeCompare(b.displayNameEn));
 
   const adminTab = (searchParams as any)?.adminTab || 'data';
-  const dossierSeason = seasons.find((season) => season.year === 2026) || seasons.find((season) => season.year === 2025);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
@@ -512,7 +511,8 @@ export default async function AdminPage({
               <Link href="/admin/venues" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">🏟️ אצטדיונים</Link>
               <Link href="/admin/referees" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">🟨 שופטים</Link>
               <Link href="/admin/coaches" className="rounded-lg bg-stone-50 px-3 py-2 text-stone-800 transition hover:bg-stone-100">📋 מאמנים</Link>
-              {dossierSeason && <Link href={`/admin/club/seasons/${dossierSeason.id}`} className="rounded-lg bg-red-50 px-3 py-2 text-red-900 transition hover:bg-red-100">📕 תיקי עונה</Link>}
+              <Link href="/admin/club/seasons" className="rounded-lg bg-red-50 px-3 py-2 text-red-900 transition hover:bg-red-100">📕 תיקי עונה</Link>
+              <Link href="/admin/archive" className="rounded-lg bg-red-50 px-3 py-2 text-red-900 transition hover:bg-red-100">ארכיון אוהדים — בדיקה ופרסום</Link>
             </div>
           </div>
 

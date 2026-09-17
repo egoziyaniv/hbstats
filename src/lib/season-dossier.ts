@@ -110,7 +110,7 @@ export async function buildSeasonDossier(
     where: { id: seasonId },
     select: { id: true, year: true, name: true, startDate: true, endDate: true },
   });
-  if (!season || !PILOT_YEARS.has(season.year)) return null;
+  if (!season) return null;
 
   const team = await prisma.team.findFirst({
     where: { seasonId: season.id, apiFootballId: BEER_SHEVA_API_FOOTBALL_ID },
@@ -293,6 +293,8 @@ export async function buildSeasonDossier(
       orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
     }),
   ]);
+
+  if (!includeDrafts && !PILOT_YEARS.has(season.year) && !dossier?.isPublished) return null;
 
   const visibleDossier = dossier && (includeDrafts || dossier.isPublished) ? dossier : null;
   const visibleMoments = (visibleDossier?.moments ?? [])

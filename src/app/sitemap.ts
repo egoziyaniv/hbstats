@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://hbs.co.il';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://statsai.co.il';
 
 // Public, indexable top-level routes. Detail pages (teams/players/games) are
 // reachable via internal links and intentionally not enumerated here.
@@ -23,13 +23,21 @@ const PUBLIC_PATHS = [
   '/live',
   '/privacy',
   '/support',
+  '/club',
+  '/club/seasons',
+  '/club/calendar',
+  '/club/archive',
+  '/club/matchday',
+  '/club/eras',
+  '/club/quiz',
+  '/songs',
+  '/history',
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const dossiers = await prisma.clubSeasonDossier.findMany({
     where: {
       isPublished: true,
-      season: { year: { in: [2025, 2026] } },
       team: { apiFootballId: 563 },
     },
     select: { seasonId: true, updatedAt: true },

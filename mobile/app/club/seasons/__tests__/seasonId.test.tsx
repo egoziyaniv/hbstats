@@ -16,10 +16,13 @@ const dossier = {
 } satisfies SeasonDossierPayload;
 
 describe('SeasonDossierBody', () => {
-  test('routes only pilot seasons to dossiers', () => {
+  test('routes pilot and explicitly available historic seasons to dossiers', () => {
     expect(seasonDossierRoute('season 2026', 2026)).toBe('/club/seasons/season%202026');
     expect(seasonDossierRoute('s2025', 2025)).toBe('/club/seasons/s2025');
     expect(seasonDossierRoute('s2024', 2024)).toBeNull();
+    expect(seasonDossierRoute('historic', 2015, true)).toBe('/club/seasons/historic');
+    expect(seasonDossierRoute('draft', 2015, false)).toBeNull();
+    expect(seasonDossierRoute('hidden-pilot', 2026, false)).toBeNull();
   });
   test('renders current/final labels and opens a dismissible RTL evidence modal', () => {
     const onGamePress = jest.fn();

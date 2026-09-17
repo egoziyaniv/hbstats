@@ -268,17 +268,22 @@ describe('buildSeasonDossier', () => {
 
   afterEach(() => jest.useRealTimers());
 
-  it('gates the pilot to 2025 and 2026 and resolves Beer Sheva in the requested season', async () => {
-    p.season.findUnique.mockResolvedValueOnce({ id: 'season-2024', year: 2024, name: '2024/25' });
-    expect(await buildSeasonDossier('season-2024')).toBeNull();
-    expect(p.team.findFirst).not.toHaveBeenCalled();
+  it('requires publication for historical seasons and allows admin drafts', async () => {
+    arrange(2015);
+    p.clubSeasonDossier.findUnique.mockResolvedValue(dossier({ isPublished: false }));
+    expect(await buildSeasonDossier('season-2015')).toBeNull();
+    expect(await buildSeasonDossier('season-2015', { includeDrafts: true })).not.toBeNull();
+    p.clubSeasonDossier.findUnique.mockResolvedValue(dossier({ isPublished: true }));
+    expect(await buildSeasonDossier('season-2015')).not.toBeNull();
+    p.clubSeasonDossier.findUnique.mockResolvedValue(null);
+    expect(await buildSeasonDossier('season-2015')).toBeNull();
+  });
 
-    arrange(2026);
+  it('resolves Beer Sheva in the requested season and rejects a missing team', async () => {
     await buildSeasonDossier('season-2026');
     expect(p.team.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: { seasonId: 'season-2026', apiFootballId: 563 },
     }));
-
     p.team.findFirst.mockResolvedValueOnce(null);
     expect(await buildSeasonDossier('season-2026')).toBeNull();
   });

@@ -38,6 +38,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
+const { schedulingStatusUpdate } = require('./lib/fixture-schedule-status');
 
 function loadEnv(file) {
   if (!fs.existsSync(file)) return;
@@ -110,12 +111,15 @@ async function fetchFixturesByIds(ids) {
 
     const game = await prisma.game.findUnique({
       where: { apiFootballId: apiId },
-      select: { id: true, dateTime: true, status: true, homeScore: true, awayScore: true },
+      select: { id: true, dateTime: true, status: true, statusShort: true, statusLong: true, homeScore: true, awayScore: true },
     });
     if (!game) { missing++; return; }
     checked++;
 
-    const data = {};
+    const data = schedulingStatusUpdate(game, f.fixture?.status);
+    if (Object.keys(data).length) {
+      console.log(`  ${DRY ? 'WOULD UPDATE STATUS' : 'STATUS'} ${apiId}: ${game.statusShort || game.status} -> ${f.fixture.status.short}`);
+    }
     const label = `${f.teams?.home?.name} vs ${f.teams?.away?.name}`;
 
     // Sub-minute drift is noise; anything more is a real reschedule.

@@ -1,10 +1,15 @@
 import Link from 'next/link';
+import prisma from '@/lib/prisma';
 import { buildClubSeasons } from '@/lib/club-hub';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClubSeasonsPage() {
-  const seasons = await buildClubSeasons();
+  const [seasons, published] = await Promise.all([
+    buildClubSeasons(),
+    prisma.clubSeasonDossier.findMany({ where: { isPublished: true, team: { apiFootballId: 563 } }, select: { seasonId: true } }),
+  ]);
+  const available = new Set(published.map(dossier => dossier.seasonId));
 
   return (
     <div dir="rtl" className="mx-auto max-w-6xl px-4 py-8 space-y-6">
@@ -43,10 +48,10 @@ export default async function ClubSeasonsPage() {
                       className={`border-b border-stone-100 transition hover:bg-stone-50 ${champion ? 'bg-amber-50/60' : ''}`}
                     >
                       <td className="whitespace-nowrap px-3 py-2.5 font-bold text-stone-900">
-                        <Link href={s.year === 2025 || s.year === 2026 ? `/club/seasons/${s.seasonId}` : `/games?season=${s.seasonId}&teamId=${s.teamId}`} className="hover:text-[var(--accent)] hover:underline">
+                        <Link href={s.year === 2025 || s.year === 2026 || available.has(s.seasonId) ? `/club/seasons/${s.seasonId}` : `/games?season=${s.seasonId}&teamId=${s.teamId}`} className="hover:text-[var(--accent)] hover:underline">
                           {s.name}
                         </Link>
-                        {(s.year === 2025 || s.year === 2026) && <Link href={`/games?season=${s.seasonId}&teamId=${s.teamId}`} className="mr-2 text-[11px] font-semibold text-stone-500 underline">לכל המשחקים</Link>}
+                        {(s.year === 2025 || s.year === 2026 || available.has(s.seasonId)) && <Link href={`/games?season=${s.seasonId}&teamId=${s.teamId}`} className="mr-2 text-[11px] font-semibold text-stone-500 underline">לכל המשחקים</Link>}
                       </td>
                       <td className="px-2 py-2.5 text-center font-black text-stone-900">
                         {s.position === 1 ? <span className="text-amber-600">1</span> : s.position}

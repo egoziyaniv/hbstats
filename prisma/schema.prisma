@@ -8,6 +8,8 @@ datasource db {
 }
 
 model User {
+  fanArchiveItems FanArchiveItem[] @relation("FanArchiveAuthor")
+  reviewedFanArchiveItems FanArchiveItem[] @relation("FanArchiveReviewer")
   id                        String               @id @default(cuid())
   email                     String               @unique
   name                      String
@@ -118,6 +120,7 @@ model Session {
 }
 
 model Season {
+  fanArchiveItems FanArchiveItem[]
   id                  String                        @id @default(cuid())
   year                Int                           @unique
   name                String
@@ -258,6 +261,7 @@ model Team {
 }
 
 model Venue {
+  fanArchiveItems FanArchiveItem[]
   id             String       @id @default(cuid())
   apiFootballId  Int?         @unique
   nameEn         String
@@ -420,6 +424,7 @@ model CoachAlias {
 }
 
 model Player {
+  fanArchiveItems FanArchiveItem[]
   id                 String                        @id @default(cuid())
   nameEn             String
   nameHe             String
@@ -480,6 +485,7 @@ model Player {
 }
 
 model Game {
+  fanArchiveItems FanArchiveItem[]
   id                  String                   @id @default(cuid())
   dateTime            DateTime
   homeScore           Int?
@@ -550,6 +556,7 @@ model Game {
 }
 
 model UserMatchAttendance {
+  note      String?
   userId    String
   gameId    String
   createdAt DateTime @default(now())
@@ -2084,4 +2091,69 @@ model StatNarrative {
 
   @@unique([questionKey, dataVersion])
   @@map("stat_narratives")
+}
+
+enum FanArchiveType {
+  MEMORY
+  PHOTO
+  TICKET
+  PROGRAMME
+  OTHER
+}
+
+enum FanArchiveStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+model FanArchiveItem {
+  revisions FanArchiveRevision[]
+  id                String           @id @default(cuid())
+  type              FanArchiveType   @default(MEMORY)
+  titleHe           String
+  bodyHe            String
+  eventDate         DateTime?
+  creditHe          String
+  sourceUrl         String?
+  imageUrl          String?
+  permissionGranted Boolean          @default(false)
+  authorId          String
+  gameId            String?
+  seasonId          String?
+  playerId          String?
+  venueId           String?
+  status            FanArchiveStatus @default(DRAFT)
+  reviewNoteHe      String?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  publishedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  author            User             @relation("FanArchiveAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reviewedBy        User?            @relation("FanArchiveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  game              Game?            @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  season            Season?          @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  player            Player?          @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  venue             Venue?           @relation(fields: [venueId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([authorId, createdAt])
+  @@index([gameId])
+  @@index([seasonId])
+  @@index([playerId])
+  @@index([venueId])
+  @@map("fan_archive_items")
+}
+
+model FanArchiveRevision {
+  id String @id @default(cuid())
+  itemId String
+  action String
+  snapshot Json
+  createdAt DateTime @default(now())
+  item FanArchiveItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  @@index([itemId, createdAt])
+  @@map("fan_archive_revisions")
 }

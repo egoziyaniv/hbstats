@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { requireAdminUser } from '@/lib/auth';
 import { SeasonDossierValidationError } from '@/lib/season-dossier-validation';
 
-const PILOT_YEARS = [2025, 2026];
 const BEER_SHEVA_API_FOOTBALL_ID = 563;
 
 export async function requireAdminApi(): Promise<NextResponse | null> {
@@ -40,7 +39,7 @@ export async function resolvePilotDossier(
     where: { id: seasonId },
     select: { id: true, year: true },
   });
-  if (!season || !PILOT_YEARS.includes(season.year)) return null;
+  if (!season) return null;
   const team = await tx.team.findFirst({
     where: { seasonId, apiFootballId: BEER_SHEVA_API_FOOTBALL_ID },
     select: { id: true },
