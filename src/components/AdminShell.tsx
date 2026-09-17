@@ -16,6 +16,7 @@ const groups = [
     { href: '/admin/ratings', label: 'ציוני שחקנים' },
   ] },
   { title: 'תוכן וארכיון', links: [
+    { href: '/admin/content', label: 'מרכז תוכן' },
     { href: '/admin/club/seasons', label: 'תיקי עונה' },
     { href: '/admin/club-pages', label: 'עמודי מועדון' },
     { href: '/admin/archive', label: 'ארכיון אוהדים' },
