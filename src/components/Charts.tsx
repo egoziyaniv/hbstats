@@ -32,13 +32,17 @@ function ChartCard({
 
 export function TeamChartsView({
   goalsByMatchday,
-  pointsProgress,
+  leaguePositions,
+  comparedTeams,
+  leagueTeamCount,
   resultBreakdown,
   topScorers,
   topAssisters,
 }: {
   goalsByMatchday: Array<{ מחזור: string; זכות: number; חובה: number }>;
-  pointsProgress: Array<{ מחזור: string; נקודות: number }>;
+  leaguePositions: Array<Record<string, string | number>>;
+  comparedTeams: Array<{ id: string; name: string; color: string }>;
+  leagueTeamCount: number | null;
   resultBreakdown: Array<{ name: string; value: number }>;
   topScorers: Array<{ שחקן: string; שערים: number }>;
   topAssisters: Array<{ שחקן: string; בישולים: number }>;
@@ -59,17 +63,25 @@ export function TeamChartsView({
         </ResponsiveContainer>
       </ChartCard>
 
-      <ChartCard title="צבירת נקודות לאורך העונה">
-        <ResponsiveContainer>
-          <LineChart data={pointsProgress}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="מחזור" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="נקודות" stroke="#ca8a04" strokeWidth={3} />
-          </LineChart>
-        </ResponsiveContainer>
+      <ChartCard title="מקום בטבלה לפי מחזור">
+        {leagueTeamCount && leaguePositions.length > 0 ? (
+          <ResponsiveContainer>
+            <LineChart data={leaguePositions}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="מחזור" />
+              <YAxis reversed domain={[leagueTeamCount, 1]} allowDecimals={false} ticks={Array.from({ length: leagueTeamCount }, (_, index) => index + 1)} />
+              <Tooltip formatter={(value: number) => [`מקום ${value}`, 'מיקום']} />
+              <Legend />
+              {comparedTeams.map((team) => (
+                <Line key={team.id} type="monotone" dataKey={team.name} stroke={team.color} strokeWidth={3} dot={{ r: 3 }} connectNulls />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center rounded-2xl bg-stone-50 px-8 text-center text-stone-600">
+            גרף מיקום בטבלה זמין במסגרת ליגה לאחר שהושלם לפחות מחזור אחד.
+          </div>
+        )}
       </ChartCard>
 
       <ChartCard title="התפלגות ניצחונות / תיקו / הפסדים">
