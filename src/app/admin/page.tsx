@@ -8,6 +8,8 @@ import AdminTelegramSourcesClient from '@/components/AdminTelegramSourcesClient'
 import AdminPushSettingsClient from '@/components/AdminPushSettingsClient';
 import AdminAiSettingsClient from '@/components/AdminAiSettingsClient';
 import AdminManagerClient from '@/components/AdminManagerClient';
+import AdminShell from '@/components/AdminShell';
+import { buildAdminAttentionItems } from '@/lib/admin-overview';
 import { buildAdminCoverageRows } from '@/lib/admin-data-coverage';
 import { getCurrentUser } from '@/lib/auth';
 import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
@@ -54,7 +56,7 @@ export default async function AdminPage({
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
 
-  const [teams, fetchJobs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags] = await Promise.all([
+  const [teams, fetchJobs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags, failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue] = await Promise.all([
     prisma.team.findMany({
       include: { season: true },
       orderBy: [{ updatedAt: 'desc' }],
@@ -240,6 +242,16 @@ export default async function AdminPage({
       },
     }) : Promise.resolve(null),
     getPushCategoryFlags(),
+    prisma.fetchJob.count({ where: { status: 'FAILED' } }),
+    prisma.mergeOperation.count({ where: { status: 'preview' } }),
+    prisma.fanArchiveItem.count({ where: { status: 'PENDING' } }),
+    prisma.game.count({
+      where: {
+        status: { in: ['SCHEDULED', 'ONGOING'] },
+        venueId: null,
+        dateTime: { gte: new Date() },
+      },
+    }),
   ]);
 
   const telegramSourcesRaw = Array.isArray(telegramSourcesSetting?.valueJson)
@@ -259,6 +271,7 @@ export default async function AdminPage({
 
   const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
   const coverageRows = buildAdminCoverageRows(coverageSeason ? [coverageSeason] : []);
+  const attentionItems = buildAdminAttentionItems({ failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue });
   const liveCountries = Array.from(
     new Set(
       liveSnapshots
@@ -487,6 +500,7 @@ export default async function AdminPage({
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
       <div className="mx-auto max-w-6xl space-y-5">
+        <AdminShell seasons={seasons.map((season) => ({ id: season.id, name: season.name }))} selectedSeasonId={selectedSeason?.id || null} />
         {/* Header */}
         <section className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,#7f1d1d,#1f2937)] px-6 py-5 text-white shadow-md">
           <div className="flex items-center justify-between gap-4">
@@ -498,6 +512,26 @@ export default async function AdminPage({
               עדכון יום משחקים →
             </Link>
           </div>
+        </section>
+
+        <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-stone-900">דורש טיפול</h2>
+              <p className="mt-1 text-sm text-stone-600">תורים ונתונים שדורשים פעולה לפני הפרסום הבא.</p>
+            </div>
+            <Link href={`/admin?season=${selectedSeason?.id || ''}&adminTab=data`} className="text-sm font-bold text-red-800">לסטטוס הנתונים</Link>
+          </div>
+          {attentionItems.length ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {attentionItems.map((item) => (
+                <Link key={item.id} href={`${item.href}${item.href.includes('?') ? '&' : '?'}season=${selectedSeason?.id || ''}`} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-400 hover:bg-amber-100">
+                  <strong className="block text-2xl font-black text-amber-950">{item.count}</strong>
+                  <span className="mt-1 block text-sm font-bold text-amber-900">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          ) : <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">אין תורים שממתינים לטיפול.</p>}
         </section>
 
         {/* Grouped navigation — 3 clusters */}
