@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 type Season = { id: string; name: string };
 
@@ -40,11 +40,13 @@ const groups = [
 export default function AdminShell({ seasons, selectedSeasonId }: { seasons: Season[]; selectedSeasonId: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeSeasonId = searchParams.get('season') ?? selectedSeasonId;
 
   function hrefWithSeason(href: string) {
     const [path, query = ''] = href.split('?');
     const params = new URLSearchParams(query);
-    if (selectedSeasonId) params.set('season', selectedSeasonId);
+    if (activeSeasonId) params.set('season', activeSeasonId);
     return `${path}?${params.toString()}`;
   }
 
@@ -55,7 +57,7 @@ export default function AdminShell({ seasons, selectedSeasonId }: { seasons: Sea
         <label className="flex items-center gap-2 text-xs font-bold text-slate-300">עונה
           <select
             className="rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
-            value={selectedSeasonId ?? ''}
+            value={activeSeasonId ?? ''}
             onChange={(event) => router.push(`${pathname}?season=${event.target.value}`)}
           >
             {seasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}

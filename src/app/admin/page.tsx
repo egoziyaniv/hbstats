@@ -8,7 +8,6 @@ import AdminTelegramSourcesClient from '@/components/AdminTelegramSourcesClient'
 import AdminPushSettingsClient from '@/components/AdminPushSettingsClient';
 import AdminAiSettingsClient from '@/components/AdminAiSettingsClient';
 import AdminManagerClient from '@/components/AdminManagerClient';
-import AdminShell from '@/components/AdminShell';
 import { buildAdminAttentionItems } from '@/lib/admin-overview';
 import { buildAdminCoverageRows } from '@/lib/admin-data-coverage';
 import { getCurrentUser } from '@/lib/auth';
@@ -500,7 +499,6 @@ export default async function AdminPage({
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
       <div className="mx-auto max-w-6xl space-y-5">
-        <AdminShell seasons={seasons.map((season) => ({ id: season.id, name: season.name }))} selectedSeasonId={selectedSeason?.id || null} />
         {/* Header */}
         <section className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,#7f1d1d,#1f2937)] px-6 py-5 text-white shadow-md">
           <div className="flex items-center justify-between gap-4">
