@@ -68,10 +68,10 @@ export function TeamChartsView({
       <ChartCard title="מקום בטבלה לפי מחזור">
         {leagueTeamCount && leaguePositions.length > 0 ? (
           <ResponsiveContainer>
-            <LineChart data={leaguePositions} margin={{ top: 8, right: 20, left: 30, bottom: 4 }}>
+            <LineChart data={leaguePositions} margin={{ top: 8, right: 28, left: 48, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="מחזור" tickMargin={8} />
-              <YAxis width={44} tickMargin={8} tick={{ fill: '#475569', fontSize: 12 }} reversed domain={[leagueTeamCount, 1]} allowDecimals={false} ticks={Array.from({ length: leagueTeamCount }, (_, index) => index + 1)} />
+              <XAxis dataKey="מחזור" tickMargin={10} padding={{ left: 20, right: 20 }} />
+              <YAxis width={56} tickMargin={14} tick={{ fill: '#475569', fontSize: 12 }} reversed domain={[leagueTeamCount, 1]} allowDecimals={false} ticks={Array.from({ length: leagueTeamCount }, (_, index) => index + 1)} />
               <Tooltip formatter={(value: number) => [`מקום ${value}`, 'מיקום']} />
               <Legend />
               {comparedTeams.map((team) => (
@@ -99,11 +99,11 @@ export function TeamChartsView({
       </ChartCard>
 
       <ChartCard title="חמשת הכובשים המובילים">
-        <ResponsiveContainer>
-          <BarChart data={topScorers} layout="vertical" margin={{ top: 8, right: 20, left: 18, bottom: 4 }}>
+        <ResponsiveContainer dir="ltr">
+          <BarChart data={topScorers} layout="vertical" margin={{ top: 8, right: 20, left: 28, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" allowDecimals={false} />
-            <YAxis type="category" dataKey="שחקן" width={118} tick={{ fontSize: 12 }} />
+            <YAxis type="category" dataKey="שחקן" width={160} tickLine={false} tickMargin={14} tick={{ fontSize: 12, textAnchor: 'end' }} />
             <Tooltip />
             <Bar dataKey="שערים" fill="#dc2626" radius={[0, 8, 8, 0]} />
           </BarChart>
@@ -112,11 +112,11 @@ export function TeamChartsView({
 
       <div className="lg:col-span-2">
         <ChartCard title="חמשת המבשלים המובילים">
-          <ResponsiveContainer>
-            <BarChart data={topAssisters} layout="vertical" margin={{ top: 8, right: 20, left: 18, bottom: 4 }}>
+          <ResponsiveContainer dir="ltr">
+            <BarChart data={topAssisters} layout="vertical" margin={{ top: 8, right: 20, left: 28, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="שחקן" width={118} tick={{ fontSize: 12 }} />
+              <YAxis type="category" dataKey="שחקן" width={160} tickLine={false} tickMargin={14} tick={{ fontSize: 12, textAnchor: 'end' }} />
               <Tooltip />
               <Bar dataKey="בישולים" fill="#2563eb" radius={[0, 8, 8, 0]} />
             </BarChart>
