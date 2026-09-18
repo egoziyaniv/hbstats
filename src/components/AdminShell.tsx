@@ -8,6 +8,7 @@ type Season = { id: string; name: string };
 const groups = [
   { title: 'סקירה', links: [{ href: '/admin', label: 'לוח בקרה' }] },
   { title: 'כדורגל', links: [
+    { href: '/admin/football', label: 'מרכז כדורגל' },
     { href: '/admin/games', label: 'משחקים ואירועים' },
     { href: '/admin/quick-edit', label: 'עריכה מהירה' },
     { href: '/admin/coaches', label: 'מאמנים' },
