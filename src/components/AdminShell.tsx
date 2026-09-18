@@ -25,6 +25,7 @@ const groups = [
     { href: '/admin/honors', label: 'הישגים' },
   ] },
   { title: 'מקורות וסנכרון', links: [
+    { href: '/admin/sync', label: 'מרכז תפעול' },
     { href: '/admin/matchday', label: 'יום משחקים' },
     { href: '/admin/setup', label: 'ייבוא מלא' },
     { href: '/admin/scrape', label: 'סריקות' },
