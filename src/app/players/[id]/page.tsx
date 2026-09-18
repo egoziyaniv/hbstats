@@ -80,7 +80,7 @@ export default async function PlayerPage({
   searchParams: searchParamsPromise,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ view?: string; season?: string; filter?: string; tab?: string }>;
+  searchParams?: Promise<{ view?: string; season?: string; competition?: string; filter?: string; tab?: string }>;
 }) {
   const params = await paramsPromise;
   const searchParams = await searchParamsPromise;
@@ -247,7 +247,7 @@ export default async function PlayerPage({
     seasonPlayers[0] ||
     latestSeasonEntry;
   const teamIds = Array.from(new Set(seasonPlayers.map((player) => player.teamId)));
-  const allGames = await prisma.game.findMany({
+  const allSeasonGames = await prisma.game.findMany({
     where: {
       seasonId: selectedSeasonId,
       OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
@@ -297,8 +297,12 @@ export default async function PlayerPage({
     },
     orderBy: { dateTime: 'desc' },
   });
+  const playerCompetitions = Array.from(new Map(allSeasonGames.filter((game) => game.competition).map((game) => [game.competitionId!, game.competition!])).values());
+  const selectedCompetitionId = searchParams?.competition && playerCompetitions.some((competition) => competition.id === searchParams.competition) ? searchParams.competition : null;
+  const allGames = selectedCompetitionId ? allSeasonGames.filter((game) => game.competitionId === selectedCompetitionId) : allSeasonGames;
+  const scopedSeasonPlayers = seasonPlayers.map((player) => ({ ...player, playerStats: selectedCompetitionId ? player.playerStats.filter((stat) => stat.competitionId === selectedCompetitionId) : player.playerStats }));
 
-  const derivedTotalsBase = seasonPlayers.reduce(
+  const derivedTotalsBase = scopedSeasonPlayers.reduce(
     (acc, player) => {
       const playerGames = allGames.filter((game) => game.homeTeamId === player.teamId || game.awayTeamId === player.teamId);
       const derived = derivePlayerDeepStats(player.id, playerGames);
@@ -412,7 +416,7 @@ export default async function PlayerPage({
       .sort((left, right) => right.seasonName.localeCompare(left.seasonName) || left.competitionName.localeCompare(right.competitionName));
   }
 
-  const aggregatedStats = buildAggregatedStats(seasonPlayers);
+  const aggregatedStats = buildAggregatedStats(scopedSeasonPlayers);
   // Career: all seasons across all linked player entries
   const careerStats = buildAggregatedStats(linkedPlayers);
   const selectedSeasonStats = aggregatedStats.filter((stat) => stat.key.startsWith(`${selectedSeasonId}-`));
@@ -526,7 +530,7 @@ export default async function PlayerPage({
   });
 
   const playerSongs = await prisma.song.findMany({
-    where: { playerId: canonicalPlayerId, isPublished: true },
+    where: { playerId: { in: Array.from(new Set([canonicalPlayerId, ...linkedPlayerIds])) }, isPublished: true },
     orderBy: { displayOrder: 'asc' },
   });
 
@@ -607,6 +611,10 @@ export default async function PlayerPage({
                       {season.name}
                     </option>
                   ))}
+                </select>
+                <select name="competition" defaultValue={selectedCompetitionId ?? ''} className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-900 focus:outline-none">
+                  <option value="">כל המסגרות</option>
+                  {playerCompetitions.map((competition) => <option key={competition.id} value={competition.id}>{competition.nameHe || competition.nameEn}</option>)}
                 </select>
                 <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white">הצג עונה</button>
               </form>
