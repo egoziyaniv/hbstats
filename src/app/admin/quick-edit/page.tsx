@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import AdminQuickEditClient from '@/components/AdminQuickEditClient';
+import AdminPageHeader from '@/components/AdminPageHeader';
 import { getCurrentUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
@@ -93,22 +94,9 @@ export default async function AdminQuickEditPage({
   }));
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Link href="/admin" className="text-sm font-bold text-red-800">
-              חזרה לאדמין
-            </Link>
-            <h1 className="mt-2 text-4xl font-black text-stone-900">עריכה מהירה לשחקנים ואירועים</h1>
-            <p className="mt-2 text-sm text-stone-600">מסך טבלאי ומהיר לעריכות שכיחות, בנוסף לעורכים המלאים.</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href={`/admin/games?season=${selectedSeason.id}`} className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-stone-700 shadow-sm">
-              לעורך המשחקים המלא
-            </Link>
-          </div>
-        </div>
+        <AdminPageHeader eyebrow="כדורגל" title="עריכה מהירה לשחקנים ואירועים" description="מסך טבלאי לעריכות שכיחות, לצד עורך המשחקים המלא." actions={<Link href={`/admin/games?season=${selectedSeason.id}`} className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-bold text-stone-700 shadow-sm">עורך משחקים מלא</Link>} />
 
         <AdminQuickEditClient
           seasons={seasons.map((season) => ({
