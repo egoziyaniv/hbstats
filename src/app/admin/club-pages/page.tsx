@@ -14,10 +14,10 @@ export default async function AdminClubPagesPage() {
   });
 
   return (
-    <div dir="rtl" className="mx-auto max-w-6xl px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-black text-stone-900">ניהול עמודי מועדון</h1>
-        <p className="mt-2 text-sm text-stone-600">
+    <div dir="rtl" className="mx-auto max-w-7xl px-4 py-5">
+      <header className="mb-4">
+        <h1 className="text-2xl font-black text-stone-900">ניהול עמודי מועדון</h1>
+        <p className="mt-1 text-sm text-stone-600">
           הוספה, עריכה ומחיקה של עמודי תוכן — היסטוריה, אצטדיון, זהות ותרבות.
         </p>
       </header>
