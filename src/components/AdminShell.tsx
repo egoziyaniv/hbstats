@@ -40,6 +40,14 @@ const groups = [
   ] },
 ];
 
+const primaryLinks = [
+  { href: '/admin', label: 'לוח בקרה' },
+  { href: '/admin/football', label: 'כדורגל' },
+  { href: '/admin/content', label: 'תוכן' },
+  { href: '/admin/sync', label: 'תפעול' },
+  { href: '/admin?adminTab=settings', label: 'הגדרות' },
+];
+
 export default function AdminShell({ seasons, selectedSeasonId }: { seasons: Season[]; selectedSeasonId: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -54,32 +62,41 @@ export default function AdminShell({ seasons, selectedSeasonId }: { seasons: Sea
   }
 
   return (
-    <aside className="rounded-[24px] border border-slate-700 bg-slate-950 p-4 text-white shadow-xl" aria-label="ניווט אדמין">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <Link href="/admin" className="text-xl font-black tracking-tight">StatsAI <span className="text-red-400">Admin</span></Link>
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-300">עונה
+    <aside className="rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white shadow-xl" aria-label="ניווט אדמין">
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href={hrefWithSeason('/admin')} className="shrink-0 text-lg font-black tracking-tight">StatsAI <span className="text-red-400">Admin</span></Link>
+        <label className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-300">עונה
           <select
-            className="rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
+            className="w-32 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
             value={activeSeasonId ?? ''}
             onChange={(event) => router.push(`${pathname}?season=${event.target.value}`)}
           >
             {seasons.map((season) => <option key={season.id} value={season.id}>{season.name}</option>)}
           </select>
         </label>
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap" aria-label="קישורי אדמין ראשיים">
+          {primaryLinks.map((link) => {
+            const active = link.href.split('?')[0] === pathname && (link.href.includes('adminTab=settings') ? searchParams.get('adminTab') === 'settings' : !searchParams.get('adminTab'));
+            return <Link key={link.href} href={hrefWithSeason(link.href)} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${active ? 'bg-red-600 text-white' : 'text-slate-200 hover:bg-white/10'}`}>{link.label}</Link>;
+          })}
+        </nav>
+        <details className="relative shrink-0">
+          <summary className="cursor-pointer rounded-lg border border-slate-600 px-3 py-2 text-sm font-bold text-slate-100 marker:hidden hover:bg-white/10">כל הכלים</summary>
+          <div className="absolute left-0 z-20 mt-2 grid w-[min(90vw,760px)] grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-2xl sm:grid-cols-3 xl:grid-cols-5">
+            {groups.map((group) => (
+              <section key={group.title}>
+                <h2 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">{group.title}</h2>
+                <div className="grid gap-1">
+                  {group.links.map((link) => {
+                    const active = link.href.split('?')[0] === pathname && (link.href.includes('adminTab=settings') ? searchParams.get('adminTab') === 'settings' : true);
+                    return <Link key={link.href} href={hrefWithSeason(link.href)} className={`rounded-lg px-2 py-1.5 text-sm font-bold transition ${active ? 'bg-red-600 text-white' : 'text-slate-200 hover:bg-white/10'}`}>{link.label}</Link>;
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        </details>
       </div>
-      <nav className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {groups.map((group) => (
-          <section key={group.title}>
-            <h2 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">{group.title}</h2>
-            <div className="grid gap-1">
-              {group.links.map((link) => {
-                const active = link.href.split('?')[0] === pathname && (link.href.includes('adminTab=settings') ? pathname === '/admin' : true);
-                return <Link key={link.href} href={hrefWithSeason(link.href)} className={`rounded-lg px-2.5 py-2 text-sm font-bold transition ${active ? 'bg-red-600 text-white' : 'text-slate-200 hover:bg-white/10'}`}>{link.label}</Link>;
-              })}
-            </div>
-          </section>
-        ))}
-      </nav>
     </aside>
   );
 }

@@ -3,6 +3,7 @@
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   Legend,
   Line,
@@ -47,18 +48,19 @@ export function TeamChartsView({
   topScorers: Array<{ שחקן: string; שערים: number }>;
   topAssisters: Array<{ שחקן: string; בישולים: number }>;
 }) {
+  const resultColors = ['#16a34a', '#eab308', '#dc2626'];
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <ChartCard title="שערי זכות מול שערי חובה לפי מחזור">
         <ResponsiveContainer>
-          <LineChart data={goalsByMatchday}>
+          <LineChart data={goalsByMatchday} margin={{ top: 8, right: 20, left: 12, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="מחזור" />
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="זכות" stroke="#b91c1c" strokeWidth={3} />
-            <Line type="monotone" dataKey="חובה" stroke="#111827" strokeWidth={3} />
+            <Line type="monotone" dataKey="זכות" stroke="#dc2626" strokeWidth={3} />
+            <Line type="monotone" dataKey="חובה" stroke="#2563eb" strokeWidth={3} />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -66,10 +68,10 @@ export function TeamChartsView({
       <ChartCard title="מקום בטבלה לפי מחזור">
         {leagueTeamCount && leaguePositions.length > 0 ? (
           <ResponsiveContainer>
-            <LineChart data={leaguePositions}>
+            <LineChart data={leaguePositions} margin={{ top: 8, right: 20, left: 30, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="מחזור" />
-              <YAxis reversed domain={[leagueTeamCount, 1]} allowDecimals={false} ticks={Array.from({ length: leagueTeamCount }, (_, index) => index + 1)} />
+              <XAxis dataKey="מחזור" tickMargin={8} />
+              <YAxis width={44} tickMargin={8} tick={{ fill: '#475569', fontSize: 12 }} reversed domain={[leagueTeamCount, 1]} allowDecimals={false} ticks={Array.from({ length: leagueTeamCount }, (_, index) => index + 1)} />
               <Tooltip formatter={(value: number) => [`מקום ${value}`, 'מיקום']} />
               <Legend />
               {comparedTeams.map((team) => (
@@ -87,7 +89,9 @@ export function TeamChartsView({
       <ChartCard title="התפלגות ניצחונות / תיקו / הפסדים">
         <ResponsiveContainer>
           <PieChart>
-            <Pie data={resultBreakdown} dataKey="value" nameKey="name" outerRadius={100} fill="#b91c1c" label />
+            <Pie data={resultBreakdown} dataKey="value" nameKey="name" outerRadius={100} label>
+              {resultBreakdown.map((entry, index) => <Cell key={entry.name} fill={resultColors[index % resultColors.length]} />)}
+            </Pie>
             <Tooltip />
             <Legend />
           </PieChart>
@@ -96,12 +100,12 @@ export function TeamChartsView({
 
       <ChartCard title="חמשת הכובשים המובילים">
         <ResponsiveContainer>
-          <BarChart data={topScorers}>
+          <BarChart data={topScorers} layout="vertical" margin={{ top: 8, right: 20, left: 18, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="שחקן" interval={0} angle={-12} textAnchor="end" height={80} />
-            <YAxis />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis type="category" dataKey="שחקן" width={118} tick={{ fontSize: 12 }} />
             <Tooltip />
-            <Bar dataKey="שערים" fill="#b91c1c" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="שערים" fill="#dc2626" radius={[0, 8, 8, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -109,12 +113,12 @@ export function TeamChartsView({
       <div className="lg:col-span-2">
         <ChartCard title="חמשת המבשלים המובילים">
           <ResponsiveContainer>
-            <BarChart data={topAssisters}>
+            <BarChart data={topAssisters} layout="vertical" margin={{ top: 8, right: 20, left: 18, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="שחקן" interval={0} angle={-12} textAnchor="end" height={80} />
-              <YAxis />
+              <XAxis type="number" allowDecimals={false} />
+              <YAxis type="category" dataKey="שחקן" width={118} tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="בישולים" fill="#1d4ed8" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="בישולים" fill="#2563eb" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
