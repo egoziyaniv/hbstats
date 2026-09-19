@@ -165,6 +165,7 @@ export default async function PlayerPage({
           game: {
             select: {
               id: true, dateTime: true, homeScore: true, awayScore: true,
+              seasonId: true, competitionId: true,
               homeTeam: { select: { nameHe: true, nameEn: true } },
               awayTeam: { select: { nameHe: true, nameEn: true } },
               season: { select: { name: true, year: true } },
@@ -506,7 +507,9 @@ export default async function PlayerPage({
   }
   cardHistory.sort((a, b) => +new Date(b.dateTime) - +new Date(a.dateTime));
 
-  const matchHistoryEntries = matchStatsRows.map((r) => {
+  const matchHistoryEntries = matchStatsRows
+    .filter((row) => row.game.seasonId === selectedSeasonId && (!selectedCompetitionId || row.game.competitionId === selectedCompetitionId))
+    .map((r) => {
     const g = r.game;
     const homeNm = g.homeTeam?.nameHe || g.homeTeam?.nameEn || '';
     const awayNm = g.awayTeam?.nameHe || g.awayTeam?.nameEn || '';
@@ -527,7 +530,7 @@ export default async function PlayerPage({
       duelsWon: r.duelsWon,
       duelsTotal: r.duelsTotal,
     };
-  });
+    });
 
   const playerSongs = await prisma.song.findMany({
     where: { playerId: { in: Array.from(new Set([canonicalPlayerId, ...linkedPlayerIds])) }, isPublished: true },
@@ -552,6 +555,8 @@ export default async function PlayerPage({
         selectedSeason={selectedSeason}
         selectedSeasonId={selectedSeasonId}
         availableSeasons={availableSeasons}
+        playerCompetitions={playerCompetitions}
+        selectedCompetitionId={selectedCompetitionId}
         derivedTotals={derivedTotals}
         aggregatedStats={aggregatedStats}
         careerStats={careerStats}
@@ -618,7 +623,7 @@ export default async function PlayerPage({
                 </select>
                 <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white">הצג עונה</button>
               </form>
-              <Link href={`/players/${canonicalPlayerId}/charts`} className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-bold text-stone-900">
+              <Link href={buildPlayerChartsHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId)} className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-bold text-stone-900">
                 גרפים עונתיים
               </Link>
             </div>
@@ -630,10 +635,10 @@ export default async function PlayerPage({
           <StatCard label="בישולים" value={String(derivedTotals.assists)} />
           <StatCard label="דקות" value={String(derivedTotals.minutesPlayed)} />
           <StatCard label="משחקים" value={String(derivedTotals.gamesPlayed)} />
-          <StatCard label="פתיחות" value={String(derivedTotals.starts)} href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=starts#games`} />
-          <StatCard label="נרשם כמחליף" value={String(derivedTotals.benchAppearances)} href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=bench#games`} />
-          <StatCard label="כניסות כמחליף" value={String(derivedTotals.substituteAppearances)} href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=sub-in#games`} />
-          <StatCard label="הוחלף החוצה" value={String(derivedTotals.timesSubbedOff)} href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=sub-off#games`} />
+          <StatCard label="פתיחות" value={String(derivedTotals.starts)} href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'starts')} />
+          <StatCard label="נרשם כמחליף" value={String(derivedTotals.benchAppearances)} href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'bench')} />
+          <StatCard label="כניסות כמחליף" value={String(derivedTotals.substituteAppearances)} href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'sub-in')} />
+          <StatCard label="הוחלף החוצה" value={String(derivedTotals.timesSubbedOff)} href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'sub-off')} />
           <StatCard label="צהובים" value={String(derivedTotals.yellowCards)} />
           <StatCard label="אדומים" value={String(derivedTotals.redCards)} />
         </section>
@@ -754,11 +759,11 @@ export default async function PlayerPage({
         <section id="games" className="modern-card rounded-xl border border-stone-200/80 bg-white p-6 shadow-sm">
           <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">טבלת משחקים</h2>
           <div className="mt-4 flex flex-wrap gap-2">
-            <FilterChip href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}#games`} active={activeGameFilter === 'all'} label={`הכל (${playerGameRows.length})`} />
-            <FilterChip href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=starts#games`} active={activeGameFilter === 'starts'} label={`פתח (${playerGameRows.filter((row) => row.isStarter).length})`} />
-            <FilterChip href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=bench#games`} active={activeGameFilter === 'bench'} label={`בספסל (${playerGameRows.filter((row) => row.onBench).length})`} />
-            <FilterChip href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=sub-in#games`} active={activeGameFilter === 'sub-in'} label={`נכנס (${playerGameRows.filter((row) => row.wasSubbedIn).length})`} />
-            <FilterChip href={`/players/${canonicalPlayerId}?season=${selectedSeasonId}&filter=sub-off#games`} active={activeGameFilter === 'sub-off'} label={`הוחלף (${playerGameRows.filter((row) => row.wasSubbedOff).length})`} />
+            <FilterChip href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId)} active={activeGameFilter === 'all'} label={`הכל (${playerGameRows.length})`} />
+            <FilterChip href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'starts')} active={activeGameFilter === 'starts'} label={`פתח (${playerGameRows.filter((row) => row.isStarter).length})`} />
+            <FilterChip href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'bench')} active={activeGameFilter === 'bench'} label={`בספסל (${playerGameRows.filter((row) => row.onBench).length})`} />
+            <FilterChip href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'sub-in')} active={activeGameFilter === 'sub-in'} label={`נכנס (${playerGameRows.filter((row) => row.wasSubbedIn).length})`} />
+            <FilterChip href={buildPlayerHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId, 'sub-off')} active={activeGameFilter === 'sub-off'} label={`הוחלף (${playerGameRows.filter((row) => row.wasSubbedOff).length})`} />
           </div>
           {filteredPlayerGameRows.length > 0 ? (
             <div className="mt-4 overflow-x-auto">
@@ -859,6 +864,8 @@ function PremierPlayerView({
   selectedSeason,
   selectedSeasonId,
   availableSeasons,
+  playerCompetitions,
+  selectedCompetitionId,
   derivedTotals,
   aggregatedStats,
   careerStats,
@@ -890,6 +897,8 @@ function PremierPlayerView({
   selectedSeason: { id: string; name: string; year: number } | undefined;
   selectedSeasonId: string;
   availableSeasons: Array<{ id: string; name: string; year: number }>;
+  playerCompetitions: Array<{ id: string; nameHe: string | null; nameEn: string }>;
+  selectedCompetitionId: string | null;
   cardHistory: Array<{ id: string; type: string; minute: number; dateTime: Date; gameId: string; opponentNameHe: string; opponentNameEn: string; isHome: boolean }>;
   matchHistoryEntries: Array<{ gameId: string; date: string; opponent: string; scoreLine: string; rating: number | null; minutes: number | null; goals: number | null; assists: number | null; shotsOn: number | null; shotsTotal: number | null; passesKey: number | null; duelsWon: number | null; duelsTotal: number | null }>;
   derivedTotals: {
@@ -1160,19 +1169,19 @@ function PremierPlayerView({
                 </nav>
               ) : (
                 <nav className="flex flex-wrap items-center gap-5 text-sm font-medium text-stone-500">
-                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'overview')} className={`border-b-4 pb-2 transition ${activeTab === 'overview' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
+                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'overview', selectedCompetitionId)} className={`border-b-4 pb-2 transition ${activeTab === 'overview' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
                     סקירה
                   </Link>
-                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'stats')} className={`border-b-4 pb-2 transition ${activeTab === 'stats' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
+                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'stats', selectedCompetitionId)} className={`border-b-4 pb-2 transition ${activeTab === 'stats' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
                     סטטיסטיקה
                   </Link>
-                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', activeGameFilter)} className={`border-b-4 pb-2 transition ${activeTab === 'games' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
+                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', selectedCompetitionId, activeGameFilter)} className={`border-b-4 pb-2 transition ${activeTab === 'games' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
                     משחקים
                   </Link>
-                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'career')} className={`border-b-4 pb-2 transition ${activeTab === 'career' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
+                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'career', selectedCompetitionId)} className={`border-b-4 pb-2 transition ${activeTab === 'career' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
                     קריירה
                   </Link>
-                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'achievements')} className={`border-b-4 pb-2 transition ${activeTab === 'achievements' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
+                  <Link href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'achievements', selectedCompetitionId)} className={`border-b-4 pb-2 transition ${activeTab === 'achievements' ? 'border-[var(--accent)] font-black text-stone-900' : 'border-transparent hover:text-[var(--accent)]'}`}>
                     הישגים
                   </Link>
                 </nav>
@@ -1192,6 +1201,10 @@ function PremierPlayerView({
                       {season.name}
                     </option>
                   ))}
+                </select>
+                <select name="competition" defaultValue={selectedCompetitionId ?? ''} className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-900 focus:outline-none">
+                  <option value="">כל המסגרות</option>
+                  {playerCompetitions.map((competition) => <option key={competition.id} value={competition.id}>{competition.nameHe || competition.nameEn}</option>)}
                 </select>
                 <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white transition hover:opacity-90">הצג עונה</button>
               </form>
@@ -1234,7 +1247,7 @@ function PremierPlayerView({
               <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">רשומות עונה וקבוצה</h2>
               <p className="mt-1 text-sm text-stone-500">מעקב עונתי אחר הקבוצות, המסגרות והנתונים שנשמרו לשחקן.</p>
             </div>
-            <Link href={`/players/${canonicalPlayerId}/charts`} className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-bold text-stone-700">
+            <Link href={buildPlayerChartsHref(canonicalPlayerId, selectedSeasonId, selectedCompetitionId)} className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-bold text-stone-700">
               גרפים עונתיים
             </Link>
           </div>
@@ -1341,11 +1354,11 @@ function PremierPlayerView({
             </div>
           ) : (
             <div className="mb-4 flex flex-wrap gap-2">
-              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', 'all')} active={activeGameFilter === 'all'} label={`הכל (${playerGameRows.length})`} />
-              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', 'starts')} active={activeGameFilter === 'starts'} label={`פתח (${playerGameRows.filter((row) => row.isStarter).length})`} />
-              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', 'bench')} active={activeGameFilter === 'bench'} label={`בספסל (${playerGameRows.filter((row) => row.onBench).length})`} />
-              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', 'sub-in')} active={activeGameFilter === 'sub-in'} label={`נכנס (${playerGameRows.filter((row) => row.wasSubbedIn).length})`} />
-              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', 'sub-off')} active={activeGameFilter === 'sub-off'} label={`הוחלף (${playerGameRows.filter((row) => row.wasSubbedOff).length})`} />
+              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', selectedCompetitionId)} active={activeGameFilter === 'all'} label={`הכל (${playerGameRows.length})`} />
+              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', selectedCompetitionId, 'starts')} active={activeGameFilter === 'starts'} label={`פתח (${playerGameRows.filter((row) => row.isStarter).length})`} />
+              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', selectedCompetitionId, 'bench')} active={activeGameFilter === 'bench'} label={`בספסל (${playerGameRows.filter((row) => row.onBench).length})`} />
+              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', selectedCompetitionId, 'sub-in')} active={activeGameFilter === 'sub-in'} label={`נכנס (${playerGameRows.filter((row) => row.wasSubbedIn).length})`} />
+              <FilterChip href={buildPremierPlayerHref(canonicalPlayerId, selectedSeasonId, 'games', selectedCompetitionId, 'sub-off')} active={activeGameFilter === 'sub-off'} label={`הוחלף (${playerGameRows.filter((row) => row.wasSubbedOff).length})`} />
             </div>
           )}
           {filteredPlayerGameRows.length > 0 ? (
@@ -1602,16 +1615,38 @@ function buildPremierPlayerHref(
   canonicalPlayerId: string,
   selectedSeasonId: string,
   tab: PlayerPremierTab,
+  competitionId?: string | null,
   filter?: PlayerGameFilter
 ) {
   const params = new URLSearchParams();
   params.set('view', 'premier');
   params.set('season', selectedSeasonId);
   params.set('tab', tab);
+  if (competitionId) {
+    params.set('competition', competitionId);
+  }
   if (filter && filter !== 'all') {
     params.set('filter', filter);
   }
   return `/players/${canonicalPlayerId}?${params.toString()}`;
+}
+
+function buildPlayerHref(
+  canonicalPlayerId: string,
+  selectedSeasonId: string,
+  competitionId?: string | null,
+  filter?: PlayerGameFilter
+) {
+  const params = new URLSearchParams({ season: selectedSeasonId });
+  if (competitionId) params.set('competition', competitionId);
+  if (filter && filter !== 'all') params.set('filter', filter);
+  return `/players/${canonicalPlayerId}?${params.toString()}#games`;
+}
+
+function buildPlayerChartsHref(canonicalPlayerId: string, selectedSeasonId: string, competitionId?: string | null) {
+  const params = new URLSearchParams({ season: selectedSeasonId });
+  if (competitionId) params.set('competition', competitionId);
+  return `/players/${canonicalPlayerId}/charts?${params.toString()}`;
 }
 
 function buildLeaderboardFallbackMap(entries: Array<{
