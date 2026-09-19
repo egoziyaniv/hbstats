@@ -83,7 +83,7 @@ export default async function TeamPage({
   searchParams: searchParamsPromise,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ view?: string; tab?: string; squadSeason?: string }>;
+  searchParams?: Promise<{ view?: string; tab?: string; squadSeason?: string; competition?: string }>;
 }) {
   const params = await paramsPromise;
   const searchParams = await searchParamsPromise;
@@ -124,7 +124,7 @@ export default async function TeamPage({
   const currentUser = await getCurrentUser();
   const now = new Date();
 
-  const [seasonStandings, teamGames] = await Promise.all([
+  const [seasonStandings, allTeamGames] = await Promise.all([
     prisma.standing.findMany({
       where: { seasonId: team.seasonId },
       include: { team: true, competition: { select: { apiFootballId: true } } },
@@ -190,6 +190,22 @@ export default async function TeamPage({
       orderBy: { dateTime: 'desc' },
     }),
   ]);
+
+  const teamCompetitions = [...new Map(
+    allTeamGames
+      .filter((game) => game.competition)
+      .map((game) => [game.competitionId!, game.competition!]),
+  ).values()];
+  const defaultCompetition = teamCompetitions.find((competition) => competition.type === 'LEAGUE') ?? teamCompetitions[0];
+  const selectedCompetitionId = searchParams?.competition === 'all'
+    ? 'all'
+    : teamCompetitions.some((competition) => competition.id === searchParams?.competition)
+      ? searchParams!.competition!
+      : defaultCompetition?.id ?? 'all';
+  const selectedCompetition = teamCompetitions.find((competition) => competition.id === selectedCompetitionId) ?? null;
+  const teamGames = selectedCompetitionId === 'all'
+    ? allTeamGames
+    : allTeamGames.filter((game) => game.competitionId === selectedCompetitionId);
 
   // Fetch currently sidelined/injured players
   const playerIds = team.players.map((p) => p.id);
@@ -371,7 +387,9 @@ export default async function TeamPage({
     sortedStandings.find((row) => row.teamId === team.id && [383, 382].includes(row.competition?.apiFootballId ?? -1)) ||
     sortedStandings.find((row) => row.teamId === team.id) ||
     null;
-  const teamCompetitionId = teamStandingRow?.competitionId ?? null;
+  const teamCompetitionId = selectedCompetitionId === 'all'
+    ? teamStandingRow?.competitionId ?? null
+    : selectedCompetitionId;
   const leagueStandings = teamCompetitionId
     ? sortStandings(sortedStandings.filter((row) => row.competitionId === teamCompetitionId))
     : sortedStandings;
@@ -569,6 +587,23 @@ export default async function TeamPage({
               </div>
             </div>
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/15 bg-white px-6 py-3">
+            <form action={`/teams/${team.id}`} className="flex flex-wrap items-center gap-2">
+              {displayMode === 'premier' ? <input type="hidden" name="view" value="premier" /> : null}
+              {displayMode === 'premier' ? <input type="hidden" name="tab" value={selectedTab} /> : null}
+              <label className="text-sm font-bold text-stone-700">
+                <span className="ml-2">מסגרת</span>
+                <select name="competition" defaultValue={selectedCompetitionId} className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900">
+                  <option value="all">כל המסגרות</option>
+                  {teamCompetitions.map((competition) => <option key={competition.id} value={competition.id}>{competition.nameHe || competition.nameEn}</option>)}
+                </select>
+              </label>
+              <button className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-bold text-white">עדכון</button>
+            </form>
+            <Link href={buildTeamChartsHref(team.id, team.seasonId, selectedCompetitionId)} className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-700">
+              גרפים
+            </Link>
+          </div>
           {displayMode === 'premier' ? (
             <div className="border-t border-stone-200 bg-white px-6 py-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -583,7 +618,7 @@ export default async function TeamPage({
                 ].map((tab) => (
                   <Link
                     key={tab.id}
-                    href={`/teams/${team.id}?view=premier&tab=${tab.id}`}
+                    href={buildTeamHref(team.id, selectedCompetitionId, tab.id as TeamPremierTab)}
                     className={`rounded-full px-4 py-2 text-sm font-bold transition ${
                       selectedTab === tab.id ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
@@ -1576,4 +1611,14 @@ function normalizeTeamPremierTab(value: string | null | undefined): TeamPremierT
     default:
       return 'overview';
   }
+}
+
+function buildTeamHref(teamId: string, competitionId: string, tab: TeamPremierTab) {
+  const params = new URLSearchParams({ view: 'premier', tab, competition: competitionId });
+  return `/teams/${teamId}?${params.toString()}`;
+}
+
+function buildTeamChartsHref(teamId: string, seasonId: string, competitionId: string) {
+  const params = new URLSearchParams({ season: seasonId, competition: competitionId });
+  return `/teams/${teamId}/charts?${params.toString()}`;
 }
