@@ -4,6 +4,7 @@ import { LeaderboardCategory } from '@prisma/client';
 import { derivePlayerDeepStats } from '@/lib/deep-stats';
 import { getDisplayMode } from '@/lib/display-mode';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
+import { formatRosterStatus, getRosterStatus } from '@/lib/roster-status';
 import { buildBeerShevaSpell } from '@/lib/beer-sheva-spell';
 import type { BeerShevaSpell } from '@shared/types/mobile-api';
 import BeerShevaSpellBlock from '@/components/BeerShevaSpellBlock';
@@ -577,7 +578,8 @@ export default async function PlayerPage({
     );
   }
 
-  const isDeparted = !!(displayPlayerEntry?.additionalInfo as { departed?: boolean } | null)?.departed;
+  const rosterStatus = getRosterStatus(displayPlayerEntry?.additionalInfo);
+  const isDeparted = Boolean(rosterStatus);
 
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
@@ -650,7 +652,7 @@ export default async function PlayerPage({
               <StatRow label="עמדה נוכחית" value={displayPlayerEntry.position || 'לא צוין'} />
               <StatRow label="לאום" value={canonicalPlayer.nationalityHe || canonicalPlayer.nationalityEn || 'לא צוין'} />
               {isDeparted ? (
-                <StatRow label="סטטוס" value="עבר קבוצה · לא בסגל הנוכחי" />
+                <StatRow label="סטטוס" value={formatRosterStatus(rosterStatus) || 'עבר קבוצה · לא בסגל הנוכחי'} />
               ) : (
                 <>
                   {flashscoreExtras.marketValue ? (
@@ -1019,7 +1021,8 @@ function PremierPlayerView({
   ];
 
   // Left the club (flagged departed) — show it instead of an active contract.
-  const isDeparted = !!displayPlayerEntry?.additionalInfo?.departed;
+  const rosterStatus = getRosterStatus(displayPlayerEntry?.additionalInfo);
+  const isDeparted = Boolean(rosterStatus);
 
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
@@ -1069,7 +1072,7 @@ function PremierPlayerView({
                     {isDeparted ? (
                       <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-500/25 px-3 py-1 text-xs font-black text-amber-50">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                        עבר קבוצה · לא בסגל הנוכחי
+                        {formatRosterStatus(rosterStatus) || 'עבר קבוצה · לא בסגל הנוכחי'}
                       </div>
                     ) : (flashscorePremier.marketValue || flashscorePremier.contractUntil) ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">

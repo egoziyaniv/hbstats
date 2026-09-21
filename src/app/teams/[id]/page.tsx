@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { derivePlayerDeepStats, deriveTeamDeepStats } from '@/lib/deep-stats';
 import { getDisplayMode } from '@/lib/display-mode';
-import { formatPlayerName } from '@/lib/player-display';
+import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
+import { formatRosterStatus, getRosterStatus, isInactiveRosterPlayer } from '@/lib/roster-status';
 import prisma from '@/lib/prisma';
 import { sortStandings } from '@/lib/standings';
 import TeamInjuryManager from '@/components/TeamInjuryManager';
@@ -124,6 +125,23 @@ export default async function TeamPage({
   const currentUser = await getCurrentUser();
   const now = new Date();
 
+  // Several suppliers may create season rows for the same player. Keep one card
+  // per canonical family and prefer the API-Football row, which owns match data.
+  const squadByCanonical = new Map<string, (typeof team.players)[number]>();
+  for (const player of team.players) {
+    const familyId = player.canonicalPlayerId || player.id;
+    const existing = squadByCanonical.get(familyId);
+    if (!existing || (!existing.apiFootballId && Boolean(player.apiFootballId))) {
+      squadByCanonical.set(familyId, player);
+    }
+  }
+  const rosterPlayers = [...squadByCanonical.values()];
+  const activeRosterPlayers = rosterPlayers.filter((player) => !isInactiveRosterPlayer(player.additionalInfo));
+  const inactiveRosterPlayers = rosterPlayers.filter((player) => {
+    const status = getRosterStatus(player.additionalInfo);
+    return isInactiveRosterPlayer(player.additionalInfo) && status?.showInSquadArchive !== false;
+  });
+
   const [seasonStandings, allTeamGames] = await Promise.all([
     prisma.standing.findMany({
       where: { seasonId: team.seasonId },
@@ -208,8 +226,8 @@ export default async function TeamPage({
     : allTeamGames.filter((game) => game.competitionId === selectedCompetitionId);
 
   // Fetch currently sidelined/injured players
-  const playerIds = team.players.map((p) => p.id);
-  const apiFootballPlayerIds = team.players.map((p) => p.apiFootballId).filter((v): v is number => typeof v === 'number');
+  const playerIds = activeRosterPlayers.map((p) => p.id);
+  const apiFootballPlayerIds = activeRosterPlayers.map((p) => p.apiFootballId).filter((v): v is number => typeof v === 'number');
   const sidelinedEntries = playerIds.length > 0
     ? await prisma.playerSidelinedEntry.findMany({
         where: {
@@ -256,7 +274,7 @@ export default async function TeamPage({
   // Contract-expiry data: pull contractUntil (Flashscore) per roster player,
   // falling back to the canonical player row when the season-row lacks it,
   // then group by the calendar year the contract ends.
-  const contractExpiry = await buildContractExpiry(team.players);
+  const contractExpiry = await buildContractExpiry(activeRosterPlayers);
 
   // All-time home stats: find all team records with the same name across seasons
   const allTimeTeamIds = await prisma.team.findMany({
@@ -732,7 +750,7 @@ export default async function TeamPage({
                       ) : null}
                       <div>
                         <div className="font-bold text-stone-900">{formatPlayerName(player)}</div>
-                        <div className="mt-1 text-sm text-stone-500">{player.position || 'ללא עמדה'}</div>
+                        <div className="mt-1 text-sm text-stone-500">{formatPlayerPosition(player.position)}</div>
                         <div className="mt-1 text-xs text-stone-400">#{player.jerseyNumber ?? '-'}</div>
                       </div>
                     </Link>
@@ -1173,7 +1191,7 @@ export default async function TeamPage({
               </div>
             ) : null}
             <div className="grid gap-3 md:grid-cols-2">
-              {team.players.map((player) => {
+              {activeRosterPlayers.map((player) => {
                 const sidelined = getPlayerSidelined(player);
                 return (
                   <Link
@@ -1191,7 +1209,7 @@ export default async function TeamPage({
                       ) : null}
                       <div>
                         <div className="font-bold text-stone-900">{formatPlayerName(player)}</div>
-                        <div className="mt-1 text-sm text-stone-500">{player.position || 'ללא עמדה'}</div>
+                        <div className="mt-1 text-sm text-stone-500">{formatPlayerPosition(player.position)}</div>
                         {sidelined ? (
                           <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
@@ -1206,6 +1224,33 @@ export default async function TeamPage({
                 );
               })}
             </div>
+            {inactiveRosterPlayers.length > 0 ? (
+              <div className="mt-5 border-t border-stone-200 pt-4">
+                <div className="mb-3 text-sm font-black text-stone-700">שחקנים שעזבו או הושאלו ({inactiveRosterPlayers.length})</div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {inactiveRosterPlayers.map((player) => {
+                    const status = getRosterStatus(player.additionalInfo);
+                    return (
+                      <Link key={player.id} href={`/players/${player.canonicalPlayerId || player.id}`} className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 transition hover:border-amber-300">
+                        <div className="flex items-center gap-3">
+                          {player.photoUrl || player.uploads[0]?.filePath ? (
+                            <div className="relative shrink-0">
+                              <img src={player.photoUrl || player.uploads[0]?.filePath || ''} alt={formatPlayerName(player)} className="h-14 w-14 rounded-full bg-white object-cover grayscale" />
+                              <span className="absolute inset-x-0 -bottom-1 mx-auto w-fit whitespace-nowrap rounded-full bg-amber-700 px-1.5 py-0.5 text-[8px] font-black text-white shadow">{status?.kind === 'LOAN' ? 'מושאל' : status?.kind === 'SOLD' ? 'נמכר' : 'עזב'}</span>
+                            </div>
+                          ) : null}
+                          <div>
+                            <div className="font-bold text-stone-900">{formatPlayerName(player)}</div>
+                            <div className="mt-1 text-sm text-stone-500">{formatPlayerPosition(player.position)}</div>
+                            <div className="mt-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{formatRosterStatus(status)}</div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </Panel>
         </section>
         ) : null}
