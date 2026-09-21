@@ -20,7 +20,7 @@ const IDS = {
   itayAliases: ['cmrouo08t008ji1ovs1a5v1bi', 'cmru7t3q10003143lx1bwulcj'],
   itayApi: 'cms6lumjc00033c7bwnsb99a4',
   helder: 'cmrouo0al008xi1ov9y3dl37v',
-  roy: 'cmrouo08c008fi1ov9y3dl37v',
+  roy: 'cmrouo08c008fi1ovb7hu8oc9',
 };
 function withStatus(info, rosterStatus) {
   return { ...(info && typeof info === 'object' ? info : {}), departed: true, rosterStatus };
