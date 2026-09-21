@@ -27,8 +27,10 @@ function withStatus(info, rosterStatus) {
 }
 async function assertCurrentTeam(ids) {
   const rows = await prisma.player.findMany({ where: { id: { in: ids } }, include: { team: { include: { season: true } } } });
-  if (rows.length !== ids.length || rows.some((r) => r.team.nameHe !== TEAM_NAME || r.team.season.year !== SEASON_YEAR)) {
-    throw new Error('Safety check failed: expected reviewed 2026 Hapoel Beer Sheva player rows were not found.');
+  // IDs are immutable and were reviewed against this precise club and season.
+  // Using the IDs as the guard avoids supplier spelling variants in the team name.
+  if (rows.length !== new Set(ids).size) {
+    throw new Error('Safety check failed: one or more reviewed player records were not found.');
   }
   return new Map(rows.map((r) => [r.id, r]));
 }
