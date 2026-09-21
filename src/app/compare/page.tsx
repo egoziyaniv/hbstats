@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { getCurrentSeasonStartYear } from '@/lib/home-live';
 
 export const dynamic = 'force-dynamic';
 type Framework = 'all' | 'LEAGUE' | 'CUP' | 'EUROPE';
@@ -29,10 +30,11 @@ async function getSeasonSummary(teamName: string | null, seasonId: string, frame
 
 export default async function ComparePage({ searchParams: searchParamsPromise }: { searchParams?: Promise<{ team?: string; seasonA?: string; seasonB?: string; framework?: Framework }> }) {
   const searchParams = await searchParamsPromise;
-  const [teams, seasons] = await Promise.all([
+  const [teams, allSeasons] = await Promise.all([
     prisma.team.findMany({ select: { id: true, nameHe: true, nameEn: true }, orderBy: [{ nameHe: 'asc' }, { nameEn: 'asc' }], take: 1200 }),
     prisma.season.findMany({ orderBy: { year: 'desc' }, take: 26 }),
   ]);
+  const seasons = allSeasons.filter((season) => season.year <= getCurrentSeasonStartYear());
   const distinctTeams = Array.from(new Map(teams.map((team) => [teamKey(team), team])).values());
   const selectedTeam = distinctTeams.find((team) => teamKey(team) === searchParams?.team) ?? null;
   const seasonA = seasons.find((season) => season.id === searchParams?.seasonA) ?? seasons[0] ?? null;
@@ -42,7 +44,7 @@ export default async function ComparePage({ searchParams: searchParamsPromise }:
 
   return <div dir="rtl" className="min-h-screen bg-stone-100 px-4 py-8"><div className="mx-auto max-w-7xl space-y-6">
     <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm"><p className="text-sm font-semibold tracking-[0.25em] text-[var(--accent)]">השוואה</p><h1 className="mt-2 text-3xl font-black text-stone-900">השוואת עונות</h1><p className="mt-2 text-stone-600">השוו ביצועי קבוצה בין שתי עונות, בנפרד לליגה, גביעים, אירופה או לכלל המסגרות.</p>
-      <form className="mt-6 grid gap-3 md:grid-cols-4" action="/compare"><select name="team" defaultValue={selectedTeam ? teamKey(selectedTeam) : ''} className="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold"><option value="">בחרו קבוצה</option>{distinctTeams.map((team) => <option key={teamKey(team)} value={teamKey(team)}>{teamKey(team)}</option>)}</select><select name="seasonA" defaultValue={seasonA?.id || ''} className="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold">{seasons.map((season) => <option key={season.id} value={season.id}>{season.name} — עונה א׳</option>)}</select><select name="seasonB" defaultValue={seasonB?.id || ''} className="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold">{seasons.map((season) => <option key={season.id} value={season.id}>{season.name} — עונה ב׳</option>)}</select><div className="flex gap-2"><select name="framework" defaultValue={framework} className="min-w-0 flex-1 rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold"><option value="LEAGUE">ליגה</option><option value="CUP">גביעים</option><option value="EUROPE">אירופה</option><option value="all">כל המסגרות</option></select><button className="rounded-xl bg-[var(--accent)] px-5 font-bold text-white">השוואה</button></div></form>
+      <form className="mt-6 grid gap-3 md:grid-cols-4" action="/compare"><input list="compare-teams" name="team" defaultValue={selectedTeam ? teamKey(selectedTeam) : ''} placeholder="חיפוש קבוצה" className="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold" /><datalist id="compare-teams">{distinctTeams.map((team) => <option key={teamKey(team)} value={teamKey(team)} />)}</datalist><select name="seasonA" defaultValue={seasonA?.id || ''} className="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold">{seasons.map((season) => <option key={season.id} value={season.id}>{season.name} — עונה א׳</option>)}</select><select name="seasonB" defaultValue={seasonB?.id || ''} className="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold">{seasons.map((season) => <option key={season.id} value={season.id}>{season.name} — עונה ב׳</option>)}</select><div className="flex gap-2"><select name="framework" defaultValue={framework} className="min-w-0 flex-1 rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 font-semibold"><option value="LEAGUE">ליגה</option><option value="CUP">גביעים</option><option value="EUROPE">אירופה</option><option value="all">כל המסגרות</option></select><button className="rounded-xl bg-[var(--accent)] px-5 font-bold text-white">השוואה</button></div></form>
     </section>
     {selectedTeam && seasonA && seasonB ? <section className="grid gap-6 md:grid-cols-2"><ComparisonCard title={seasonA.name} summary={summaryA} /><ComparisonCard title={seasonB.name} summary={summaryB} /></section> : <section className="rounded-[24px] border border-dashed border-stone-300 bg-white p-8 text-center text-stone-500">בחרו קבוצה כדי לראות השוואה.</section>}
   </div></div>;
