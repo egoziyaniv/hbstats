@@ -26,13 +26,15 @@ function withStatus(info, rosterStatus) {
   return { ...(info && typeof info === 'object' ? info : {}), departed: true, rosterStatus };
 }
 async function assertCurrentTeam(ids) {
-  const rows = await prisma.player.findMany({ where: { id: { in: ids } }, include: { team: { include: { season: true } } } });
-  // IDs are immutable and were reviewed against this precise club and season.
-  // Using the IDs as the guard avoids supplier spelling variants in the team name.
-  if (rows.length !== new Set(ids).size) {
+  // Resolve each immutable, manually-reviewed id separately. This is stricter than
+  // a broad supplier-name match and keeps a missing row from becoming a partial write.
+  const rows = await Promise.all(ids.map((id) => prisma.player.findUnique({
+    where: { id }, include: { team: { include: { season: true } } },
+  })));
+  if (rows.some((row) => !row)) {
     throw new Error('Safety check failed: one or more reviewed player records were not found.');
   }
-  return new Map(rows.map((r) => [r.id, r]));
+  return new Map(rows.map((row) => [row.id, row]));
 }
 async function main() {
   const ids = [IDS.hamdiDuplicate, ...IDS.itayAliases, IDS.itayApi, IDS.helder, IDS.roy];
