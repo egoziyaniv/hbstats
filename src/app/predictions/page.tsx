@@ -26,13 +26,26 @@ function formatOdd(odd: number | null): string {
 export default async function PredictionsPage({
   searchParams: searchParamsPromise,
 }: {
-  searchParams?: Promise<{ view?: string; season?: string }>;
+  searchParams?: Promise<{ view?: string; season?: string; competition?: string }>;
 }) {
   const searchParams = await searchParamsPromise;
   const displayMode = await getDisplayMode(searchParams?.view);
 
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' }, select: { id: true, name: true } });
   const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
+  const competitions = selectedSeasonId
+    ? await prisma.competition.findMany({
+        where: { games: { some: { seasonId: selectedSeasonId } } },
+        select: { id: true, nameHe: true, nameEn: true, type: true },
+        orderBy: [{ type: 'asc' }, { nameHe: 'asc' }, { nameEn: 'asc' }],
+      })
+    : [];
+  const defaultCompetition = competitions.find((competition) => competition.type === 'LEAGUE') ?? competitions[0] ?? null;
+  const selectedCompetitionId = searchParams?.competition === 'all'
+    ? 'all'
+    : competitions.some((competition) => competition.id === searchParams?.competition)
+      ? searchParams!.competition!
+      : defaultCompetition?.id ?? 'all';
 
   // Games with Match Winner odds that have completed
   const gamesWithOdds = await prisma.game.findMany({
@@ -40,6 +53,7 @@ export default async function PredictionsPage({
       status: 'COMPLETED',
       oddsValues: { some: { marketName: 'Match Winner' } },
       ...(selectedSeasonId ? { seasonId: selectedSeasonId } : {}),
+      ...(selectedCompetitionId !== 'all' ? { competitionId: selectedCompetitionId } : {}),
     },
     include: {
       homeTeam: { select: { nameHe: true, nameEn: true } },
@@ -60,6 +74,7 @@ export default async function PredictionsPage({
       game: {
         status: 'COMPLETED',
         ...(selectedSeasonId ? { seasonId: selectedSeasonId } : {}),
+        ...(selectedCompetitionId !== 'all' ? { competitionId: selectedCompetitionId } : {}),
       },
     },
     include: {
@@ -188,6 +203,12 @@ export default async function PredictionsPage({
             <select name="season" defaultValue={selectedSeasonId || ''} className="rounded-2xl border border-white/30 bg-white px-4 py-3 text-sm font-bold text-slate-900">
               {seasons.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select name="competition" defaultValue={selectedCompetitionId} className="rounded-2xl border border-white/30 bg-white px-4 py-3 text-sm font-bold text-slate-900">
+              <option value="all">כל המסגרות</option>
+              {competitions.map((competition) => (
+                <option key={competition.id} value={competition.id}>{competition.nameHe || competition.nameEn}</option>
               ))}
             </select>
             <button className="rounded-full bg-white px-5 py-3 text-sm font-bold text-indigo-900">הצג</button>
