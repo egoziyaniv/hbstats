@@ -15,7 +15,7 @@ const inSeason = (date) => date && new Date(date).getFullYear() >= seasonYear;
 async function api(path) { const res = await fetch(`${base}${path}`, { headers: { 'x-apisports-key': key } }); if (!res.ok) throw new Error(`API ${res.status} for ${path}`); const json = await res.json(); return json.response || []; }
 (async () => {
  const season = await prisma.season.findFirst({ where: { year: seasonYear }, select: { id: true, name: true } }); if (!season) throw new Error(`season ${seasonYear} missing`);
- const teams = await prisma.team.findMany({ where: { seasonId: season.id, apiFootballId: { not: null } }, select: { id: true, apiFootballId: true, nameHe: true, nameEn: true } });
+ const teams = await prisma.team.findMany({ where: { seasonId: season.id, apiFootballId: { not: null }, OR: [{ countryEn: 'Israel' }, { countryHe: 'ישראל' }] }, select: { id: true, apiFootballId: true, nameHe: true, nameEn: true, countryEn: true } });
  const apiIds = [...new Set(teams.map(t => t.apiFootballId).filter(Boolean))];
  const teamByApi = new Map(teams.map(t => [t.apiFootballId, t]));
  const plan = [];
