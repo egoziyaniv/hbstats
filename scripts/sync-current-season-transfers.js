@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /** Import API-Football transfers for every current-season team. */
 'use strict';
-require('dotenv').config();
+const fs = require('fs');
+for (const line of fs.readFileSync('.env', 'utf8').split(/\r?\n/)) { const match = line.match(/^([A-Z0-9_]+)=(.*)$/); if (match && process.env[match[1]] == null) process.env[match[1]] = match[2].replace(/^['\"]|['\"]$/g, ''); }
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const EXECUTE = process.argv.includes('--execute');
