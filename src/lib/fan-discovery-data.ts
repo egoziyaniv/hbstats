@@ -12,7 +12,7 @@ export const clubOfficialWhere: Prisma.GameWhereInput = {
   ] },
 };
 export const discoverySelect = {
-  id: true, dateTime: true, status: true, statusShort: true, statusLong: true, homeScore: true, awayScore: true,
+  id: true, dateTime: true, status: true, statusShort: true, statusLong: true, homeScore: true, awayScore: true, roundNameHe: true, roundNameEn: true,
   homeTeam: { select: { apiFootballId: true, nameHe: true, nameEn: true } },
   awayTeam: { select: { apiFootballId: true, nameHe: true, nameEn: true } },
   season: { select: { name: true } }, competition: { select: { nameHe: true, nameEn: true } },
