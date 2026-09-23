@@ -15,6 +15,7 @@ const groups = [
     { href: '/admin/referees', label: 'שופטים' },
     { href: '/admin/venues', label: 'אצטדיונים' },
     { href: '/admin/ratings', label: 'ציוני שחקנים' },
+    { href: '/admin/roster-integrity', label: 'בקרת סגלים והעברות' },
   ] },
   { title: 'תוכן וארכיון', links: [
     { href: '/admin/content', label: 'מרכז תוכן' },
