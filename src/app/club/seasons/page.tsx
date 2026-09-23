@@ -15,7 +15,7 @@ export default async function ClubSeasonsPage() {
     <div dir="rtl" className="mx-auto max-w-6xl px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-black text-stone-900">עונה אחר עונה</h1>
-        <p className="mt-1 text-sm font-semibold text-stone-500">מאזן הפועל באר שבע בליגת העל לאורך השנים — לחצו על עונה למשחקים שלה.</p>
+        <p className="mt-1 text-sm font-semibold text-stone-500">מאזן הפועל באר שבע בליגה לאורך השנים, כולל עונות בליגה הלאומית — לחצו על עונה למשחקים שלה.</p>
       </div>
 
       {seasons.length === 0 ? (
@@ -30,6 +30,7 @@ export default async function ClubSeasonsPage() {
                 <tr className="border-b border-stone-200 bg-stone-50 text-xs font-bold text-stone-500">
                   <th className="px-3 py-3 text-right">עונה</th>
                   <th className="px-2 py-3 text-center">מיקום</th>
+                  <th className="px-2 py-3 text-center">ליגה</th>
                   <th className="px-2 py-3 text-center">מ׳</th>
                   <th className="px-2 py-3 text-center">נ</th>
                   <th className="px-2 py-3 text-center">ת</th>
@@ -56,6 +57,7 @@ export default async function ClubSeasonsPage() {
                       <td className="px-2 py-2.5 text-center font-black text-stone-900">
                         {s.position === 1 ? <span className="text-amber-600">1</span> : s.position}
                       </td>
+                      <td className="px-2 py-2.5 text-center text-xs font-bold text-stone-600">{s.competitionId === 'comp_liga_leumit' ? 'לאומית' : 'על'}</td>
                       <td className="px-2 py-2.5 text-center text-stone-500">{s.played}</td>
                       <td className="px-2 py-2.5 text-center text-stone-700">{s.wins}</td>
                       <td className="px-2 py-2.5 text-center text-stone-700">{s.draws}</td>
