@@ -8,6 +8,7 @@ const year = Number(arg('season') || (new Date().getMonth() >= 6 ? new Date().ge
 const teamId = arg('team'); const output = arg('json'); const APPLY = process.argv.includes('--apply-verified');
 function kind(type) { const t = (type || '').toLowerCase(); return t.includes('loan') && !t.includes('return') ? 'LOAN' : t.includes('transfer') || t.includes('sold') ? 'SOLD' : 'DEPARTED'; }
 function normalizedName(value) { return String(value || '').trim().toLocaleLowerCase().replace(/[\-–—'"׳״.,]/g, '').replace(/\s+/g, ' '); }
+function destinationForStatus(transfer) { return (transfer.transferTypeEn || '').toLowerCase().includes('free agent') ? null : transfer.destinationTeamNameHe || null; }
 (async () => {
   const season = await prisma.season.findFirst({ where: { year }, select: { id: true, name: true } }); if (!season) throw new Error(`Season ${year} not found`);
   const players = await prisma.player.findMany({ where: { team: { seasonId: season.id, ...(teamId ? { id: teamId } : {}) } }, select: { id:true,nameHe:true,nameEn:true,apiFootballId:true,additionalInfo:true,team:{select:{id:true,nameHe:true,apiFootballId:true}} } });
@@ -24,7 +25,7 @@ function normalizedName(value) { return String(value || '').trim().toLocaleLower
   }
   const latest = new Map();
   for (const c of candidates) if (!latest.has(c.player.id)) latest.set(c.player.id, c);
-  const verified = [...latest.values()].map(({player,tr,kind}) => ({ playerId:player.id, playerNameHe:player.nameHe, teamNameHe:player.team.nameHe, kind, destinationNameHe:tr.destinationTeamNameHe, effectiveDate:tr.transferDate?.toISOString().slice(0,10), transferId:tr.id }));
+  const verified = [...latest.values()].map(({player,tr,kind}) => ({ playerId:player.id, playerNameHe:player.nameHe, teamNameHe:player.team.nameHe, kind, destinationNameHe:destinationForStatus(tr), effectiveDate:tr.transferDate?.toISOString().slice(0,10), transferId:tr.id }));
   if (APPLY) await prisma.$transaction(verified.map(action => { const player = players.find(p => p.id === action.playerId); const info = player.additionalInfo && typeof player.additionalInfo === 'object' ? player.additionalInfo : {}; return prisma.player.update({ where:{id:action.playerId}, data:{additionalInfo:{...info,departed:true,rosterStatus:{kind:action.kind,destinationNameHe:action.destinationNameHe,effectiveDate:action.effectiveDate,confidence:'VERIFIED',updatedAt:new Date().toISOString()}}} }); }));
   const report = { season:season.name, generatedAt:new Date().toISOString(), counts:{players:players.length,transfers:transfers.length,candidates:candidates.length,verified:verified.length,applied:APPLY ? verified.length : 0}, skipped, verified, review:[] };
   const json = JSON.stringify(report,null,2); if(output) require('fs').writeFileSync(output,json); console.log(json);
