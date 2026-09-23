@@ -7,6 +7,8 @@ export type RosterStatus = {
   sourceUrl?: string;
   /** False when a stale supplier row never belonged to this season's squad. */
   showInSquadArchive?: boolean;
+  confidence?: 'VERIFIED' | 'REVIEW';
+  updatedAt?: string;
 };
 
 type PlayerInfo = { departed?: boolean; rosterStatus?: RosterStatus } | null | undefined;
@@ -28,4 +30,8 @@ export function formatRosterStatus(status: RosterStatus | null) {
   if (status.kind === 'LOAN') return status.destinationNameHe ? `מושאל ל־${status.destinationNameHe}` : 'מושאל';
   if (status.kind === 'SOLD') return status.destinationNameHe ? `נמכר ל־${status.destinationNameHe}` : 'נמכר';
   return status.destinationNameHe ? `עזב ל־${status.destinationNameHe}` : 'עזב את הקבוצה';
+}
+
+export function withRosterStatus(additionalInfo: unknown, rosterStatus: RosterStatus) {
+  return { ...(additionalInfo && typeof additionalInfo === 'object' ? additionalInfo as Record<string, unknown> : {}), departed: true, rosterStatus };
 }
