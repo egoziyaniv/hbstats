@@ -16,6 +16,7 @@ const groups = [
     { href: '/admin/venues', label: 'אצטדיונים' },
     { href: '/admin/ratings', label: 'ציוני שחקנים' },
     { href: '/admin/roster-integrity', label: 'בקרת סגלים והעברות' },
+    { href: '/admin/player-duplicates', label: 'כפילויות שחקנים' },
   ] },
   { title: 'תוכן וארכיון', links: [
     { href: '/admin/content', label: 'מרכז תוכן' },
