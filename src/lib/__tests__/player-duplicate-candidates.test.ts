@@ -27,6 +27,11 @@ test('name-only matches across different squads are not duplicate squad rows', (
 test('one family pair appears once even if each has multiple entries', () => {
   expect(buildDuplicateCandidates([p('a'), p('a2', { canonicalPlayerId: 'a' }), p('b'), p('b2', { canonicalPlayerId: 'b' })])).toHaveLength(1);
 });
+
+test('a self-linked source remains a separate repair family', () => {
+  const rows = buildDuplicateCandidates([p('source', { canonicalPlayerId: 'source', birthDate: '1997-01-01' }), p('root', { birthDate: '1997-01-01' })]);
+  expect(rows).toHaveLength(1);
+});
 test('different nonempty source IDs are flagged even when names agree', () => {
   expect(buildDuplicateCandidates([p('a', { apiFootballId: 1 }), p('b', { apiFootballId: 2 })])[0].conflicts).toContain('API_FOOTBALL_ID');
 });

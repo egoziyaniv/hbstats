@@ -1,3 +1,5 @@
+import { canonicalFamilyId } from '@/lib/canonical-player-family';
+
 /** Read-only candidate discovery. Confidence is evidence for review, never permission to merge. */
 export type DuplicatePlayer = {
   id: string; teamId: string; nameHe: string; nameEn: string;
@@ -41,7 +43,7 @@ export function buildDuplicateCandidates(players: DuplicatePlayer[]): DuplicateC
     const rowKey = JSON.stringify([left.id, right.id]);
     if (seenRows.has(rowKey)) continue;
     seenRows.add(rowKey);
-    const leftFamilyId = left.canonicalPlayerId || left.id, rightFamilyId = right.canonicalPlayerId || right.id;
+    const leftFamilyId = canonicalFamilyId(left), rightFamilyId = canonicalFamilyId(right);
     if (leftFamilyId === rightFamilyId) continue;
     const reasons: string[] = [], conflicts: string[] = [];
     const leftIds = playerSourceIds(left), rightIds = playerSourceIds(right);
