@@ -14,6 +14,7 @@ const player = (id: string, patch: Record<string, unknown> = {}) => ({
 });
 const request = (body: unknown) => new Request('http://localhost/api/admin/player-duplicates', { method: 'POST', body: JSON.stringify(body) });
 const mergeInput = { action: 'merge', primaryId: 'primary', secondaryId: 'secondary', expectedPrimaryUpdatedAt: timestamp, expectedSecondaryUpdatedAt: timestamp, copyFields: ['birthDate'] };
+const linkInput = { action: 'link', sourceId: 'source', targetRootId: 'root', expectedSourceUpdatedAt: timestamp, expectedTargetUpdatedAt: timestamp };
 let tx: any;
 
 beforeEach(() => {
@@ -48,6 +49,37 @@ it('rejects a non-allowlisted field without opening a transaction', async () => 
 it('rejects a malformed pair before opening a transaction', async () => {
   expect((await route.POST(request({ ...mergeInput, primaryId: 'secondary', secondaryId: 'secondary' }))).status).toBe(400);
   expect(prisma.$transaction).not.toHaveBeenCalled();
+});
+
+it('repairs a self-link by attaching it to a verified root without copying fields', async () => {
+  const source = player('source', { canonicalPlayerId: 'source', nameHe: 'נועם בן הרוש', nameEn: 'Noam Ben Harosh', birthDate: new Date('2005-05-13') });
+  const root = player('root', { nameHe: 'נועם בן הרוש', nameEn: 'N. Ben Harush', birthDate: new Date('2005-05-13') });
+  tx.player.findUnique.mockImplementation(({ where }: any) => Promise.resolve(where.id === 'source' ? source : root));
+  const response = await route.POST(request(linkInput));
+  expect(response.status).toBe(200);
+  expect(tx.player.update).toHaveBeenCalledWith({ where: { id: 'source' }, data: { canonicalPlayerId: 'root' } });
+  expect(tx.activityLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ actionHe: 'קישור לרשומת שחקן קיימת' }) }));
+});
+
+it('rejects linking to a player that is not a canonical root', async () => {
+  const source = player('source', { canonicalPlayerId: 'source', nameHe: 'נועם בן הרוש', nameEn: 'Noam Ben Harosh', birthDate: new Date('2005-05-13') });
+  const root = player('root', { canonicalPlayerId: 'other', nameHe: 'נועם בן הרוש', nameEn: 'N. Ben Harush', birthDate: new Date('2005-05-13') });
+  tx.player.findUnique.mockImplementation(({ where }: any) => Promise.resolve(where.id === 'source' ? source : root));
+  expect((await route.POST(request(linkInput))).status).toBe(409);
+});
+
+it('undoes a family link only when both affected records are unchanged', async () => {
+  tx.activityLog.findUnique.mockResolvedValue({
+    id: 'link-log', entityType: 'PLAYER', actionHe: 'קישור לרשומת שחקן קיימת', timestamp: new Date('2026-09-29T10:00:01.000Z'),
+    details: { type: 'PLAYER_FAMILY_LINK', sourceId: 'source', targetRootId: 'root', previousCanonicalId: 'source' },
+  });
+  tx.player.findMany.mockResolvedValue([
+    { id: 'source', canonicalPlayerId: 'root', updatedAt: new Date(timestamp) },
+    { id: 'root', canonicalPlayerId: null, updatedAt: new Date(timestamp) },
+  ]);
+  expect((await route.POST(request({ action: 'undo-link', linkId: 'link-log' }))).status).toBe(200);
+  expect(tx.player.update).toHaveBeenCalledWith({ where: { id: 'source' }, data: { canonicalPlayerId: 'source' } });
+  expect(tx.activityLog.update).toHaveBeenCalled();
 });
 
 it('undo restores the linked row and only the field copied by this merge', async () => {

@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { applyMissingFields, COPYABLE_FIELDS, type CopyablePlayerField, type ManualMergePlayer } from '@/lib/player-manual-merge';
 import { buildDuplicateCandidates } from '@/lib/player-duplicate-candidates';
+import { canRepairFamilyLink } from '@/lib/canonical-player-family';
 
 const error = (message: string, status: number) => NextResponse.json({ error: message }, { status });
 const exactTimestamp = (value: unknown) => {
@@ -22,11 +23,15 @@ type MergeDetails = {
   type: 'MANUAL_PLAYER_MERGE'; primaryId: string; secondaryId: string; memberIds: string[];
   copiedBefore: Record<string, unknown>; previousCanonicalIds: Record<string, string | null>; undoneAt?: string;
 };
-const details = (value: unknown): MergeDetails | null => {
+type FamilyLinkDetails = {
+  type: 'PLAYER_FAMILY_LINK'; sourceId: string; targetRootId: string; previousCanonicalId: string | null; undoneAt?: string;
+};
+const details = (value: unknown): MergeDetails | FamilyLinkDetails | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const item = value as Record<string, unknown>;
-  if (item.type !== 'MANUAL_PLAYER_MERGE' || typeof item.primaryId !== 'string' || typeof item.secondaryId !== 'string' || !Array.isArray(item.memberIds) || !item.memberIds.every((id) => typeof id === 'string') || !item.copiedBefore || typeof item.copiedBefore !== 'object' || !item.previousCanonicalIds || typeof item.previousCanonicalIds !== 'object') return null;
-  return item as unknown as MergeDetails;
+  if (item.type === 'MANUAL_PLAYER_MERGE' && typeof item.primaryId === 'string' && typeof item.secondaryId === 'string' && Array.isArray(item.memberIds) && item.memberIds.every((id) => typeof id === 'string') && item.copiedBefore && typeof item.copiedBefore === 'object' && item.previousCanonicalIds && typeof item.previousCanonicalIds === 'object') return item as unknown as MergeDetails;
+  if (item.type === 'PLAYER_FAMILY_LINK' && typeof item.sourceId === 'string' && typeof item.targetRootId === 'string' && (typeof item.previousCanonicalId === 'string' || item.previousCanonicalId === null)) return item as unknown as FamilyLinkDetails;
+  return null;
 };
 const isAllowedField = (field: unknown): field is CopyablePlayerField => typeof field === 'string' && (COPYABLE_FIELDS as readonly string[]).includes(field);
 const rootsAreCandidate = (primary: MergePlayer, secondary: MergePlayer) => buildDuplicateCandidates([primary, secondary]).some((candidate) => candidate.leftPlayerId === primary.id && candidate.rightPlayerId === secondary.id || candidate.leftPlayerId === secondary.id && candidate.rightPlayerId === primary.id);
@@ -69,6 +74,34 @@ async function merge(body: Record<string, unknown>, userId: string) {
   }
 }
 
+async function link(body: Record<string, unknown>, userId: string) {
+  const { sourceId, targetRootId } = body;
+  const sourceTimestamp = exactTimestamp(body.expectedSourceUpdatedAt);
+  const targetTimestamp = exactTimestamp(body.expectedTargetUpdatedAt);
+  if (typeof sourceId !== 'string' || typeof targetRootId !== 'string' || !sourceId || !targetRootId || sourceId === targetRootId || !sourceTimestamp || !targetTimestamp) return error('פרטי הקישור אינם תקינים', 400);
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const [source, target] = await Promise.all([
+        tx.player.findUnique({ where: { id: sourceId }, select }),
+        tx.player.findUnique({ where: { id: targetRootId }, select }),
+      ]);
+      if (!source || !target) throw new Error('NOT_FOUND');
+      if (source.updatedAt.getTime() !== sourceTimestamp.getTime() || target.updatedAt.getTime() !== targetTimestamp.getTime()) throw new Error('STALE');
+      if (!canRepairFamilyLink(source, target)) throw new Error('NOT_LINKABLE');
+      await tx.player.update({ where: { id: source.id }, data: { canonicalPlayerId: target.id } });
+      const log = await tx.activityLog.create({ data: {
+        entityType: ActivityEntityType.PLAYER, entityId: source.id, userId, actionHe: 'קישור לרשומת שחקן קיימת',
+        details: { type: 'PLAYER_FAMILY_LINK', sourceId: source.id, targetRootId: target.id, previousCanonicalId: source.canonicalPlayerId } as Prisma.InputJsonObject,
+      } });
+      return { linkId: log.id };
+    });
+    return NextResponse.json({ success: true, ...result });
+  } catch (reason) {
+    const code = reason instanceof Error ? reason.message : '';
+    return error(code === 'NOT_FOUND' ? 'אחת הרשומות לא נמצאה' : code === 'STALE' ? 'אחת הרשומות השתנתה. יש לרענן ולנסות שוב' : code === 'NOT_LINKABLE' ? 'הרשומות אינן מתאימות לקישור בטוח' : 'שמירת הקישור נכשלה', code === 'NOT_FOUND' ? 404 : code ? 409 : 500);
+  }
+}
+
 async function undo(body: Record<string, unknown>, userId: string) {
   if (typeof body.mergeId !== 'string' || !body.mergeId) return error('מזהה האיחוד אינו תקין', 400);
   try {
@@ -77,6 +110,7 @@ async function undo(body: Record<string, unknown>, userId: string) {
       const log = await tx.activityLog.findUnique({ where: { id: mergeId } });
       const prior = log && details(log.details);
       if (!log || log.entityType !== ActivityEntityType.PLAYER || log.actionHe !== 'איחוד שחקנים ידני' || !prior || prior.undoneAt) throw new Error('NOT_UNDOABLE');
+      if (prior.type === 'PLAYER_FAMILY_LINK') throw new Error('NOT_UNDOABLE');
       const rows = await tx.player.findMany({ where: { id: { in: [prior.primaryId, ...prior.memberIds] } }, select: { id: true, canonicalPlayerId: true, updatedAt: true } });
       if (rows.length !== new Set([prior.primaryId, ...prior.memberIds]).size || rows.some((row) => row.updatedAt > log.timestamp)) throw new Error('STALE');
       const primary = rows.find((row) => row.id === prior.primaryId);
@@ -93,6 +127,29 @@ async function undo(body: Record<string, unknown>, userId: string) {
   }
 }
 
+async function undoLink(body: Record<string, unknown>, userId: string) {
+  if (typeof body.linkId !== 'string' || !body.linkId) return error('מזהה הקישור אינו תקין', 400);
+  const linkId = body.linkId;
+  try {
+    await prisma.$transaction(async (tx) => {
+      const log = await tx.activityLog.findUnique({ where: { id: linkId } });
+      const prior = log && details(log.details);
+      if (!log || log.entityType !== ActivityEntityType.PLAYER || log.actionHe !== 'קישור לרשומת שחקן קיימת' || !prior || prior.type !== 'PLAYER_FAMILY_LINK' || prior.undoneAt) throw new Error('NOT_UNDOABLE');
+      const rows = await tx.player.findMany({ where: { id: { in: [prior.sourceId, prior.targetRootId] } }, select: { id: true, canonicalPlayerId: true, updatedAt: true } });
+      const source = rows.find((row) => row.id === prior.sourceId);
+      const target = rows.find((row) => row.id === prior.targetRootId);
+      if (!source || !target || source.updatedAt > log.timestamp || target.updatedAt > log.timestamp || source.canonicalPlayerId !== target.id) throw new Error('STALE');
+      await tx.player.update({ where: { id: source.id }, data: { canonicalPlayerId: prior.previousCanonicalId } });
+      await tx.activityLog.update({ where: { id: log.id }, data: { details: { ...prior, undoneAt: new Date().toISOString() } as Prisma.InputJsonObject } });
+      await tx.activityLog.create({ data: { entityType: ActivityEntityType.PLAYER, entityId: source.id, userId, actionHe: 'בוטל קישור לרשומת שחקן קיימת', details: { linkId: log.id } } });
+    });
+    return NextResponse.json({ success: true });
+  } catch (reason) {
+    const code = reason instanceof Error ? reason.message : '';
+    return error(code === 'NOT_UNDOABLE' ? 'לא ניתן לבטל קישור זה' : code === 'STALE' ? 'הקישור שונה לאחר ביצועו ולא ניתן לבטלו אוטומטית' : 'ביטול הקישור נכשל', code ? 409 : 500);
+  }
+}
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (user?.role !== 'ADMIN') return error('אין הרשאה לביצוע הפעולה', 403);
@@ -103,6 +160,8 @@ export async function POST(request: Request) {
     body = parsed;
   } catch { return error('בקשה לא תקינה', 400); }
   if (body.action === 'merge') return merge(body, user.id);
+  if (body.action === 'link') return link(body, user.id);
   if (body.action === 'undo') return undo(body, user.id);
+  if (body.action === 'undo-link') return undoLink(body, user.id);
   return error('פעולה לא תקינה', 400);
 }

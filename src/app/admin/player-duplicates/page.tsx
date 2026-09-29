@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma';
 import AdminPageHeader from '@/components/AdminPageHeader';
 import { buildDuplicateCandidates, playerSourceIds } from '@/lib/player-duplicate-candidates';
 import PlayerManualMergeDialog, { type MergeDialogPlayer } from '@/components/PlayerManualMergeDialog';
+import PlayerFamilyLinkDialog, { type FamilyLinkPlayer } from '@/components/PlayerFamilyLinkDialog';
+import { canRepairFamilyLink, canonicalFamilyId } from '@/lib/canonical-player-family';
 
 export const dynamic = 'force-dynamic';
 const labels: Record<string, string> = { API_FOOTBALL_ID: 'מזהה API-Football', SOFASCORE_ID: 'מזהה SofaScore', FLASHSCORE_ID: 'מזהה Flashscore', NAME: 'שם זהה או בסדר הפוך', FULL_NAME_AND_BIRTH_DATE: 'שם מלא ותאריך לידה', BIRTH_DATE: 'תאריך לידה' };
@@ -34,6 +36,20 @@ export default async function PlayerDuplicatesPage({ searchParams }: { searchPar
       events: player._count.events, lineups: player._count.lineupEntries,
     };
   };
+  const linkPlayer = (id: string): FamilyLinkPlayer => {
+    const player = byId.get(id)!;
+    return { id: player.id, nameHe: player.nameHe, nameEn: player.nameEn, updatedAt: player.updatedAt.toISOString() };
+  };
+  const actionFor = (candidate: typeof candidates[number]) => {
+    const left = byId.get(candidate.leftPlayerId)!;
+    const right = byId.get(candidate.rightPlayerId)!;
+    const leftRoot = byId.get(canonicalFamilyId(left)) || left;
+    const rightRoot = byId.get(canonicalFamilyId(right)) || right;
+    if (canRepairFamilyLink(left, rightRoot)) return <PlayerFamilyLinkDialog source={linkPlayer(left.id)} target={linkPlayer(rightRoot.id)} />;
+    if (canRepairFamilyLink(right, leftRoot)) return <PlayerFamilyLinkDialog source={linkPlayer(right.id)} target={linkPlayer(leftRoot.id)} />;
+    if (!left.canonicalPlayerId && !right.canonicalPlayerId && left.teamId === right.teamId) return <PlayerManualMergeDialog left={mergePlayer(left.id)} right={mergePlayer(right.id)} />;
+    return <span className="text-xs text-stone-500">אין פעולה אוטומטית לזוג זה.</span>;
+  };
   return <main className="min-h-screen bg-stone-50 px-4 py-5"><div className="mx-auto max-w-7xl">
     <AdminPageHeader eyebrow="כדורגל · איכות נתונים" title="מועמדים לכפילויות שחקנים" description="השוואת הרשומות השמורות בעונה הנבחרת לפי זהויות ספק, שמות ותאריכי לידה. רשומות מאותה משפחת שחקן אינן מוצגות ככפילות." />
     <form className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4">
@@ -44,6 +60,6 @@ export default async function PlayerDuplicatesPage({ searchParams }: { searchPar
     </form>
     <p className="mb-4 text-sm text-stone-600">נבדקו {players.length} רשומות; נמצאו {candidates.length} זוגות משפחות לבדיקה. מוצגים {rows.length}. התאמה חזקה אינה אישור למיזוג. לא בוצע מיזוג אוטומטי.</p>
     <p className="mb-4 text-xs text-stone-500">מזהי API-Football, SofaScore ו־Flashscore מוצגים כאשר הם שמורים ברשומה. הדוח אינו מבצע סריקה חדשה של אתרי המקור, והספירות הן לרשומת השחקן בעונה זו.</p>
-    <div className="overflow-x-auto rounded-2xl border bg-white"><table className="min-w-full text-right text-sm"><thead className="bg-stone-100"><tr><th className="p-4">רשומה ראשונה</th><th className="p-4">רשומה שנייה</th><th className="p-4">ראיות לבדיקה</th><th className="p-4">פעולה</th></tr></thead><tbody>{rows.map(c => <tr key={`${c.leftFamilyId}:${c.rightFamilyId}`} className="border-t align-top"><td className="p-4">{renderPlayer(c.leftPlayerId)}</td><td className="p-4">{renderPlayer(c.rightPlayerId)}</td><td className="p-4"><strong>{c.confidence === 'VERIFIED' ? 'התאמה חזקה' : 'נדרשת בדיקה'}</strong><p>{c.reasons.map(r => labels[r]).join(' · ')}</p>{c.conflicts.length > 0 && <p className="mt-2 font-bold text-red-700">סתירה: {c.conflicts.map(r => labels[r]).join(' · ')}</p>}</td><td className="p-4"><PlayerManualMergeDialog left={mergePlayer(c.leftPlayerId)} right={mergePlayer(c.rightPlayerId)} /></td></tr>)}</tbody></table>{!rows.length && <p className="p-6">לא נמצאו מועמדים בחתך שנבחר.</p>}</div>
+    <div className="overflow-x-auto rounded-2xl border bg-white"><table className="min-w-full text-right text-sm"><thead className="bg-stone-100"><tr><th className="p-4">רשומה ראשונה</th><th className="p-4">רשומה שנייה</th><th className="p-4">ראיות לבדיקה</th><th className="p-4">פעולה</th></tr></thead><tbody>{rows.map(c => <tr key={`${c.leftFamilyId}:${c.rightFamilyId}`} className="border-t align-top"><td className="p-4">{renderPlayer(c.leftPlayerId)}</td><td className="p-4">{renderPlayer(c.rightPlayerId)}</td><td className="p-4"><strong>{c.confidence === 'VERIFIED' ? 'התאמה חזקה' : 'נדרשת בדיקה'}</strong><p>{c.reasons.map(r => labels[r]).join(' · ')}</p>{c.conflicts.length > 0 && <p className="mt-2 font-bold text-red-700">סתירה: {c.conflicts.map(r => labels[r]).join(' · ')}</p>}</td><td className="p-4">{actionFor(c)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-6">לא נמצאו מועמדים בחתך שנבחר.</p>}</div>
   </div></main>;
 }
