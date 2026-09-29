@@ -3,6 +3,7 @@
  * across all-time meetings + a compact table of the last few games.
  */
 import Link from 'next/link';
+import React from 'react';
 import type { H2HSummary } from '@/lib/h2h';
 
 export function H2HPanel({ summary }: { summary: H2HSummary }) {
@@ -47,7 +48,7 @@ export function H2HPanel({ summary }: { summary: H2HSummary }) {
                   <td className="px-2 py-1.5">{m.awayTeamName}</td>
                   <td className="px-2 py-1.5 text-center">
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${m.resultFromA === 'W' ? 'bg-emerald-100 text-emerald-700' : m.resultFromA === 'L' ? 'bg-red-100 text-red-700' : 'bg-stone-100 text-stone-700'}`}>
-                      {m.resultFromA === 'W' ? 'נ' : m.resultFromA === 'L' ? 'ה' : 'ת'}
+                      {m.resultFromA === 'D' ? 'תיקו' : `ניצחון ${m.resultFromA === 'W' ? summary.teamAName : summary.teamBName}`}
                     </span>
                   </td>
                   <td className="px-2 py-1.5">
