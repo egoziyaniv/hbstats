@@ -13,6 +13,11 @@ function sha256(value: string) {
 
 class InvalidResetTokenError extends Error {}
 
+function isSerializationFailure(error: unknown): boolean {
+  const prismaError = error as { code?: string; meta?: { code?: string } };
+  return prismaError?.code === 'P2034' || prismaError?.meta?.code === '40001';
+}
+
 export async function POST(request: NextRequest) {
   let body: { token?: string; password?: string };
   try {
@@ -77,7 +82,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      if ((error as { code?: string })?.code !== 'P2034') throw error;
+      if (!isSerializationFailure(error)) throw error;
     }
   }
 

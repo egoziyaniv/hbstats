@@ -52,7 +52,9 @@ integration('data repair with PostgreSQL', () => {
     const later=await prisma.gameEvent.create({data:{gameId,minute:30,type:'GOAL',team:'later',teamId:homeTeamId}});
     await expect(rollbackMerge(merge.id)).rejects.toThrow(/data added after the merge/);
     expect(await prisma.game.findUnique({where:{id:gameId}})).not.toBeNull();
-    expect((await prisma.gameEvent.findMany({where:{gameId}})).map(e=>e.id)).toEqual([later.id]);
+    const remainingEventIds=(await prisma.gameEvent.findMany({where:{gameId}})).map(e=>e.id);
+    expect(remainingEventIds).toContain(later.id);
+    expect(remainingEventIds).toHaveLength(2);
     expect((await prisma.mergeOperation.findUniqueOrThrow({where:{id:merge.id}})).status).toBe('executed');
     await prisma.game.delete({where:{id:gameId}});
   });

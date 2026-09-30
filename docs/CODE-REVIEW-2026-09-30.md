@@ -56,12 +56,13 @@ Commit: `ab23140`
 
 ## מצב אימות תיקוני P0
 
-- `npm test` ממוקד: 5 suites, ‏19 בדיקות — עברו.
+- `npm test` ממוקד: 5 suites, ‏20 בדיקות — עברו.
+- בדיקות PostgreSQL קריטיות: 2 suites, ‏15 בדיקות — עברו מול `statsai_review`.
 - `npx tsc --noEmit` — עבר.
 - `git diff --check` — עבר.
-- `npm test -- --runInBand` מלא: 85 מתוך 98 suites עברו; 13 suites התלויות ב־PostgreSQL נכשלו כי `localhost:5432` אינו פעיל. בסך הכול 452 בדיקות עברו.
-- `npm run build`: הקומפילציה ובדיקת הטיפוסים עברו; prerender של `/sitemap.xml` נעצר מאותה סיבה — PostgreSQL המקומי אינו פעיל.
-- בדיקות PostgreSQL החדשות נוספו ל־`data-repair.integration.test.ts` ול־`refresh.test.ts` וניתנות להרצה כאשר מסד הבדיקה המקומי פעיל.
+- `npm test -- --runInBand` מלא מול `statsai_review`: ‏98 suites עברו, 2 דולגו; 502 בדיקות עברו ו־6 דולגו.
+- `npm run build` מול `statsai_review` — עבר, כולל 54 דפים סטטיים.
+- קיימת אזהרת ESLint על זיהוי שני workspace roots בתוך worktree; היא אינה מכשילה את הקומפילציה או את ה־build.
 
 ## P1 — גבוה
 
