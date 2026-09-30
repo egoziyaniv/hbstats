@@ -44,7 +44,7 @@ export function H2HPanel({ summary }: { summary: H2HSummary }) {
                 <tr key={m.gameId} className="border-t border-stone-100 hover:bg-stone-50">
                   <td className="px-2 py-1.5 text-stone-400" dir="ltr">{m.date}</td>
                   <td className="px-2 py-1.5">{m.homeTeamName}</td>
-                  <td className="px-2 py-1.5 text-center font-black text-stone-900">{m.homeScore}-{m.awayScore}</td>
+                  <td className="px-2 py-1.5 text-center font-black text-stone-900" dir="ltr">{m.awayScore}-{m.homeScore}</td>
                   <td className="px-2 py-1.5">{m.awayTeamName}</td>
                   <td className="px-2 py-1.5 text-center">
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${m.resultFromA === 'W' ? 'bg-emerald-100 text-emerald-700' : m.resultFromA === 'L' ? 'bg-red-100 text-red-700' : 'bg-stone-100 text-stone-700'}`}>

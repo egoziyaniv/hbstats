@@ -9,4 +9,5 @@ test('names the winner in a historical meeting instead of only showing the first
     meetings: [{ gameId: 'game', date: '2025-08-30', competitionNameHe: null, homeTeamName: 'הפועל באר שבע', awayTeamName: 'עירוני טבריה', homeScore: 7, awayScore: 0, isAHome: false, resultFromA: 'L' }],
   }} />);
   expect(html).toContain('ניצחון הפועל באר שבע');
+  expect(html).toContain('0-7');
 });
