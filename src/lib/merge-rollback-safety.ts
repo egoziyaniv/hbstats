@@ -6,11 +6,23 @@ function isPreviewValue(value: unknown): value is { new: unknown } {
   );
 }
 
-function comparable(value: unknown): unknown {
+function normalizeComparable(value: unknown): unknown {
+  if (value === undefined) return null;
   if (value instanceof Date) return value.toISOString();
   if (typeof value === 'bigint') return value.toString();
-  if (value === undefined) return null;
+  if (Array.isArray(value)) return value.map(normalizeComparable);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, normalizeComparable(nested)])
+    );
+  }
   return value;
+}
+
+function comparable(value: unknown): string {
+  return JSON.stringify(normalizeComparable(value));
 }
 
 export function normalizeAppliedFields(fields: Record<string, unknown>): Record<string, unknown> {

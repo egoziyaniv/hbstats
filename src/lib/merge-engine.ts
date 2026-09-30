@@ -12,7 +12,9 @@
  */
 
 import prisma from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { playerNamesMatch } from '@/lib/name-match';
+import { normalizeAppliedFields, rowMatchesAppliedFields } from '@/lib/merge-rollback-safety';
 import { clearSpineCache } from '@/lib/history/seasons-spine';
 import { clearAllTimeCache } from '@/lib/history/all-time-table';
 import { clearClubCache } from '@/lib/history/club-identity';
@@ -776,7 +778,7 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
               photoUrl: m.photoUrl || null,
             },
           });
-          snapshots.push({ id: newPlayer.id, entity: 'player', original: {}, action: 'create' });
+          snapshots.push({ id: newPlayer.id, entity: 'player', original: { ...newPlayer }, action: 'create' });
 
           // Create or update PlayerStatistics (find-then-upsert to avoid duplicates on re-run)
           const statsData = {
@@ -795,8 +797,13 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
           const newStats = existingStats
             ? await prisma.playerStatistics.update({ where: { id: existingStats.id }, data: statsData })
             : await prisma.playerStatistics.create({ data: { playerId: newPlayer.id, seasonId: m.seasonId, ...statsData } });
-          snapshots.push({ id: newStats.id, entity: 'playerStats', original: existingStats ? { ...existingStats } : {}, action: existingStats ? 'update' : 'create' });
-          applied.push({ id: newPlayer.id, entity: 'player', fields: change.fields || {} });
+          snapshots.push({ id: newStats.id, entity: 'playerStats', original: existingStats ? { ...existingStats } : { ...newStats }, action: existingStats ? 'update' : 'create' });
+          applied.push({ id: newPlayer.id, entity: 'player', fields: {
+            nameHe: newPlayer.nameHe,
+            nameEn: newPlayer.nameEn,
+            teamId: newPlayer.teamId,
+            photoUrl: newPlayer.photoUrl,
+          } });
         }
 
         // ── Create stats for existing player (find-then-upsert to avoid duplicates) ──
@@ -819,8 +826,8 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
           const newStats = existingStats
             ? await prisma.playerStatistics.update({ where: { id: existingStats.id }, data: statsData })
             : await prisma.playerStatistics.create({ data: { playerId: m.playerId, seasonId: m.seasonId, ...statsData } });
-          snapshots.push({ id: newStats.id, entity: 'playerStats', original: existingStats ? { ...existingStats } : {}, action: existingStats ? 'update' : 'create' });
-          applied.push({ id: newStats.id, entity: 'playerStats', fields: change.fields || {} });
+          snapshots.push({ id: newStats.id, entity: 'playerStats', original: existingStats ? { ...existingStats } : { ...newStats }, action: existingStats ? 'update' : 'create' });
+          applied.push({ id: newStats.id, entity: 'playerStats', fields: statsData });
         }
 
         if (change.entity === 'standing' && change.type === 'update' && change.matchedId) {
@@ -848,7 +855,7 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
                 data: { year, name: dbSeasonName, startDate: new Date(`${year}-08-01`), endDate: new Date(`${year + 1}-06-30`) },
               });
               seasonId = newSeason.id;
-              snapshots.push({ id: newSeason.id, entity: 'season', original: {}, action: 'create' });
+              snapshots.push({ id: newSeason.id, entity: 'season', original: { ...newSeason }, action: 'create' });
             } else {
               throw new Error(`Cannot create season: ${dbSeasonName}`);
             }
@@ -866,7 +873,7 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
               data: { nameHe: resolved.nameHe, nameEn: resolved.nameEn, seasonId },
             });
             teamId = newTeam.id;
-            snapshots.push({ id: newTeam.id, entity: 'team', original: {}, action: 'create' });
+            snapshots.push({ id: newTeam.id, entity: 'team', original: { ...newTeam }, action: 'create' });
           } else {
             const teams = await prisma.team.findMany({ where: { seasonId }, select: { id: true, nameHe: true } });
             const matchedTeamName = change.matchedName || '';
@@ -887,11 +894,20 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
 
           // Ensure CompetitionSeason exists
           if (competitionId) {
-            await prisma.competitionSeason.upsert({
+            const existingCompetitionSeason = await prisma.competitionSeason.findUnique({
               where: { competitionId_seasonId: { competitionId, seasonId } },
-              update: {},
-              create: { competitionId, seasonId },
             });
+            if (!existingCompetitionSeason) {
+              const createdCompetitionSeason = await prisma.competitionSeason.create({
+                data: { competitionId, seasonId },
+              });
+              snapshots.push({
+                id: createdCompetitionSeason.id,
+                entity: 'competitionSeason',
+                original: { ...createdCompetitionSeason },
+                action: 'create',
+              });
+            }
           }
 
           const created = await prisma.standing.create({
@@ -913,7 +929,7 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
               pointsAdjustmentNoteHe: change.fields.pointsAdjustmentNoteHe?.new ?? null,
             },
           });
-          snapshots.push({ id: created.id, entity: 'standing', original: {}, action: 'create' });
+          snapshots.push({ id: created.id, entity: 'standing', original: { ...created }, action: 'create' });
           applied.push({ id: created.id, entity: 'standing', fields: change.fields });
         }
 
@@ -1008,7 +1024,7 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
               roundNameHe: m.round ? `מחזור ${m.round}` : null,
             },
           });
-          snapshots.push({ id: newGame.id, entity: 'game', original: { updatedAt: newGame.updatedAt }, action: 'create' });
+          snapshots.push({ id: newGame.id, entity: 'game', original: { ...newGame }, action: 'create' });
 
           // Create events — try to link players by name
           if (m.sourceId) {
@@ -1105,107 +1121,216 @@ export async function executeMerge(mergeId: string): Promise<{ updated: number; 
 // Rollback: revert executed merge
 // ──────────────────────────────────────────────
 
+type RollbackSnapshot = {
+  id: string;
+  entity: string;
+  original: Record<string, any>;
+  action?: 'update' | 'create';
+};
+
+type AppliedChange = {
+  id: string;
+  entity: string;
+  fields: Record<string, unknown>;
+};
+
+function rollbackKey(entity: string, id: string): string {
+  return `${entity}:${id}`;
+}
+
+async function getRollbackRecord(tx: Prisma.TransactionClient, snapshot: RollbackSnapshot): Promise<Record<string, unknown> | null> {
+  if (snapshot.entity === 'playerStats') return tx.playerStatistics.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'standing') return tx.standing.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'game') return tx.game.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'player') return tx.player.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'gameEvent') return tx.gameEvent.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'gameLineup') return tx.gameLineupEntry.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'team') return tx.team.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'season') return tx.season.findUnique({ where: { id: snapshot.id } }) as any;
+  if (snapshot.entity === 'competitionSeason') return tx.competitionSeason.findUnique({ where: { id: snapshot.id } }) as any;
+  return null;
+}
+
+async function restoreUpdatedSnapshot(tx: Prisma.TransactionClient, snapshot: RollbackSnapshot): Promise<void> {
+  if (snapshot.entity === 'playerStats') await tx.playerStatistics.update({ where: { id: snapshot.id }, data: snapshot.original });
+  else if (snapshot.entity === 'standing') await tx.standing.update({ where: { id: snapshot.id }, data: snapshot.original });
+  else if (snapshot.entity === 'game') await tx.game.update({ where: { id: snapshot.id }, data: snapshot.original });
+  else throw new Error(`Unsupported rollback update entity: ${snapshot.entity}`);
+}
+
+async function deleteCreatedSnapshot(tx: Prisma.TransactionClient, snapshot: RollbackSnapshot): Promise<void> {
+  let deleted = 0;
+
+  if (snapshot.entity === 'gameEvent') {
+    deleted = (await tx.gameEvent.deleteMany({ where: { id: snapshot.id } })).count;
+  } else if (snapshot.entity === 'gameLineup') {
+    deleted = (await tx.gameLineupEntry.deleteMany({ where: { id: snapshot.id } })).count;
+  } else if (snapshot.entity === 'playerStats') {
+    deleted = (await tx.playerStatistics.deleteMany({ where: { id: snapshot.id } })).count;
+  } else if (snapshot.entity === 'standing') {
+    deleted = (await tx.standing.deleteMany({ where: { id: snapshot.id } })).count;
+  } else if (snapshot.entity === 'competitionSeason') {
+    deleted = (await tx.competitionSeason.deleteMany({ where: { id: snapshot.id } })).count;
+  } else if (snapshot.entity === 'player') {
+    deleted = (await tx.player.deleteMany({ where: {
+      id: snapshot.id,
+      fanArchiveItems: { none: {} },
+      leaderboardEntries: { none: {} },
+      events: { none: {} },
+      relatedEvents: { none: {} },
+      lineupEntries: { none: {} },
+      gamePlayerStats: { none: {} },
+      matchRatings: { none: {} },
+      uploads: { none: {} },
+      injuries: { none: {} },
+      sidelinedEntries: { none: {} },
+      playerStats: { none: {} },
+      transfers: { none: {} },
+      trophies: { none: {} },
+      songs: { none: {} },
+      hallOfFame: { none: {} },
+      seasonEntries: { none: {} },
+    } })).count;
+  } else if (snapshot.entity === 'game') {
+    deleted = (await tx.game.deleteMany({ where: {
+      id: snapshot.id,
+      fanArchiveItems: { none: {} },
+      events: { none: {} },
+      lineupEntries: { none: {} },
+      gamePlayerStats: { none: {} },
+      matchRatings: { none: {} },
+      gameStats: { is: null },
+      prediction: { is: null },
+      editorial: { is: null },
+      sofascoreMatchStats: { is: null },
+      fotmobData: { is: null },
+      oddsSnapshots: { none: {} },
+      oddsValues: { none: {} },
+      predictionSnapshots: { none: {} },
+      headToHeadEntries: { none: {} },
+      activityLogs: { none: {} },
+      fetchJobs: { none: {} },
+      mediaAssets: { none: {} },
+      liveSnapshots: { none: {} },
+      injuries: { none: {} },
+      winnerOdds: { none: {} },
+      clubSeasonMoments: { none: {} },
+      matchAttendances: { none: {} },
+    } })).count;
+  } else if (snapshot.entity === 'team') {
+    deleted = (await tx.team.deleteMany({ where: {
+      id: snapshot.id,
+      leaderboardEntries: { none: {} },
+      fetchJobs: { none: {} },
+      homeEvents: { none: {} },
+      lineupEntries: { none: {} },
+      awayGames: { none: {} },
+      homeGames: { none: {} },
+      uploads: { none: {} },
+      injuries: { none: {} },
+      players: { none: {} },
+      standings: { none: {} },
+      coachAssignments: { none: {} },
+      teamStats: { none: {} },
+      sofascoreStats: { none: {} },
+      clubSeasonDossiers: { none: {} },
+    } })).count;
+  } else if (snapshot.entity === 'season') {
+    deleted = (await tx.season.deleteMany({ where: {
+      id: snapshot.id,
+      fanArchiveItems: { none: {} },
+      leaderboardEntries: { none: {} },
+      competitions: { none: {} },
+      fetchJobs: { none: {} },
+      headToHeadEntries: { none: {} },
+      oddsSnapshots: { none: {} },
+      oddsValues: { none: {} },
+      predictionSnapshots: { none: {} },
+      predictions: { none: {} },
+      games: { none: {} },
+      liveSnapshots: { none: {} },
+      mediaAssets: { none: {} },
+      injuries: { none: {} },
+      sidelinedEntries: { none: {} },
+      playerStats: { none: {} },
+      transfers: { none: {} },
+      trophies: { none: {} },
+      standings: { none: {} },
+      coachAssignments: { none: {} },
+      teamStats: { none: {} },
+      sofascoreTeamStats: { none: {} },
+      teams: { none: {} },
+      clubSeasonDossiers: { none: {} },
+    } })).count;
+  } else {
+    throw new Error(`Unsupported rollback create entity: ${snapshot.entity}`);
+  }
+
+  if (deleted !== 1) {
+    throw new Error(`Cannot rollback ${snapshot.entity} ${snapshot.id}: data added after the merge.`);
+  }
+}
+
 export async function rollbackMerge(mergeId: string): Promise<{ reverted: number; errors: string[] }> {
-  const merge = await prisma.mergeOperation.findUnique({ where: { id: mergeId } });
-  if (!merge || merge.status !== 'executed') {
-    throw new Error('Can only rollback executed merges');
-  }
-
-  const snapshot = merge.snapshotJson as { snapshots: Array<{ id: string; entity: string; original: Record<string, any>; action?: string }> } | null;
-  if (!snapshot?.snapshots) throw new Error('No snapshot data for rollback');
-
-  let reverted = 0;
-  const errors: string[] = [];
-  const snaps = snapshot.snapshots;
-
-  // 1) Revert field updates (order independent). Count only real successes — no
-  //    silent .catch() swallowing that inflated the previous reverted count.
-  for (const snap of snaps.filter((s) => s.action !== 'create')) {
-    try {
-      if (snap.entity === 'playerStats') await prisma.playerStatistics.update({ where: { id: snap.id }, data: snap.original });
-      else if (snap.entity === 'standing') await prisma.standing.update({ where: { id: snap.id }, data: snap.original });
-      else if (snap.entity === 'game') await prisma.game.update({ where: { id: snap.id }, data: snap.original });
-      else continue;
-      reverted++;
-    } catch (e: any) {
-      errors.push(`Rollback update ${snap.entity} ${snap.id}: ${e.message}`);
+  const result = await prisma.$transaction(async (tx) => {
+    const claim = await tx.mergeOperation.updateMany({
+      where: { id: mergeId, status: 'executed' },
+      data: { status: 'rolling_back' },
+    });
+    if (claim.count !== 1) {
+      const current = await tx.mergeOperation.findUnique({ where: { id: mergeId }, select: { status: true } });
+      throw new Error(current ? `Merge cannot be rolled back (status: ${current.status})` : 'Merge not found');
     }
-  }
 
-  // 2) Delete created rows in REVERSE creation order (children before parents),
-  //    so this merge's own children are gone before we reach their season/team.
-  //    A created season/team is deleted ONLY if it has no remaining children —
-  //    any that remain were added AFTER the merge, and Season/Team cascade on
-  //    delete, so removing them would wipe that newer data. Refuse instead.
-  for (const snap of [...snaps.filter((s) => s.action === 'create')].reverse()) {
-    try {
-      if (snap.entity === 'gameEvent' || snap.entity === 'gameLineup') {
-        // Compare the captured row as well as its ID so an administrator's
-        // subsequent edits are not erased. Other IDs are never targeted.
-        const where = { ...snap.original, id: snap.id };
-        const deleted = snap.entity === 'gameEvent'
-          ? await prisma.gameEvent.deleteMany({ where })
-          : await prisma.gameLineupEntry.deleteMany({ where });
-        reverted += deleted.count;
-        if (deleted.count === 0) errors.push(`Kept ${snap.entity} ${snap.id} — changed or removed after the merge.`);
-      } else if (snap.entity === 'playerStats') {
-        await prisma.playerStatistics.delete({ where: { id: snap.id } }); reverted++;
-      } else if (snap.entity === 'player') {
-        await prisma.player.delete({ where: { id: snap.id } }); reverted++;
-      } else if (snap.entity === 'game') {
-        // The merge's unchanged children were removed above. Any remaining
-        // relation belongs to later work (or a legacy snapshot without IDs).
-        // Check in the DELETE predicate, not a racy count-then-delete pair.
-        const deleted = await prisma.game.deleteMany({ where: {
-          id: snap.id,
-          ...(snap.original.updatedAt ? { updatedAt: snap.original.updatedAt } : {}),
-          events: { none: {} }, lineupEntries: { none: {} },
-          gamePlayerStats: { none: {} }, matchRatings: { none: {} },
-          gameStats: { is: null }, prediction: { is: null }, editorial: { is: null },
-          sofascoreMatchStats: { is: null }, fotmobData: { is: null },
-          oddsSnapshots: { none: {} }, oddsValues: { none: {} },
-          predictionSnapshots: { none: {} }, headToHeadEntries: { none: {} },
-          activityLogs: { none: {} }, fetchJobs: { none: {} },
-          mediaAssets: { none: {} }, liveSnapshots: { none: {} },
-          injuries: { none: {} }, winnerOdds: { none: {} },
-        } });
-        reverted += deleted.count;
-        if (deleted.count === 0) errors.push(`Kept game ${snap.id} — changed or has data added after the merge.`);
-      } else if (snap.entity === 'standing') {
-        await prisma.standing.delete({ where: { id: snap.id } }); reverted++;
-      } else if (snap.entity === 'team') {
-        const [st, pl, hg, ag] = await Promise.all([
-          prisma.standing.count({ where: { teamId: snap.id } }),
-          prisma.player.count({ where: { teamId: snap.id } }),
-          prisma.game.count({ where: { homeTeamId: snap.id } }),
-          prisma.game.count({ where: { awayTeamId: snap.id } }),
-        ]);
-        if (st + pl + hg + ag > 0) {
-          errors.push(`Kept team ${snap.id} — it has data added after the merge (${st} standings, ${pl} players, ${hg + ag} games); not deleting to avoid wiping it.`);
-        } else {
-          await prisma.team.delete({ where: { id: snap.id } }); reverted++;
-        }
-      } else if (snap.entity === 'season') {
-        const [tm, gm, st] = await Promise.all([
-          prisma.team.count({ where: { seasonId: snap.id } }),
-          prisma.game.count({ where: { seasonId: snap.id } }),
-          prisma.standing.count({ where: { seasonId: snap.id } }),
-        ]);
-        if (tm + gm + st > 0) {
-          errors.push(`Kept season ${snap.id} — it has data added after the merge (${tm} teams, ${gm} games, ${st} standings); not deleting to avoid wiping it.`);
-        } else {
-          await prisma.season.delete({ where: { id: snap.id } }); reverted++;
-        }
+    const merge = await tx.mergeOperation.findUnique({ where: { id: mergeId } });
+    if (!merge) throw new Error('Merge not found');
+
+    const snapshot = merge.snapshotJson as { snapshots: RollbackSnapshot[] } | null;
+    if (!snapshot?.snapshots) throw new Error('No snapshot data for rollback');
+    const changes = merge.changesJson as { applied?: AppliedChange[] } | null;
+    const appliedByRecord = new Map(
+      (changes?.applied || []).map((entry) => [rollbackKey(entry.entity, entry.id), entry])
+    );
+
+    // Validate every captured row before changing any data. Update snapshots
+    // compare against values actually written by the merge; create snapshots
+    // compare against the complete row captured immediately after creation.
+    for (const snap of snapshot.snapshots) {
+      const current = await getRollbackRecord(tx, snap);
+      if (!current) {
+        throw new Error(`Cannot rollback ${snap.entity} ${snap.id}: changed or removed after the merge.`);
       }
-    } catch (e: any) {
-      errors.push(`Rollback delete ${snap.entity} ${snap.id}: ${e.message}`);
-    }
-  }
 
-  await prisma.mergeOperation.update({
-    where: { id: mergeId },
-    data: { status: 'rolled_back', rolledBackAt: new Date() },
-  });
+      const applied = appliedByRecord.get(rollbackKey(snap.entity, snap.id));
+      const appliedFields = normalizeAppliedFields(applied?.fields || {});
+      const expected = snap.action === 'create' && Object.keys(snap.original || {}).length > 0
+        ? snap.original
+        : appliedFields;
+      if (Object.keys(expected).length === 0) {
+        throw new Error(`Cannot safely rollback legacy ${snap.entity} ${snap.id}: merge values are missing.`);
+      }
+      if (!rowMatchesAppliedFields(current, expected)) {
+        throw new Error(`Cannot rollback ${snap.entity} ${snap.id}: changed after the merge.`);
+      }
+    }
+
+    let reverted = 0;
+    for (const snap of snapshot.snapshots.filter((entry) => entry.action !== 'create')) {
+      await restoreUpdatedSnapshot(tx, snap);
+      reverted++;
+    }
+    for (const snap of [...snapshot.snapshots.filter((entry) => entry.action === 'create')].reverse()) {
+      await deleteCreatedSnapshot(tx, snap);
+      reverted++;
+    }
+
+    await tx.mergeOperation.update({
+      where: { id: mergeId },
+      data: { status: 'rolled_back', rolledBackAt: new Date() },
+    });
+
+    return { reverted, errors: [] as string[] };
+  }, { isolationLevel: 'Serializable', timeout: 120_000 });
 
   // Rollback reverts/deletes standings — drop the "כל העונות" spine cache —
   // and can delete merge-created teams/games, invalidating club families,
@@ -1216,5 +1341,5 @@ export async function rollbackMerge(mergeId: string): Promise<{ reverted: number
   clearH2HCache();
   clearHonorsCache();
 
-  return { reverted, errors };
+  return result;
 }

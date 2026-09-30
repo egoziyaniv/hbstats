@@ -50,11 +50,21 @@ integration('data repair with PostgreSQL', () => {
     const stored=await prisma.mergeOperation.findUniqueOrThrow({where:{id:merge.id}});
     const gameId=(stored.snapshotJson as any).snapshots.find((r:any)=>r.entity==='game').id;
     const later=await prisma.gameEvent.create({data:{gameId,minute:30,type:'GOAL',team:'later',teamId:homeTeamId}});
-    const result=await rollbackMerge(merge.id);
-    expect(result.errors).toHaveLength(1);
+    await expect(rollbackMerge(merge.id)).rejects.toThrow(/data added after the merge/);
     expect(await prisma.game.findUnique({where:{id:gameId}})).not.toBeNull();
     expect((await prisma.gameEvent.findMany({where:{gameId}})).map(e=>e.id)).toEqual([later.id]);
+    expect((await prisma.mergeOperation.findUniqueOrThrow({where:{id:merge.id}})).status).toBe('executed');
     await prisma.game.delete({where:{id:gameId}});
+  });
+  it('rejects rollback instead of overwriting a field edited after the merge',async()=>{
+    const game=await prisma.game.create({data:{dateTime:new Date(),seasonId,competitionId,homeTeamId,awayTeamId,homeScore:null,awayScore:null}});
+    const merge=await prisma.mergeOperation.create({data:{source:'footballOrgIl',mergeType:'games',status:'approved',previewJson:{changes:[{entity:'game',type:'update',matchedId:game.id,scrapedName:suffix,fields:{homeScore:{old:null,new:1},awayScore:{old:null,new:0}},meta:{homeTeamId,awayTeamId}}]}}});mergeIds.push(merge.id);
+    expect(await executeMerge(merge.id)).toMatchObject({updated:1,errors:[]});
+    await prisma.game.update({where:{id:game.id},data:{homeScore:2}});
+    await expect(rollbackMerge(merge.id)).rejects.toThrow(/changed after the merge/);
+    expect((await prisma.game.findUniqueOrThrow({where:{id:game.id}})).homeScore).toBe(2);
+    expect((await prisma.mergeOperation.findUniqueOrThrow({where:{id:merge.id}})).status).toBe('executed');
+    await prisma.game.delete({where:{id:game.id}});
   });
   it('removes a cancelled result from a complete table in the mutation transaction',async()=>{
     const game=await prisma.game.create({data:{dateTime:new Date(),seasonId,competitionId,homeTeamId,awayTeamId,status:'COMPLETED',homeScore:2,awayScore:0}});
