@@ -32,7 +32,7 @@
 - Create: `src/lib/__tests__/db-restore.test.ts`
 - Modify: `src/app/api/admin/db-transfer/route.ts`
 
-- [ ] **Step 1: Write failing orchestration tests**
+- [x] **Step 1: Write failing orchestration tests**
 
 Create table-driven tests with injected Jest functions. The essential assertions are:
 
@@ -67,7 +67,7 @@ test('does not restore a snapshot when rollback cleanup fails', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the new tests and verify the red state**
+- [x] **Step 2: Run the new tests and verify the red state**
 
 Run:
 
@@ -77,7 +77,7 @@ npm test -- --runInBand src/lib/__tests__/db-restore.test.ts
 
 Expected: FAIL because `@/lib/db-restore` does not exist.
 
-- [ ] **Step 3: Implement the restore state machine**
+- [x] **Step 3: Implement the restore state machine**
 
 Create the following public contract and perform each dependency call only after the previous result has `code === 0`:
 
@@ -121,7 +121,7 @@ export async function runRestoreWorkflow(steps: {
 
 Update the route to call `runRestoreWorkflow`, log command details server-side, retain the snapshot for all three failure phases, and delete it after `restored` or `rolled_back`.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -131,7 +131,7 @@ npm test -- --runInBand src/lib/__tests__/db-restore.test.ts
 
 Expected: PASS for initial cleanup failure, import success, automatic rollback success, rollback cleanup failure, and rollback restore failure.
 
-- [ ] **Step 5: Commit the database-restore fix**
+- [x] **Step 5: Commit the database-restore fix**
 
 ```bash
 git add src/lib/db-restore.ts src/lib/__tests__/db-restore.test.ts src/app/api/admin/db-transfer/route.ts
@@ -144,7 +144,7 @@ git commit -m "fix(db): stop unsafe restore sequences"
 - Create: `src/lib/merge-rollback-safety.ts`
 - Create: `src/lib/__tests__/merge-rollback-safety.test.ts`
 
-- [ ] **Step 1: Write failing normalization tests**
+- [x] **Step 1: Write failing normalization tests**
 
 ```ts
 import { normalizeAppliedFields, rowMatchesAppliedFields } from '@/lib/merge-rollback-safety';
@@ -163,7 +163,7 @@ test('compares dates and nullable values without representation conflicts', () =
 });
 ```
 
-- [ ] **Step 2: Run the helper tests and verify the red state**
+- [x] **Step 2: Run the helper tests and verify the red state**
 
 Run:
 
@@ -173,7 +173,7 @@ npm test -- --runInBand src/lib/__tests__/merge-rollback-safety.test.ts
 
 Expected: FAIL because the helper module does not exist.
 
-- [ ] **Step 3: Implement normalization and comparison**
+- [x] **Step 3: Implement normalization and comparison**
 
 ```ts
 function comparable(value: unknown): unknown {
@@ -198,11 +198,11 @@ export function rowMatchesAppliedFields(row: Record<string, unknown>, fields: Re
 }
 ```
 
-- [ ] **Step 4: Run helper tests**
+- [x] **Step 4: Run helper tests**
 
 Run the command from Step 2. Expected: PASS.
 
-- [ ] **Step 5: Commit the comparison helper**
+- [x] **Step 5: Commit the comparison helper**
 
 ```bash
 git add src/lib/merge-rollback-safety.ts src/lib/__tests__/merge-rollback-safety.test.ts
@@ -216,7 +216,7 @@ git commit -m "test(merge): define safe rollback comparisons"
 - Modify: `src/lib/__tests__/merge-rollback-children.test.ts`
 - Modify: `src/lib/__tests__/data-repair.integration.test.ts`
 
-- [ ] **Step 1: Change tests to require all-or-nothing behavior**
+- [x] **Step 1: Change tests to require all-or-nothing behavior**
 
 Replace partial-success assertions with rejection and unchanged-state assertions:
 
@@ -239,7 +239,7 @@ expect((await prisma.mergeOperation.findUniqueOrThrow({ where: { id: merge.id } 
   .toBe('executed');
 ```
 
-- [ ] **Step 2: Run rollback tests and verify the red state**
+- [x] **Step 2: Run rollback tests and verify the red state**
 
 Run:
 
@@ -249,7 +249,7 @@ npm test -- --runInBand src/lib/__tests__/merge-rollback-children.test.ts
 
 Expected: FAIL because the current implementation collects errors, commits partial changes, and writes `rolled_back`.
 
-- [ ] **Step 3: Record complete baselines for newly created rows**
+- [x] **Step 3: Record complete baselines for newly created rows**
 
 When `executeMerge` creates a season, team, player, player statistics row, standing, game, event, or lineup, store the complete created Prisma row in `snapshot.original`. Add a matching `applied` entry for created player-stat rows, whose fields use persisted names such as `gamesPlayed`, `goals`, and `starts`.
 
@@ -261,7 +261,7 @@ snapshots.push({ id: created.id, entity: 'playerStats', original: { ...created }
 applied.push({ id: created.id, entity: 'playerStats', fields: statsData });
 ```
 
-- [ ] **Step 4: Implement one serializable rollback transaction**
+- [x] **Step 4: Implement one serializable rollback transaction**
 
 Move the claim, validation, mutations, and final status update into one interactive transaction:
 
@@ -291,7 +291,7 @@ const result = await prisma.$transaction(async (tx) => {
 
 Build the expected-field map from `changesJson.applied` with `normalizeAppliedFields`. For legacy created snapshots without enough baseline data, reject rollback rather than delete a row that cannot be verified. Move all cache clearing after the transaction resolves.
 
-- [ ] **Step 5: Run unit and integration coverage**
+- [x] **Step 5: Run unit and integration coverage**
 
 Run:
 
@@ -302,7 +302,7 @@ STATSAI_DATA_INTEGRATION=1 npm test -- --runInBand src/lib/__tests__/data-repair
 
 Expected: all unit tests PASS; integration PASS against the isolated `statsai_review` database. If the isolated DB is unavailable, record that limitation and run the unit suite plus TypeScript/build validation.
 
-- [ ] **Step 6: Commit atomic merge rollback**
+- [x] **Step 6: Commit atomic merge rollback**
 
 ```bash
 git add src/lib/merge-engine.ts src/lib/__tests__/merge-rollback-children.test.ts src/lib/__tests__/data-repair.integration.test.ts
@@ -315,7 +315,7 @@ git commit -m "fix(merge): make rollback atomic"
 - Modify: `src/app/api/auth/reset-confirm/route.ts`
 - Modify: `src/app/api/mobile/v1/auth/__tests__/refresh.test.ts`
 
-- [ ] **Step 1: Write the concurrent reset regression test**
+- [x] **Step 1: Write the concurrent reset regression test**
 
 ```ts
 test('a password-reset token succeeds only once under concurrency', async () => {
@@ -336,7 +336,7 @@ test('a password-reset token succeeds only once under concurrency', async () => 
 });
 ```
 
-- [ ] **Step 2: Run the reset test and verify the red state**
+- [x] **Step 2: Run the reset test and verify the red state**
 
 Run:
 
@@ -346,7 +346,7 @@ npm test -- --runInBand src/app/api/mobile/v1/auth/__tests__/refresh.test.ts -t 
 
 Expected: FAIL because both requests currently pass the pre-transaction token check.
 
-- [ ] **Step 3: Implement the conditional token claim**
+- [x] **Step 3: Implement the conditional token claim**
 
 Calculate `newHash` before opening the transaction. Inside one interactive transaction, find and validate the token, lock the user, and claim the token conditionally:
 
@@ -375,7 +375,7 @@ const reset = await prisma.$transaction(async tx => {
 
 Catch `InvalidResetTokenError` and map it to the current 400 response. Keep activity logging after the successful commit.
 
-- [ ] **Step 4: Run the full auth integration file**
+- [x] **Step 4: Run the full auth integration file**
 
 Run:
 
@@ -385,7 +385,7 @@ npm test -- --runInBand src/app/api/mobile/v1/auth/__tests__/refresh.test.ts
 
 Expected: PASS, including existing session invalidation tests and the new concurrent reset test.
 
-- [ ] **Step 5: Commit token consumption fix**
+- [x] **Step 5: Commit token consumption fix**
 
 ```bash
 git add src/app/api/auth/reset-confirm/route.ts src/app/api/mobile/v1/auth/__tests__/refresh.test.ts
@@ -399,11 +399,11 @@ git commit -m "fix(auth): consume reset tokens atomically"
 - Modify: `src/lib/version.ts`
 - Modify: `package.json`
 
-- [ ] **Step 1: Update review status and version**
+- [x] **Step 1: Update review status and version**
 
 Mark P0-1 through P0-4 as `תוקן` and add the verification commands used. Change both version declarations from `0.52.4` to `0.52.5`.
 
-- [ ] **Step 2: Run complete verification**
+- [x] **Step 2: Run complete verification**
 
 ```bash
 npm test -- --runInBand
@@ -414,11 +414,11 @@ git diff --check
 
 Expected: all Jest suites PASS, TypeScript exits 0, Next.js build exits 0, and `git diff --check` prints no errors.
 
-- [ ] **Step 3: Review the final diff against the four P0 acceptance criteria**
+- [x] **Step 3: Review the final diff against the four P0 acceptance criteria**
 
 Confirm from the diff and test names that failed PostgreSQL preparation cannot advance, merge rollback is one transaction, later edits cause rollback rejection, and one reset token yields one successful response.
 
-- [ ] **Step 4: Commit release metadata and review status**
+- [x] **Step 4: Commit release metadata and review status**
 
 ```bash
 git add docs/CODE-REVIEW-2026-09-30.md src/lib/version.ts package.json
