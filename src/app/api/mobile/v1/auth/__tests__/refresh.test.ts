@@ -28,6 +28,14 @@ function mkRefreshReq(body: unknown): NextRequest {
   });
 }
 
+function mkResetReq(token: string, password: string): NextRequest {
+  return new NextRequest('http://localhost/api/auth/reset-confirm', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+}
+
 async function loginAndGetTokens(email: string, password: string): Promise<LoginResponse> {
   const res = await loginPOST(mkLoginReq({ email, password }));
   return (await res.json()) as LoginResponse;
@@ -164,12 +172,35 @@ describe('POST /api/mobile/v1/auth/refresh', () => {
     await refreshPOST(mkRefreshReq({ refreshToken: tokens.refreshToken }));
     const resetToken = crypto.randomBytes(32).toString('hex');
     await prisma.passwordResetToken.create({ data: { userId, tokenHash: crypto.createHash('sha256').update(resetToken).digest('hex'), expiresAt: new Date(Date.now() + 60_000) } });
-    const resetResult = await resetPOST(new NextRequest('http://localhost/api/auth/reset-confirm', {
-      method: 'POST', body: JSON.stringify({ token: resetToken, password: 'ReplacementPassword123' }),
-    }));
+    const resetResult = await resetPOST(mkResetReq(resetToken, 'ReplacementPassword123'));
     expect(resetResult.status).toBe(200);
     expect(await getRequestUser(new NextRequest('http://localhost/api/auth', { headers: { authorization: `Bearer ${tokens.accessToken}` } }))).toBeNull();
     expect((await refreshPOST(mkRefreshReq({ refreshToken: tokens.refreshToken }))).status).toBe(401);
+  });
+
+  test('a password-reset token succeeds only once under concurrency', async () => {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    await prisma.passwordResetToken.create({
+      data: {
+        userId,
+        tokenHash: crypto.createHash('sha256').update(resetToken).digest('hex'),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const responses = await Promise.all([
+      resetPOST(mkResetReq(resetToken, 'ReplacementPassword123')),
+      resetPOST(mkResetReq(resetToken, 'OtherReplacementPassword123')),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
+    expect(await prisma.passwordResetToken.count({ where: { userId, usedAt: { not: null } } })).toBe(1);
+
+    const logins = await Promise.all([
+      loginPOST(mkLoginReq({ email, password: 'ReplacementPassword123' })),
+      loginPOST(mkLoginReq({ email, password: 'OtherReplacementPassword123' })),
+    ]);
+    expect(logins.map((response) => response.status).sort()).toEqual([200, 401]);
   });
 
 });

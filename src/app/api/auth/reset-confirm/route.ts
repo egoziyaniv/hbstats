@@ -11,6 +11,8 @@ function sha256(value: string) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+class InvalidResetTokenError extends Error {}
+
 export async function POST(request: NextRequest) {
   let body: { token?: string; password?: string };
   try {
@@ -34,42 +36,63 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'הסיסמה חייבת להיות באורך 8 תווים לפחות.' }, { status: 400 });
   }
 
-  const record = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash: sha256(token) },
-  });
-  if (!record || record.usedAt || record.expiresAt < new Date()) {
+  const tokenHash = sha256(token);
+  const newHash = await hashPassword(password);
+
+  let resetUserId: string | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const reset = await prisma.$transaction(async (tx) => {
+        const now = new Date();
+        const record = await tx.passwordResetToken.findUnique({ where: { tokenHash } });
+        if (!record || record.usedAt || record.expiresAt <= now) {
+          throw new InvalidResetTokenError();
+        }
+
+        // Serialize password-changing operations for this account. A retry
+        // rereads the token after the winning transaction commits.
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${record.userId} FOR UPDATE`;
+        const claim = await tx.passwordResetToken.updateMany({
+          where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
+          data: { usedAt: now },
+        });
+        if (claim.count !== 1) throw new InvalidResetTokenError();
+
+        await tx.user.update({
+          where: { id: record.userId },
+          data: { password: newHash, passwordChangedAt: now },
+        });
+        await tx.session.deleteMany({ where: { userId: record.userId } });
+        await tx.passwordResetToken.deleteMany({
+          where: { userId: record.userId, usedAt: null, id: { not: record.id } },
+        });
+        return { userId: record.userId };
+      }, { isolationLevel: 'Serializable' });
+      resetUserId = reset.userId;
+      break;
+    } catch (error) {
+      if (error instanceof InvalidResetTokenError) {
+        return NextResponse.json(
+          { error: 'הקישור פג תוקף או כבר נוצל. בקש קישור חדש.' },
+          { status: 400 }
+        );
+      }
+      if ((error as { code?: string })?.code !== 'P2034') throw error;
+    }
+  }
+
+  if (!resetUserId) {
     return NextResponse.json(
-      { error: 'הקישור פג תוקף או כבר נוצל. בקש קישור חדש.' },
-      { status: 400 }
+      { error: 'לא ניתן להשלים את האיפוס כרגע. נסה שוב בעוד רגע.' },
+      { status: 503 }
     );
   }
 
-  const newHash = await hashPassword(password);
-
-  // Atomically: set the new password, stamp passwordChangedAt, mark the token
-  // used, invalidate ALL existing sessions, and burn any other outstanding
-  // reset tokens for this user.
-  await prisma.$transaction([
-    prisma.$queryRaw`SELECT id FROM users WHERE id = ${record.userId} FOR UPDATE`,
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { password: newHash, passwordChangedAt: new Date() },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    }),
-    prisma.passwordResetToken.deleteMany({
-      where: { userId: record.userId, usedAt: null },
-    }),
-    prisma.session.deleteMany({ where: { userId: record.userId } }),
-  ]);
-
   await logActivity({
     entityType: 'USER',
-    entityId: record.userId,
+    entityId: resetUserId,
     actionHe: 'המשתמש איפס סיסמה דרך קישור במייל',
-    userId: record.userId,
+    userId: resetUserId,
   }).catch(() => null);
 
   return NextResponse.json({ ok: true, message: 'הסיסמה עודכנה. אפשר להתחבר עכשיו.' });
