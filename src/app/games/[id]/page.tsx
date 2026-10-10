@@ -350,7 +350,7 @@ export default async function GamePage({
                 <div key={card.label} className="rounded-[20px] border border-stone-200 bg-stone-50 p-4">
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{card.label}</div>
                   <div className="mt-2 flex items-end justify-between gap-3">
-                    <div className="text-lg font-black text-stone-900">{card.value}</div>
+                    <div dir="ltr" className="text-lg font-black text-stone-900">{card.value}</div>
                     {card.delta ? <div className="text-xs font-bold text-stone-500">{card.delta}</div> : null}
                   </div>
                   {card.note ? <div className="mt-1 text-sm text-stone-600">{card.note}</div> : null}
@@ -611,7 +611,10 @@ function PremierGameView({
                   {summaryCards.slice(0, 6).map((card) => (
                     <div key={card.label} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
                       <div className="text-xs font-semibold tracking-[0.18em] text-slate-500">{card.label}</div>
-                      <div className="mt-2 text-2xl font-black text-slate-900">{card.value}</div>
+                      {/* The value is built "away / home" and only reads correctly inside an LTR box
+                          (home lands on the right, under "בית"). Without dir="ltr" the RTL page
+                          reverses it and every two-sided stat is credited to the wrong team. */}
+                      <div dir="ltr" className="mt-2 text-right text-2xl font-black text-slate-900">{card.value}</div>
                       {card.delta ? <div className="mt-1 text-xs font-bold text-slate-500">{card.delta}</div> : null}
                       {card.note ? <div className="mt-2 text-sm text-slate-600">{card.note}</div> : null}
                     </div>
