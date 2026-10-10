@@ -31,7 +31,7 @@ it.each([
   const done = new Promise<void>((resolve, reject) => { complete = resolve; fail = reject; });
   const client = { game: { findUnique: jest.fn().mockResolvedValue({ ...game, id: 'game', status: storedStatus, dateTime: kickoff, homeScore: null, awayScore: null }), update }, $disconnect: () => { complete(); } };
   runInNewContext(readFileSync(scriptPath, 'utf8'), {
-    require: (name: string) => name === '@prisma/client' ? { PrismaClient: function () { return client; } } : name === 'fs' ? { existsSync: () => false } : name === './lib/fixture-schedule-status' ? { schedulingStatusUpdate } : require(name),
+    require: (name: string) => name === '@prisma/client' ? { PrismaClient: function () { return client; } } : name === 'fs' ? { existsSync: () => false } : name === './lib/fixture-schedule-status' ? { schedulingStatusUpdate } : name === './lib/missing-fixture' ? require('../../../scripts/lib/missing-fixture') : require(name),
     __dirname: resolve(process.cwd(), 'scripts'),
     process: { env: { API_FOOTBALL_KEY: 'test' }, argv: ['node', scriptPath, '--league', '383', '--season', '2026'], exit: () => fail(new Error('script failed')) },
     console: { log: jest.fn(), error: jest.fn() },
@@ -44,4 +44,41 @@ it.each([
     expect(update.mock.calls[0][0].data.dateTime).toBeUndefined();
     if (short === 'CANC') expect(update.mock.calls[0][0].data.status).toBe('CANCELLED');
   }
+});
+it('cron creates a league fixture we hold no row for', async () => {
+  const { readFileSync } = require('node:fs');
+  const { resolve } = require('node:path');
+  const { runInNewContext } = require('node:vm');
+  const scriptPath = resolve(process.cwd(), 'scripts/refresh-fixture-schedule.js');
+  const create = jest.fn().mockResolvedValue({ id: 'new', apiFootballId: 456, dateTime: new Date('2026-10-10T17:00:00Z'), homeTeamId: 'h', awayTeamId: 'a' });
+  let complete!: () => void;
+  let fail!: (reason: Error) => void;
+  const done = new Promise<void>((resolve, reject) => { complete = resolve; fail = reject; });
+  const client = {
+    game: {
+      findUnique: jest.fn().mockResolvedValue(null), update: jest.fn(), create,
+      findMany: jest.fn().mockResolvedValue([{ id: 'old', apiFootballId: 400, dateTime: new Date('2026-10-03T17:00:00Z'), homeTeamId: 'x', awayTeamId: 'y', roundNameEn: 'Regular Season - 6', roundNameHe: 'מחזור 6' }]),
+    },
+    season: { findUnique: jest.fn().mockResolvedValue({ id: 's2026' }) },
+    team: { findMany: jest.fn().mockResolvedValue([{ id: 'h', apiFootballId: 563 }, { id: 'a', apiFootballId: 604 }]) },
+    $disconnect: () => { complete(); },
+  };
+  runInNewContext(readFileSync(scriptPath, 'utf8'), {
+    require: (name: string) => name === '@prisma/client' ? { PrismaClient: function () { return client; } } : name === 'fs' ? { existsSync: () => false } : name === './lib/fixture-schedule-status' ? { schedulingStatusUpdate } : name === './lib/missing-fixture' ? require('../../../scripts/lib/missing-fixture') : require(name),
+    __dirname: resolve(process.cwd(), 'scripts'),
+    process: { env: { API_FOOTBALL_KEY: 'test' }, argv: ['node', scriptPath, '--league', '383', '--season', '2026'], exit: () => fail(new Error('script failed')) },
+    console: { log: jest.fn(), error: jest.fn() },
+    fetch: jest.fn().mockResolvedValue({ ok: true, json: async () => ({ response: [{
+      fixture: { id: 456, date: '2026-10-10T17:00:00+00:00', status: { short: 'NS', long: 'Not Started' } },
+      league: { round: 'Regular Season - 6' },
+      teams: { home: { id: 563, name: 'Hapoel Beer Sheva' }, away: { id: 604, name: 'Maccabi Tel Aviv' } },
+      goals: { home: null, away: null },
+    }] }) }),
+  });
+  await done;
+  expect(client.game.findMany.mock.calls[0][0].where).toEqual({ seasonId: 's2026', competitionId: 'comp_liga_haal' });
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(create.mock.calls[0][0].data).toMatchObject({
+    apiFootballId: 456, seasonId: 's2026', competitionId: 'comp_liga_haal', homeTeamId: 'h', awayTeamId: 'a', roundNameHe: 'מחזור 6', status: 'SCHEDULED',
+  });
 });

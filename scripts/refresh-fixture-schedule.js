@@ -27,6 +27,12 @@
  * nothing was re-reading its kickoff and a UEFA reschedule would have gone unnoticed the
  * same way round 3 did.
  *
+ * The league pass also creates league fixtures we have no row for at all. A round the
+ * original import never covered (round 6 of 2026/27) was otherwise invisible: the games
+ * page had nothing to list, and matchday-live.js — which works from our rows — never
+ * pulled its lineups. A row already held without an apiFootballId (IFA import) is linked
+ * rather than duplicated; see scripts/lib/missing-fixture.js.
+ *
  * A handful of API calls per run, so it is cheap enough to run every few hours.
  *
  * Usage:
@@ -39,6 +45,7 @@ const fs = require('fs');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const { schedulingStatusUpdate } = require('./lib/fixture-schedule-status');
+const { planMissingFixture } = require('./lib/missing-fixture');
 
 function loadEnv(file) {
   if (!fs.existsSync(file)) return;
@@ -61,6 +68,7 @@ const DRY = process.argv.includes('--dry-run');
 // Ligat HaAl + Liga Leumit, the two leagues cron-matchday.sh already refreshes.
 const SINGLE_LEAGUE = Boolean(arg('league', null));
 const LEAGUES = SINGLE_LEAGUE ? [Number(arg('league'))] : [383, 382];
+const COMPETITION_BY_LEAGUE = { 383: 'comp_liga_haal', 382: 'comp_liga_leumit' };
 
 // Season start year: from July onwards the new season has begun.
 function currentSeason() {
@@ -99,6 +107,8 @@ async function fetchFixturesByIds(ids) {
   let scored = 0;
   let checked = 0;
   let missing = 0;
+  let created = 0;
+  let linked = 0;
   const seen = new Set();
 
   async function applyFixture(f) {
@@ -113,7 +123,7 @@ async function fetchFixturesByIds(ids) {
       where: { apiFootballId: apiId },
       select: { id: true, dateTime: true, status: true, statusShort: true, statusLong: true, homeScore: true, awayScore: true },
     });
-    if (!game) { missing++; return; }
+    if (!game) { missing++; return false; }
     checked++;
 
     const data = schedulingStatusUpdate(game, f.fixture?.status);
@@ -156,6 +166,60 @@ async function fetchFixturesByIds(ids) {
     if (!DRY && Object.keys(data).length) {
       await prisma.game.update({ where: { id: game.id }, data });
     }
+    return true;
+  }
+
+  // Create (or link) a league fixture we hold no row for. Never touches a row that
+  // already has an apiFootballId.
+  async function addMissingLeagueFixtures(leagueId, fixtures) {
+    const competitionId = COMPETITION_BY_LEAGUE[leagueId];
+    if (!competitionId || !fixtures.length) return;
+    const season = await prisma.season.findUnique({ where: { year: SEASON }, select: { id: true } });
+    if (!season) { console.log(`  [league ${leagueId}] no season row for ${SEASON} — not adding fixtures`); return; }
+
+    const teams = await prisma.team.findMany({
+      where: { seasonId: season.id, apiFootballId: { not: null } },
+      select: { id: true, apiFootballId: true },
+    });
+    const teamByApiId = new Map(teams.map((t) => [t.apiFootballId, t.id]));
+    const existing = await prisma.game.findMany({
+      where: { seasonId: season.id, competitionId },
+      select: { id: true, apiFootballId: true, dateTime: true, homeTeamId: true, awayTeamId: true, roundNameEn: true, roundNameHe: true },
+    });
+    // Reuse the Hebrew round label our rows already carry so the new games group with them.
+    const roundHeByEn = new Map();
+    for (const g of existing) if (g.roundNameEn && g.roundNameHe) roundHeByEn.set(g.roundNameEn, g.roundNameHe);
+
+    for (const f of fixtures) {
+      const homeTeamId = teamByApiId.get(f.teams?.home?.id) || null;
+      const awayTeamId = teamByApiId.get(f.teams?.away?.id) || null;
+      const plan = planMissingFixture({
+        fixture: f,
+        homeTeamId,
+        awayTeamId,
+        candidates: existing.filter((g) => g.homeTeamId === homeTeamId && g.awayTeamId === awayTeamId),
+        roundNameHe: roundHeByEn.get(f.league?.round),
+      });
+      const label = `${f.fixture?.id} ${f.league?.round || ''}  ${f.teams?.home?.name} vs ${f.teams?.away?.name}`;
+      if (plan.action === 'skip') { console.log(`  SKIP ${label}: ${plan.reason}`); continue; }
+      if (plan.action === 'link') {
+        console.log(`  ${DRY ? 'WOULD LINK' : 'LINK'} ${label} -> game ${plan.gameId}`);
+        if (!DRY) await prisma.game.update({ where: { id: plan.gameId }, data: plan.data });
+        const row = existing.find((g) => g.id === plan.gameId);
+        if (row) row.apiFootballId = plan.data.apiFootballId;
+        linked++;
+        continue;
+      }
+      console.log(`  ${DRY ? 'WOULD CREATE' : 'CREATE'} ${label}  ${plan.data.dateTime.toISOString().slice(0, 16)}`);
+      if (!DRY) {
+        const row = await prisma.game.create({
+          data: { ...plan.data, seasonId: season.id, competitionId },
+          select: { id: true, apiFootballId: true, dateTime: true, homeTeamId: true, awayTeamId: true },
+        });
+        existing.push(row);
+      }
+      created++;
+    }
   }
 
   // ── Pass 1: the two Israeli leagues, by full fixture list ──
@@ -168,7 +232,9 @@ async function fetchFixturesByIds(ids) {
       continue;
     }
     console.log(`\nleague ${leagueId}: ${fixtures.length} fixtures from API-Football`);
-    for (const f of fixtures) await applyFixture(f);
+    const unmatched = [];
+    for (const f of fixtures) if ((await applyFixture(f)) === false) unmatched.push(f);
+    await addMissingLeagueFixtures(leagueId, unmatched);
   }
 
   // ── Pass 2: everything else we hold in the window — European ties, cups, friendlies.
@@ -196,7 +262,8 @@ async function fetchFixturesByIds(ids) {
 
   console.log(
     `\n${DRY ? 'DRY RUN' : 'DONE'} — matched ${checked} fixtures, rescheduled ${moved},` +
-    ` results filled ${scored}, ${missing} API fixtures not in our DB`,
+    ` results filled ${scored}, ${missing} API fixtures not in our DB` +
+    ` (league games created ${created}, linked ${linked})`,
   );
   await prisma.$disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });
