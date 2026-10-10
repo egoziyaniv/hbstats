@@ -1,7 +1,7 @@
 import { evidence, weeklyPick, factSvg, isConfirmedFixture } from '@/lib/fan-discovery';
-const game = { id: 'g', dateTime: new Date('2025-01-01T18:00:00Z'), status: 'COMPLETED', statusShort: 'FT', statusLong: null, homeScore: 1, awayScore: 3, homeTeam: { apiFootballId: 1, nameHe: 'יריבה', nameEn: '' }, awayTeam: { apiFootballId: 563, nameHe: 'באר שבע', nameEn: '' }, season: { name: '2024/25' }, competition: { nameHe: 'ליגה', nameEn: '' } };
+const game = { id: 'g', dateTime: new Date('2025-01-01T18:00:00Z'), status: 'COMPLETED', statusShort: 'FT', statusLong: null, homeScore: 1, awayScore: 3, roundNameHe: 'רבע הגמר', roundNameEn: null, homeTeam: { apiFootballId: 1, nameHe: 'יריבה', nameEn: '' }, awayTeam: { apiFootballId: 563, nameHe: 'באר שבע', nameEn: '' }, season: { name: '2024/25' }, competition: { nameHe: 'גביע המדינה', nameEn: '' } };
 it('derives the club result from the actual away side', () => {
- expect(evidence(game)).toMatchObject({ goalsFor: 3, goalsAgainst: 1, result: 'ניצחון', opponent: 'יריבה' });
+ expect(evidence(game)).toMatchObject({ goalsFor: 3, goalsAgainst: 1, result: 'ניצחון', opponent: 'יריבה', homeTeam: 'יריבה', awayTeam: 'באר שבע', competition: 'גביע המדינה', round: 'רבע הגמר' });
 });
 it('refuses missing scores, foreign games and unfinished evidence', () => {
  expect(evidence({ ...game, awayScore: null })).toBeNull();

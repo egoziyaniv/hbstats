@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import AdminGameEditorClient from '@/components/AdminGameEditorClient';
+import AdminPageHeader from '@/components/AdminPageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,22 +108,9 @@ export default async function AdminGamesPage({ searchParams: searchParamsPromise
   const selectedGame = seasonGames.find((game) => game.id === searchParams?.gameId) || seasonGames[0] || null;
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Link href="/admin" className="text-sm font-bold text-red-800">
-              חזרה לאדמין
-            </Link>
-            <h1 className="mt-2 text-4xl font-black text-stone-900">ניהול משחקים ואירועים</h1>
-            <p className="mt-2 text-sm text-stone-600">
-              עריכת משחקים לפי עונה, שיוך למסגרת, ותיקון/הזנה ידנית של משחקים ישנים ואירועים.
-            </p>
-          </div>
-          <div className="rounded-full bg-white px-4 py-2 text-sm font-bold text-stone-700 shadow-sm">
-            עונה נבחרת: {selectedSeason.name}
-          </div>
-        </div>
+        <AdminPageHeader eyebrow="כדורגל" title="ניהול משחקים ואירועים" description="עריכת משחקים לפי עונה, שיוך למסגרת ותיקון או הזנה ידנית של אירועים." actions={<div className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-stone-700 shadow-sm">עונה: {selectedSeason.name}</div>} />
 
         <AdminGameEditorClient
           seasons={seasons.map((season) => ({

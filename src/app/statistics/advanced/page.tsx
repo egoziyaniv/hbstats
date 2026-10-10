@@ -27,7 +27,7 @@ type BreakdownRow = {
   minutes: number | null;
 };
 
-async function buildBreakdown(seasonId: string, canonicalId: string, metric: keyof typeof METRIC_LABELS): Promise<{ name: string; rows: BreakdownRow[] }> {
+async function buildBreakdown(seasonId: string, canonicalId: string, metric: keyof typeof METRIC_LABELS, competitionId: string | null): Promise<{ name: string; rows: BreakdownRow[] }> {
   const col = METRIC_LABELS[metric].col;
   // All linked Player records sharing this canonical
   const linked = await prisma.player.findMany({
@@ -50,11 +50,11 @@ async function buildBreakdown(seasonId: string, canonicalId: string, metric: key
     JOIN "games" g ON g.id = gs."gameId"
     LEFT JOIN "teams" ht ON ht.id = g."homeTeamId"
     LEFT JOIN "teams" at ON at.id = g."awayTeamId"
-    WHERE g."seasonId" = $1
+    WHERE g."seasonId" = $1 ${competitionId ? 'AND g."competitionId" = $3' : ''}
       AND gs."playerId" = ANY($2::text[])
       AND COALESCE(gs."${col}", 0) > 0
     ORDER BY g."dateTime" DESC
-  `, seasonId, linkedIds);
+  `, ...(competitionId ? [seasonId, linkedIds, competitionId] : [seasonId, linkedIds]));
 
   return {
     name,
@@ -78,11 +78,13 @@ const POSITION_FILTERS: Record<string, string[]> = {
   FWD: ['Attacker', 'F', 'ST', 'CF', 'LW', 'RW'],
 };
 
-async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWon' | 'dribblesSuccess', position: string | null, limit = 20): Promise<LeaderboardRow[]> {
+async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWon' | 'dribblesSuccess', position: string | null, competitionId: string | null, limit = 20): Promise<LeaderboardRow[]> {
   // Aggregate GamePlayerStats by canonical player for the season, sorted by metric.
   const posList = position && POSITION_FILTERS[position] ? POSITION_FILTERS[position] : null;
-  const posClause = posList ? `AND p.position = ANY($3)` : '';
+  const competitionClause = competitionId ? ' AND g."competitionId" = $3' : '';
+  const posClause = posList ? `AND p.position = ANY($${competitionId ? 4 : 3})` : '';
   const args: unknown[] = [seasonId, limit];
+  if (competitionId) args.push(competitionId);
   if (posList) args.push(posList);
   const rows = await prisma.$queryRawUnsafe<Array<{ canon: string; total: number; matches: number; name: string; team: string }>>(`
     SELECT
@@ -92,7 +94,7 @@ async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWo
       MAX(COALESCE(p."nameHe", p."nameEn", gs."playerName"))::text AS name,
       MAX(COALESCE(t."nameHe", t."nameEn"))::text AS team
     FROM "game_player_stats" gs
-    JOIN "games" g ON g.id = gs."gameId" AND g."seasonId" = $1
+    JOIN "games" g ON g.id = gs."gameId" AND g."seasonId" = $1 ${competitionClause}
     LEFT JOIN "players" p ON p.id = gs."playerId"
     LEFT JOIN "teams" t ON t.id = p."teamId"
     WHERE gs."${metric}" IS NOT NULL ${posClause}
@@ -104,21 +106,23 @@ async function buildLeaderboard(seasonId: string, metric: 'passesKey' | 'duelsWo
   return rows.map((r) => ({ canonicalId: r.canon, name: r.name || '—', team: r.team || '—', value: r.total, matches: r.matches }));
 }
 
-export default async function AdvancedStatsPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<{ season?: string; player?: string; metric?: string; pos?: string }> }) {
+export default async function AdvancedStatsPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<{ season?: string; competition?: string; player?: string; metric?: string; pos?: string }> }) {
   const searchParams = await searchParamsPromise;
   const seasons = await prisma.season.findMany({ where: { year: { gte: 2016 } }, orderBy: { year: 'desc' }, select: { id: true, name: true, year: true } });
   const selected = (searchParams?.season && seasons.find((s) => s.id === searchParams.season)) || seasons[0];
   const position = searchParams?.pos && ['GK', 'DEF', 'MID', 'FWD'].includes(searchParams.pos) ? searchParams.pos : null;
+  const competitions = await prisma.competition.findMany({ where: { games: { some: { seasonId: selected.id } } }, select: { id: true, nameHe: true, nameEn: true }, orderBy: { nameHe: 'asc' } });
+  const competitionId = searchParams?.competition && competitions.some((competition) => competition.id === searchParams.competition) ? searchParams.competition : null;
 
   const breakdownMetric = searchParams?.metric && METRIC_LABELS[searchParams.metric] ? (searchParams.metric as keyof typeof METRIC_LABELS) : null;
   const breakdown = searchParams?.player && breakdownMetric
-    ? await buildBreakdown(selected.id, searchParams.player, breakdownMetric)
+    ? await buildBreakdown(selected.id, searchParams.player, breakdownMetric, competitionId)
     : null;
 
   const [keyPasses, duels, dribbles] = await Promise.all([
-    buildLeaderboard(selected.id, 'passesKey', position),
-    buildLeaderboard(selected.id, 'duelsWon', position),
-    buildLeaderboard(selected.id, 'dribblesSuccess', position),
+    buildLeaderboard(selected.id, 'passesKey', position, competitionId),
+    buildLeaderboard(selected.id, 'duelsWon', position, competitionId),
+    buildLeaderboard(selected.id, 'dribblesSuccess', position, competitionId),
   ]);
 
   return (
@@ -140,9 +144,10 @@ export default async function AdvancedStatsPage({ searchParams: searchParamsProm
         ))}
       </div>
 
+      <form className="mb-3 flex flex-wrap items-end gap-2" method="get"><input type="hidden" name="season" value={selected.id} /><label className="grid gap-1 text-xs font-bold text-stone-600">מסגרת<select name="competition" defaultValue={competitionId ?? ''} className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm"><option value="">כל המסגרות</option>{competitions.map((competition) => <option key={competition.id} value={competition.id}>{competition.nameHe || competition.nameEn}</option>)}</select></label><button className="rounded-xl bg-stone-900 px-3 py-1.5 text-xs font-bold text-white">סינון</button></form>
       <div className="mb-6 flex flex-wrap gap-2">
         <Link
-          href={`/statistics/advanced?season=${selected.id}`}
+          href={`/statistics/advanced?season=${selected.id}${competitionId ? `&competition=${competitionId}` : ''}`}
           className={`rounded-full px-3 py-1 text-xs font-bold ${!position ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 border border-stone-200'}`}
         >
           הכל
@@ -155,7 +160,7 @@ export default async function AdvancedStatsPage({ searchParams: searchParamsProm
         ].map((p) => (
           <Link
             key={p.id}
-            href={`/statistics/advanced?season=${selected.id}&pos=${p.id}`}
+            href={`/statistics/advanced?season=${selected.id}&pos=${p.id}${competitionId ? `&competition=${competitionId}` : ''}`}
             className={`rounded-full px-3 py-1 text-xs font-bold ${position === p.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-700 border border-stone-200'}`}
           >
             {p.label}

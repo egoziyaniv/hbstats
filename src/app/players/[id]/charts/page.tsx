@@ -3,8 +3,15 @@ import { PlayerChartsView } from '@/components/Charts';
 import { formatPlayerName } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
 
-export default async function PlayerChartsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default async function PlayerChartsPage({
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ season?: string; competition?: string }>;
+}) {
   const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
   const matchedPlayer = await prisma.player.findFirst({
     where: {
       OR: [{ id: params.id }, { canonicalPlayerId: params.id }],
@@ -23,7 +30,7 @@ export default async function PlayerChartsPage({ params: paramsPromise }: { para
     include: {
       playerStats: {
         orderBy: [{ season: { year: 'asc' } }],
-        include: { season: true },
+        include: { season: true, competition: true },
       },
     },
   });
@@ -31,9 +38,16 @@ export default async function PlayerChartsPage({ params: paramsPromise }: { para
   const canonicalPlayer = linkedPlayers.find((player) => player.id === canonicalPlayerId) || linkedPlayers[0];
   const playerDisplayName = formatPlayerName(canonicalPlayer);
 
+  const allStats = linkedPlayers.flatMap((player) => player.playerStats);
+  const selectedCompetition = searchParams?.competition
+    ? allStats.find((stat) => stat.competitionId === searchParams.competition)?.competition
+    : null;
+  const scopedStats = selectedCompetition
+    ? allStats.filter((stat) => stat.competitionId === selectedCompetition.id)
+    : allStats;
+
   const aggregatedBySeason = Array.from(
-    linkedPlayers
-      .flatMap((player) => player.playerStats)
+    scopedStats
       .reduce((map, stat) => {
         const key = stat.seasonId || stat.seasonLabelHe || stat.seasonLabelEn || 'season';
         const seasonName = stat.season?.name || stat.seasonLabelHe || stat.seasonLabelEn || 'עונה';
@@ -84,7 +98,10 @@ export default async function PlayerChartsPage({ params: paramsPromise }: { para
       <div className="mx-auto max-w-7xl space-y-6">
         <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-black text-stone-900">{`סטטיסטיקות שחקן: ${playerDisplayName}`}</h1>
-          <p className="mt-2 text-stone-600">גרפים עונתיים מצטברים של השחקן לאורך כל הקריירה במערכת.</p>
+          <p className="mt-2 text-stone-600">
+            גרפים עונתיים מצטברים של השחקן לאורך כל הקריירה במערכת.
+            {selectedCompetition ? ` מסגרת: ${selectedCompetition.nameHe || selectedCompetition.nameEn}.` : ''}
+          </p>
         </section>
         <PlayerChartsView goalsAssists={goalsAssists} minutesPlayed={minutesPlayed} cards={cards} />
       </div>

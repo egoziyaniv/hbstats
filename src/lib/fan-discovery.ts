@@ -1,7 +1,7 @@
 type Team = { apiFootballId: number | null; nameHe: string; nameEn: string };
 export type EvidenceGame = {
   id: string; dateTime: Date; status: string; statusShort: string | null; statusLong: string | null;
-  homeScore: number | null; awayScore: number | null; homeTeam: Team; awayTeam: Team;
+  homeScore: number | null; awayScore: number | null; roundNameHe?: string | null; roundNameEn?: string | null; homeTeam: Team; awayTeam: Team;
   season: { name: string }; competition: { nameHe: string; nameEn: string } | null;
 };
 export function isConfirmedFixture(game: { statusShort: string | null; statusLong: string | null }): boolean {
@@ -14,9 +14,9 @@ export function evidence(game: EvidenceGame) {
   const goalsFor = (home ? game.homeScore : game.awayScore)!;
   const goalsAgainst = (home ? game.awayScore : game.homeScore)!;
   const other = home ? game.awayTeam : game.homeTeam;
-  return { id: game.id, opponent: other.nameHe || other.nameEn, goalsFor, goalsAgainst,
+  return { id: game.id, opponent: other.nameHe || other.nameEn, homeTeam: game.homeTeam.nameHe || game.homeTeam.nameEn, awayTeam: game.awayTeam.nameHe || game.awayTeam.nameEn, goalsFor, goalsAgainst,
     result: goalsFor > goalsAgainst ? 'ניצחון' : goalsFor < goalsAgainst ? 'הפסד' : 'תיקו',
-    home: home, season: game.season.name, date: game.dateTime.toISOString(), competition: game.competition?.nameHe || game.competition?.nameEn || 'מסגרת לא ידועה',
+    home: home, season: game.season.name, date: game.dateTime.toISOString(), competition: game.competition?.nameHe || game.competition?.nameEn || 'מסגרת לא ידועה', round: game.roundNameHe || game.roundNameEn || null,
     source: `https://statsai.co.il/games/${encodeURIComponent(game.id)}` };
 }
 export type MatchFact = NonNullable<ReturnType<typeof evidence>>;

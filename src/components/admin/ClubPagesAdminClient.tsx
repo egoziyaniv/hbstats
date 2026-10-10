@@ -45,7 +45,7 @@ const EMPTY: FormState = {
 };
 
 const inputClass =
-  'w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm text-stone-900 focus:border-stone-400 focus:outline-none';
+  'w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-900 focus:border-stone-400 focus:outline-none';
 const labelClass = 'text-sm font-bold text-stone-700';
 
 export default function ClubPagesAdminClient({ initialPages }: { initialPages: PageRow[] }) {
@@ -148,9 +148,9 @@ export default function ClubPagesAdminClient({ initialPages }: { initialPages: P
   }
 
   return (
-    <div dir="rtl" className="grid gap-6 lg:grid-cols-[0.9fr_1.3fr]">
+    <div dir="rtl" className="grid gap-4 lg:grid-cols-[0.9fr_1.3fr]">
       {/* Pages list */}
-      <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-black text-stone-900">עמודים ({pages.length})</h2>
           <button
@@ -161,14 +161,14 @@ export default function ClubPagesAdminClient({ initialPages }: { initialPages: P
             חדש
           </button>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-3 space-y-2">
           {pages.length === 0 ? (
             <p className="text-sm text-stone-500">עדיין אין עמודים. הוסף עמוד חדש מהטופס.</p>
           ) : (
             pages.map((page) => (
               <div
                 key={page.id}
-                className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+                className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${
                   form.id === page.id ? 'border-[var(--accent)]/50 bg-red-50/40' : 'border-stone-200 bg-stone-50'
                 }`}
               >
@@ -207,14 +207,14 @@ export default function ClubPagesAdminClient({ initialPages }: { initialPages: P
       </section>
 
       {/* Editor form */}
-      <section className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-black text-stone-900">{form.id ? 'עריכת עמוד' : 'עמוד חדש'}</h2>
           {message ? <span className="text-sm font-semibold text-stone-600">{message}</span> : null}
         </div>
 
-        <div className="mt-4 grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>כותרת</label>
               <input
@@ -257,7 +257,7 @@ export default function ClubPagesAdminClient({ initialPages }: { initialPages: P
             <textarea
               value={form.bodyHe}
               onChange={(e) => update('bodyHe', e.target.value)}
-              rows={12}
+              rows={8}
               className={`mt-1 ${inputClass}`}
               placeholder="גוף העמוד"
             />
@@ -274,7 +274,7 @@ export default function ClubPagesAdminClient({ initialPages }: { initialPages: P
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>סדר תצוגה</label>
               <input

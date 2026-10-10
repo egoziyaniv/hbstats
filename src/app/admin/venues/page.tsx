@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import AdminVenueEditorClient from '@/components/AdminVenueEditorClient';
+import AdminPageHeader from '@/components/AdminPageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,17 +61,9 @@ export default async function AdminVenuesPage({ searchParams: searchParamsPromis
   ]);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-8">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3eb_0%,#efe4d0_100%)] px-4 py-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6">
-          <Link href="/admin" className="text-sm font-bold text-red-800">
-            חזרה לאדמין
-          </Link>
-          <h1 className="mt-2 text-4xl font-black text-stone-900">ניהול אצטדיונים</h1>
-          <p className="mt-2 text-sm text-stone-600">
-            עריכת שמות בעברית, פרטי מיקום, קיבולת, משטח, קבוצות בית וגלריית תמונות.
-          </p>
-        </div>
+        <AdminPageHeader eyebrow="כדורגל" title="ניהול אצטדיונים" description="שמות, מיקום, קיבולת, קבוצות בית וגלריית תמונות." />
 
         <AdminVenueEditorClient
           venues={venues.map((venue) => ({

@@ -79,6 +79,15 @@ export async function getLegend(id: string): Promise<LegendDetail | null> {
 
 const BS_AF = 563;
 const LIGAT_HAAL_ID = 'comp_liga_haal';
+const LIGA_LEUMIT_ID = 'comp_liga_leumit';
+
+export function selectClubLeagueStanding<T extends { competitionId: string; played: number }>(rows: T[]): T | null {
+  const usable = rows.filter((row) => row.played > 0);
+  return usable.sort((left, right) => {
+    const priority = (competitionId: string) => competitionId === LIGAT_HAAL_ID ? 0 : competitionId === LIGA_LEUMIT_ID ? 1 : 2;
+    return priority(left.competitionId) - priority(right.competitionId);
+  })[0] ?? null;
+}
 
 /**
  * Beer Sheva season-by-season league record — the archive no fan wiki has.
@@ -88,8 +97,14 @@ const LIGAT_HAAL_ID = 'comp_liga_haal';
 export async function buildClubSeasons() {
   const [teams, honors] = await Promise.all([
     prisma.team.findMany({
-      where: { apiFootballId: BS_AF },
-      select: { id: true, seasonId: true, season: { select: { id: true, year: true, name: true } } },
+      // Walla's historical rows predate API-Football IDs.  Preserve the same
+      // club identity by accepting its canonical Hebrew name as well.
+      where: { OR: [{ apiFootballId: BS_AF }, { nameHe: 'הפועל באר שבע' }] },
+      select: {
+        id: true, apiFootballId: true, seasonId: true,
+        season: { select: { id: true, year: true, name: true } },
+        standings: { where: { competitionId: { in: [LIGAT_HAAL_ID, LIGA_LEUMIT_ID] } }, select: { competitionId: true, position: true, played: true, wins: true, draws: true, losses: true, goalsFor: true, goalsAgainst: true, points: true } },
+      },
     }),
     prisma.clubHonor.findMany({ where: { place: 'WINNER' } }),
   ]);
@@ -100,31 +115,20 @@ export async function buildClubSeasons() {
     honorsByYear.set(h.year, arr);
   }
 
-  const rows = await Promise.all(
-    teams.map(async (t) => {
-      const s = await prisma.standing.findFirst({
-        where: { seasonId: t.seasonId, competitionId: LIGAT_HAAL_ID, teamId: t.id },
-        select: { position: true, played: true, wins: true, draws: true, losses: true, goalsFor: true, goalsAgainst: true, points: true },
-      });
-      if (!s || s.played === 0) return null;
-      return {
-        seasonId: t.season.id,
-        year: t.season.year,
-        name: t.season.name,
-        teamId: t.id,
-        position: s.position,
-        played: s.played,
-        wins: s.wins,
-        draws: s.draws,
-        losses: s.losses,
-        goalsFor: s.goalsFor,
-        goalsAgainst: s.goalsAgainst,
-        points: s.points,
-        honors: honorsByYear.get(t.season.year) ?? [],
-      };
-    }),
-  );
-  return rows.filter((r): r is NonNullable<typeof r> => r !== null).sort((a, b) => b.year - a.year);
+  const candidates = teams.flatMap((team) => team.standings.map((standing) => ({ team, standing })));
+  const bySeason = new Map<string, typeof candidates>();
+  for (const candidate of candidates) {
+    const rows = bySeason.get(candidate.team.seasonId) ?? [];
+    rows.push(candidate);
+    bySeason.set(candidate.team.seasonId, rows);
+  }
+  return [...bySeason.values()].flatMap((seasonRows) => {
+    const chosen = selectClubLeagueStanding(seasonRows.map((row) => row.standing));
+    const candidate = chosen ? seasonRows.find((row) => row.standing === chosen) : null;
+    if (!candidate) return [];
+    const { team, standing } = candidate;
+    return [{ seasonId: team.season.id, year: team.season.year, name: team.season.name, teamId: team.id, competitionId: standing.competitionId, position: standing.position, played: standing.played, wins: standing.wins, draws: standing.draws, losses: standing.losses, goalsFor: standing.goalsFor, goalsAgainst: standing.goalsAgainst, points: standing.points, honors: honorsByYear.get(team.season.year) ?? [] }];
+  }).sort((a, b) => b.year - a.year);
 }
 
 export async function getClubPage(slug: string): Promise<ClubPageDetail | null> {

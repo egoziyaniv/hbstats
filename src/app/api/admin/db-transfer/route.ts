@@ -13,6 +13,7 @@ import {
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import path from 'path';
+import { runRestoreWorkflow, type PgCommandResult } from '@/lib/db-restore';
 
 // Upload size ceiling. The box has limited RAM; a multi-GB restore would OOM
 // the single pm2 process and take production down mid-import.
@@ -44,11 +45,9 @@ function parseDatabaseUrl(): { host: string; port: string; user: string; passwor
   return { user: m[1], password: m[2] ?? '', host: m[3], port: m[4], db: m[5].split('?')[0] };
 }
 
-type PgResult = { code: number; stdout: string; stderr: string; timedOut: boolean };
-
 // Run a pg_* / psql command via execFile (no shell → no command injection from
 // DATABASE_URL contents), with the password passed through PGPASSWORD only.
-function runPg(tool: string, args: string[], password: string, timeoutMs: number): Promise<PgResult> {
+function runPg(tool: string, args: string[], password: string, timeoutMs: number): Promise<PgCommandResult> {
   return new Promise((resolve) => {
     execFile(
       tool,
@@ -195,36 +194,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 2 — drop all tables in public schema.
-    await runPg(psql, dropAllTablesArgs(db), db.password, 60000);
-
-    // Step 3 — restore, strict: ON_ERROR_STOP / --exit-on-error make the exit
+    // Step 2/3 — prepare and restore. Every command result is authoritative;
+    // a failed cleanup must never be followed by a restore into an unknown DB.
+    // Restore remains strict: ON_ERROR_STOP / --exit-on-error make the exit
     // code authoritative, and --single-transaction means a failed restore
     // commits nothing.
     const tool = isCustomFormat ? findPgTool('pg_restore') : psql;
     const restoreArgs = isCustomFormat
       ? ['-h', db.host, '-p', db.port, '-U', db.user, '-d', db.db, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', importPath!]
       : ['-h', db.host, '-p', db.port, '-U', db.user, '-d', db.db, '--single-transaction', '-v', 'ON_ERROR_STOP=1', '-f', importPath!];
-    const restore = await runPg(tool, restoreArgs, db.password, 600000);
-
-    if (restore.code !== 0) {
-      // Step 4 — AUTO-ROLLBACK from the snapshot.
-      console.error('[db-transfer] restore failed, rolling back:', restore.stderr?.slice(0, 1000));
-      await runPg(psql, dropAllTablesArgs(db), db.password, 60000);
-      const rb = await runPg(
+    const workflow = await runRestoreWorkflow({
+      dropBeforeImport: () => runPg(psql, dropAllTablesArgs(db), db.password, 60000),
+      restoreImport: () => runPg(tool, restoreArgs, db.password, 600000),
+      dropBeforeRollback: () => runPg(psql, dropAllTablesArgs(db), db.password, 60000),
+      restoreSnapshot: () => runPg(
         findPgTool('pg_restore'),
         ['-h', db.host, '-p', db.port, '-U', db.user, '-d', db.db, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', snapshotPath!],
         db.password,
         600000
+      ),
+    });
+
+    if (workflow.phase === 'prepare_failed') {
+      console.error('[db-transfer] pre-import cleanup failed — snapshot retained at', snapshotPath, workflow.prepareResult.stderr?.slice(0, 1000));
+      await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB בוטל — הכנת בסיס הנתונים נכשלה (התערבות ידנית נדרשת)' });
+      return NextResponse.json(
+        { error: 'הכנת בסיס הנתונים לייבוא נכשלה. הגיבוי נשמר בשרת — נדרשת בדיקה ידנית.', rolledBack: false },
+        { status: 500 }
       );
-      if (rb.code !== 0) {
-        console.error('[db-transfer] ROLLBACK FAILED — snapshot retained at', snapshotPath, rb.stderr?.slice(0, 1000));
-        await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB נכשל — ושחזור הגיבוי נכשל (התערבות ידנית נדרשת)' });
-        return NextResponse.json(
-          { error: 'הייבוא נכשל ושחזור הגיבוי נכשל. הגיבוי נשמר בשרת — נדרשת התערבות ידנית.', rolledBack: false },
-          { status: 500 }
-        );
-      }
+    }
+
+    if (workflow.phase === 'rollback_prepare_failed') {
+      console.error('[db-transfer] restore and rollback cleanup failed — snapshot retained at', snapshotPath, {
+        restore: workflow.importResult.stderr?.slice(0, 1000),
+        cleanup: workflow.prepareResult.stderr?.slice(0, 1000),
+      });
+      await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB נכשל — הכנת השחזור נכשלה (התערבות ידנית נדרשת)' });
+      return NextResponse.json(
+        { error: 'הייבוא נכשל ולא ניתן היה להכין שחזור אוטומטי. הגיבוי נשמר בשרת — נדרשת התערבות ידנית.', rolledBack: false },
+        { status: 500 }
+      );
+    }
+
+    if (workflow.phase === 'rollback_failed') {
+      console.error('[db-transfer] ROLLBACK FAILED — snapshot retained at', snapshotPath, workflow.rollbackResult.stderr?.slice(0, 1000));
+      await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB נכשל — ושחזור הגיבוי נכשל (התערבות ידנית נדרשת)' });
+      return NextResponse.json(
+        { error: 'הייבוא נכשל ושחזור הגיבוי נכשל. הגיבוי נשמר בשרת — נדרשת התערבות ידנית.', rolledBack: false },
+        { status: 500 }
+      );
+    }
+
+    if (workflow.phase === 'rolled_back') {
+      try { if (snapshotPath) unlinkSync(snapshotPath); } catch { /* noop */ }
       await logActivity({ entityType: 'USER', entityId: user.id, userId: user.id, actionHe: 'ייבוא DB נכשל — שוחזר אוטומטית' });
       return NextResponse.json(
         { error: 'הייבוא נכשל — בסיס הנתונים שוחזר אוטומטית למצב הקודם.', rolledBack: true },

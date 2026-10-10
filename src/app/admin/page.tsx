@@ -8,6 +8,7 @@ import AdminTelegramSourcesClient from '@/components/AdminTelegramSourcesClient'
 import AdminPushSettingsClient from '@/components/AdminPushSettingsClient';
 import AdminAiSettingsClient from '@/components/AdminAiSettingsClient';
 import AdminManagerClient from '@/components/AdminManagerClient';
+import { buildAdminAttentionItems } from '@/lib/admin-overview';
 import { buildAdminCoverageRows } from '@/lib/admin-data-coverage';
 import { getCurrentUser } from '@/lib/auth';
 import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
@@ -54,13 +55,18 @@ export default async function AdminPage({
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
 
-  const [teams, fetchJobs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags] = await Promise.all([
+  const [teams, fetchJobs, activityLogs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags, failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue] = await Promise.all([
     prisma.team.findMany({
       include: { season: true },
       orderBy: [{ updatedAt: 'desc' }],
     }),
     prisma.fetchJob.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 8,
+    }),
+    prisma.activityLog.findMany({
+      include: { user: { select: { name: true } } },
+      orderBy: { timestamp: 'desc' },
       take: 8,
     }),
     prisma.siteSetting.findUnique({
@@ -240,6 +246,16 @@ export default async function AdminPage({
       },
     }) : Promise.resolve(null),
     getPushCategoryFlags(),
+    prisma.fetchJob.count({ where: { status: 'FAILED' } }),
+    prisma.mergeOperation.count({ where: { status: 'preview' } }),
+    prisma.fanArchiveItem.count({ where: { status: 'PENDING' } }),
+    prisma.game.count({
+      where: {
+        status: { in: ['SCHEDULED', 'ONGOING'] },
+        venueId: null,
+        dateTime: { gte: new Date() },
+      },
+    }),
   ]);
 
   const telegramSourcesRaw = Array.isArray(telegramSourcesSetting?.valueJson)
@@ -259,6 +275,8 @@ export default async function AdminPage({
 
   const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
   const coverageRows = buildAdminCoverageRows(coverageSeason ? [coverageSeason] : []);
+  const attentionItems = buildAdminAttentionItems({ failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue });
+  const formatActivityTime = new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   const liveCountries = Array.from(
     new Set(
       liveSnapshots
@@ -497,6 +515,58 @@ export default async function AdminPage({
             >
               עדכון יום משחקים →
             </Link>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-stone-900">דורש טיפול</h2>
+              <p className="mt-1 text-sm text-stone-600">תורים ונתונים שדורשים פעולה לפני הפרסום הבא.</p>
+            </div>
+            <Link href={`/admin?season=${selectedSeason?.id || ''}&adminTab=data`} className="text-sm font-bold text-red-800">לסטטוס הנתונים</Link>
+          </div>
+          {attentionItems.length ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {attentionItems.map((item) => (
+                <Link key={item.id} href={`${item.href}${item.href.includes('?') ? '&' : '?'}season=${selectedSeason?.id || ''}`} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-400 hover:bg-amber-100">
+                  <strong className="block text-2xl font-black text-amber-950">{item.count}</strong>
+                  <span className="mt-1 block text-sm font-bold text-amber-900">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          ) : <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">אין תורים שממתינים לטיפול.</p>}
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-black text-stone-900">מצב העונה</h2>
+            <p className="mt-1 text-sm text-stone-600">{selectedSeason?.name || 'לא נבחרה עונה'}</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                ['משחקים', coverageSeason?.games.length ?? 0],
+                ['קבוצות', coverageSeason?.teams.length ?? 0],
+                ['שורות טבלה', coverageSeason?.standings.length ?? 0],
+                ['סטטיסטיקות שחקן', coverageSeason?.playerStats.length ?? 0],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-2xl bg-stone-50 p-3">
+                  <strong className="block text-2xl font-black text-stone-900">{value}</strong>
+                  <span className="text-xs font-bold text-stone-500">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div><h2 className="text-lg font-black text-stone-900">פעילות אחרונה</h2><p className="mt-1 text-sm text-stone-600">שינויים שנרשמו במערכת.</p></div>
+              <Link href="/admin?adminTab=data" className="text-sm font-bold text-red-800">לנתונים</Link>
+            </div>
+            {activityLogs.length ? <ol className="mt-3 divide-y divide-stone-100">
+              {activityLogs.map((activity) => <li key={activity.id} className="py-2.5 text-sm">
+                <strong className="block text-stone-800">{activity.actionHe}</strong>
+                <span className="text-xs text-stone-500">{activity.user?.name || 'מערכת'} · {formatActivityTime.format(activity.timestamp)}</span>
+              </li>)}
+            </ol> : <p className="mt-4 rounded-2xl bg-stone-50 p-3 text-sm text-stone-600">עדיין לא נרשמה פעילות.</p>}
           </div>
         </section>
 

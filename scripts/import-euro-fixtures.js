@@ -87,8 +87,8 @@ async function main() {
     const meta = EURO[lid];
     const comp = await prisma.competition.upsert({
       where: { apiFootballId: lid },
-      update: {},
-      create: { apiFootballId: lid, nameEn: meta.nameEn, nameHe: meta.nameHe, type: 'CUP' },
+      update: { type: 'EUROPE' },
+      create: { apiFootballId: lid, nameEn: meta.nameEn, nameHe: meta.nameHe, type: 'EUROPE' },
     });
     await prisma.competitionSeason.upsert({
       where: { competitionId_seasonId: { competitionId: comp.id, seasonId: season.id } },
