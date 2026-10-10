@@ -2,7 +2,7 @@
 /**
  * matchday-live.js — near-real-time matchday refresh.
  *
- * Designed for a 30-min cron. It does REAL work only when an Israeli-team
+ * Designed for a 10-min cron. It does REAL work only when an Israeli-team
  * fixture is in the live window (kickoff − PRE_MIN .. kickoff + POST_HOURS ≈ 2h
  * before kickoff .. ~3h after full-time); otherwise it exits instantly with zero
  * API calls. Covers Israeli domestic (comp_*) AND Israeli teams' European /
@@ -47,6 +47,9 @@ const prisma = new PrismaClient();
 const DRY = process.argv.includes('--dry-run');
 const PRE_MIN = 120;     // start 2h before kickoff (predicted / confirmed lineups)
 const POST_HOURS = 5;    // keep going ~5h after kickoff (≈ 3h after a normal FT)
+// The cron runs every 10 min, but the Firecrawl-backed Sofascore passes cost credits
+// per call — keep them to the :00/:30 ticks (the old 30-min cadence).
+const FIRECRAWL_TICK = new Date().getUTCMinutes() % 30 < 10;
 
 async function main() {
   const now = new Date();
@@ -116,8 +119,8 @@ async function main() {
   // Sofascore stats + shot map (Firecrawl, ~1 credit/game). Sofascore covers the
   // Israeli league with a 46-metric panel + shot map that FotMob and API-Football
   // lack for these games. Run ONCE per game post-FT — skip once a shotmap is
-  // stored — so it's ~1 credit/game/matchday, not every 30 min.
-  if (process.env.FIRECRAWL_API_KEY) {
+  // stored — so it's ~1 credit/game/matchday, not every tick.
+  if (process.env.FIRECRAWL_API_KEY && FIRECRAWL_TICK) {
     for (const g of games) {
       if (g.status !== 'COMPLETED') continue;
       const have = await prisma.sofascoreMatchStats.findUnique({ where: { gameId: g.id }, select: { shotmap: true } });
@@ -139,7 +142,7 @@ async function main() {
   // stop — and the whole loop only sees in-window fixtures anyway.
   const LEAGUE_COMPS = new Set(['comp_liga_haal', 'comp_liga_leumit']);
   const SS_RESOLVABLE = new Set([657, 4481, 563, 2253, 4510, 4486, 4488, 4489, 4501, 6181, 4195, 4495, 4505, 604]);
-  if (process.env.FIRECRAWL_API_KEY) {
+  if (process.env.FIRECRAWL_API_KEY && FIRECRAWL_TICK) {
     for (const g of games) {
       if (LEAGUE_COMPS.has(g.competitionId)) continue;
       if (!SS_RESOLVABLE.has(g.homeTeam.apiFootballId) && !SS_RESOLVABLE.has(g.awayTeam.apiFootballId)) continue;

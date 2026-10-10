@@ -23,7 +23,7 @@ scripts/install-crontab.sh          # מציג diff ומבקש אישור; --for
 | תדירות | משימה | תפקיד |
 |---|---|---|
 | כל 3 שעות | `refresh-fixture-schedule.js` | קורא מחדש שעות פתיחה + משלים תוצאות |
-| כל 30 דק' | `matchday-live.js` | רענון כמעט-חי בחלון משחק (פתיחה −2ש' .. +5ש') |
+| כל 10 דק' | `matchday-live.js` | רענון כמעט-חי בחלון משחק (פתיחה −2ש' .. +5ש'); מעברי Sofascore/Firecrawl רק ב-:00/:30 |
 | יומי 01:15 | `cron-matchday.sh` | היום + 3 ימים אחורה: תוצאות, אירועים, הרכבים, טבלאות |
 | יומי 06:00 | `import-euro-fixtures.js`, `import-friendlies.js` | משחקי אירופה וידידות |
 | שבועי | `sync-squads.js`, `scrape-sofascore-squads.js`, `backfill-sofascore-photos.js` | סגלים ותמונות |

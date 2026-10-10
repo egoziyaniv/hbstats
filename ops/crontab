@@ -16,9 +16,11 @@
 # collector below is watching the wrong window. See docs/OPERATIONS.md.
 0 */3 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/refresh-fixture-schedule.js >> /home/hbs/logs/fixture-schedule.log 2>&1
 
-# Near-live refresh during a match window (kickoff -2h .. +5h). Cheap when idle:
-# it exits with 0 API calls when no Israeli fixture is in the window.
-*/30 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/matchday-live.js >> /home/hbs/logs/matchday-live.log 2>&1
+# Near-live refresh during a match window (kickoff -2h .. +5h), every 10 min so a
+# lineup shows up within minutes of API-Football publishing it. Cheap when idle: it
+# exits with 0 API calls when no Israeli fixture is in the window. The Firecrawl
+# (Sofascore) passes inside it still run only on the :00/:30 ticks.
+*/10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/matchday-live.js >> /home/hbs/logs/matchday-live.log 2>&1
 
 # Nightly sweep: schedule refresh, then today + the 3 preceding days (results, events,
 # lineups, statistics, IFA Hebrew details), then the league tables.
