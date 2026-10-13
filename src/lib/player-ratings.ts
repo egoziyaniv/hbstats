@@ -65,6 +65,11 @@ function fillLineup(candidates: BestXiPlayer[]): BestXiPlayer[] {
  * For each canonical player: sum unified per-match ratings, divide by total
  * matchdays played in the league so far. Goals/assists shown for context.
  */
+// The best XI is a Ligat HaAl team. It used to take every game of the season, so Europa
+// League qualifying opponents (Víkingur, Red Star Belgrade, Žalgiris…) filled the 2026/27
+// lineup on the strength of the one tie they played against an Israeli club.
+const BEST_XI_COMPETITION = 'comp_liga_haal';
+
 export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
   // Total matchdays played in this season — distinct rounds among completed
   // league games. This is the denominator.
@@ -72,6 +77,7 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
     SELECT COUNT(DISTINCT g."roundNameEn")::int AS matchdays
     FROM "games" g
     WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED'
+      AND g."competitionId" = ${BEST_XI_COMPETITION}
   `;
   const totalMatchdays = Math.max(1, matchdayResult[0]?.matchdays || 1);
 
@@ -91,6 +97,7 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
       JOIN "players" p ON p.id = pmr."playerId"
       JOIN "games" g ON g.id = pmr."gameId"
       WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED'
+        AND g."competitionId" = ${BEST_XI_COMPETITION}
       GROUP BY canonical, pmr."gameId"
     ),
     rating_agg AS (
@@ -98,15 +105,48 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
       FROM per_game
       GROUP BY canonical
     ),
-    stats_agg AS (
+    -- Goals and assists counted from the league games' events (the record), with the
+    -- imported league PlayerStatistics as a floor for seasons whose events are thin.
+    -- A goal's scorer is playerId (or relatedPlayerId when playerId is empty); when
+    -- playerId is set, relatedPlayerId is the assist.
+    event_contrib AS (
+      SELECT COALESCE(sp."canonicalPlayerId", sp.id) AS canonical, 1 AS goals, 0 AS assists
+      FROM "game_events" e
+      JOIN "games" g ON g.id = e."gameId"
+      JOIN "players" sp ON sp.id = COALESCE(e."playerId", e."relatedPlayerId")
+      WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED'
+        AND g."competitionId" = ${BEST_XI_COMPETITION}
+        AND e.type IN ('GOAL', 'PENALTY_GOAL')
+      UNION ALL
+      SELECT COALESCE(ap."canonicalPlayerId", ap.id), 0, 1
+      FROM "game_events" e
+      JOIN "games" g ON g.id = e."gameId"
+      JOIN "players" ap ON ap.id = e."relatedPlayerId"
+      WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED'
+        AND g."competitionId" = ${BEST_XI_COMPETITION}
+        AND e.type IN ('GOAL', 'PENALTY_GOAL') AND e."playerId" IS NOT NULL
+    ),
+    event_agg AS (
+      SELECT canonical, SUM(goals)::int AS goals, SUM(assists)::int AS assists
+      FROM event_contrib GROUP BY canonical
+    ),
+    ps_agg AS (
       SELECT
         COALESCE(p."canonicalPlayerId", p.id) AS canonical,
         MAX(ps.goals)::int AS goals,
         MAX(ps.assists)::int AS assists
       FROM "player_statistics" ps
       JOIN "players" p ON p.id = ps."playerId"
-      WHERE ps."seasonId" = ${seasonId}
+      WHERE ps."seasonId" = ${seasonId} AND ps."competitionId" = ${BEST_XI_COMPETITION}
       GROUP BY canonical
+    ),
+    stats_agg AS (
+      SELECT
+        COALESCE(ea.canonical, pa.canonical) AS canonical,
+        GREATEST(COALESCE(ea.goals, 0), COALESCE(pa.goals, 0))::int AS goals,
+        GREATEST(COALESCE(ea.assists, 0), COALESCE(pa.assists, 0))::int AS assists
+      FROM event_agg ea
+      FULL OUTER JOIN ps_agg pa ON pa.canonical = ea.canonical
     ),
     merged AS (
       SELECT canonical FROM rating_agg UNION SELECT canonical FROM stats_agg
@@ -178,7 +218,9 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
         matchesRated = Math.max(1, r.goals + r.assists);
       }
       const cumulative = ratingSum / totalMatchdays;
-      const unified = matchesRated > 0 ? ratingSum / matchesRated : null;
+      // Only a real rating is shown as one. The goals-based fallback above ranks the
+      // player but is not on the 0-10 scale — it used to print as "ציון 0.50".
+      const unified = r.matches_rated > 0 ? ratingSum / matchesRated : null;
       const parts: string[] = [];
       if (r.goals > 0) parts.push(`${r.goals} שערים`);
       if (r.assists > 0) parts.push(`${r.assists} בישולים`);
@@ -236,6 +278,7 @@ export async function buildMatchdayXi(seasonId: string, matchday: string): Promi
     WHERE g."seasonId" = ${seasonId}
       AND g."roundNameEn" = ${matchday}
       AND g.status = 'COMPLETED'
+      AND g."competitionId" = ${BEST_XI_COMPETITION}
     GROUP BY canonical, p."nameHe", p."nameEn", p."photoUrl", p.position, t."nameHe", t."nameEn"
   `;
 
@@ -277,6 +320,7 @@ export async function listSeasonMatchdays(seasonId: string): Promise<Array<{ rou
       MAX(g."dateTime") AS latest
     FROM "games" g
     WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED' AND g."roundNameEn" IS NOT NULL
+      AND g."competitionId" = ${BEST_XI_COMPETITION}
     GROUP BY g."roundNameEn"
     ORDER BY MAX(g."dateTime") DESC
   `;

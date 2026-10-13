@@ -143,9 +143,14 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   };
   const playerStats = Object.values(c.playerStats || {}).map((p) => {
     const top = (p.stats || []).find((x) => x.key === 'top_stats')?.stats || {};
+    const isHome = (p.teamId === fmHomeId) !== flip;
+    // Keep OUR player id, scoped to the right side: it is what lets the FotMob rating be
+    // stored as a match rating (best XI, player pages). This used to keep only the name.
+    const mp = matchPlayer(p.name || '', gm ? (isHome ? gm.homeTeamId : gm.awayTeamId) : null);
     return {
-      isHome: (p.teamId === fmHomeId) !== flip,
-      name: toHe(p.name || ''),
+      isHome,
+      name: mp.name,
+      playerId: mp.playerId,
       isGK: !!p.isGoalkeeper,
       rating: st('FotMob rating', top),
       minutes: st('Minutes played', top),
@@ -261,7 +266,7 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
   }
 
   const unavailCount = unavailable.home.length + unavailable.away.length;
-  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} teamStats=${teamStats.length} lineup=${lineupEntries.length} unavail=${unavailCount} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
+  console.log(`  game ${gameId} ← fotmob ${fotmobId} | shots=${shotmap.length} momentum=${momData.length} players=${playerStats.length} rated=${playerStats.filter((ps) => ps.playerId && ps.rating != null).length} teamStats=${teamStats.length} lineup=${lineupEntries.length} unavail=${unavailCount} xG ${homeXg ?? '-'}/${awayXg ?? '-'} att=${matchInfo.attendance ?? '-'} flip=${flip}`);
   if (DRY) return;
 
   await prisma.fotmobMatchData.upsert({
@@ -269,6 +274,19 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
     create: { gameId, fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo, unavailable },
     update: { fotmobId: String(fotmobId), shotmap, momentum: { data: momData, goals: goalEvents }, playerStats, teamStats, matchInfo, unavailable, scrapedAt: new Date() },
   });
+  // FotMob ratings as match ratings (source 'fotmob'). Nothing else feeds this table
+  // during a season — the last ratings were a one-off backfill in June 2026 — so the
+  // 2026/27 best XI had no ratings at all and fell back to a goals-only formula.
+  const ratings = playerStats.filter((ps) => ps.playerId && typeof ps.rating === 'number');
+  for (const ps of ratings) {
+    const existing = await prisma.playerMatchRating.findFirst({
+      where: { gameId, playerId: ps.playerId, source: 'fotmob', sourceUserId: null },
+      select: { id: true },
+    });
+    if (existing) await prisma.playerMatchRating.update({ where: { id: existing.id }, data: { rating: ps.rating } });
+    else await prisma.playerMatchRating.create({ data: { gameId, playerId: ps.playerId, source: 'fotmob', rating: ps.rating } });
+  }
+
   const statsData = { ...gsMap };
   if (homeXg != null) statsData.homeXg = homeXg;
   if (awayXg != null) statsData.awayXg = awayXg;
