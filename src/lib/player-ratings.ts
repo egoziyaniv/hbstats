@@ -75,12 +75,8 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
   `;
   const totalMatchdays = Math.max(1, matchdayResult[0]?.matchdays || 1);
 
-  const rows = await prisma.$queryRaw<Array<{
+  const aggregates = await prisma.$queryRaw<Array<{
     canonical: string;
-    name: string;
-    photo: string | null;
-    position: string | null;
-    team: string | null;
     rating_sum: number;
     matches_rated: number;
     goals: number;
@@ -117,19 +113,6 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
     )
     SELECT
       m.canonical,
-      (SELECT COALESCE(p2."nameHe", p2."nameEn") FROM "players" p2
-       WHERE COALESCE(p2."canonicalPlayerId", p2.id) = m.canonical
-       ORDER BY p2."updatedAt" DESC LIMIT 1) AS name,
-      (SELECT p3."photoUrl" FROM "players" p3
-       WHERE COALESCE(p3."canonicalPlayerId", p3.id) = m.canonical AND p3."photoUrl" IS NOT NULL
-       ORDER BY p3."updatedAt" DESC LIMIT 1) AS photo,
-      (SELECT p4.position FROM "players" p4
-       WHERE COALESCE(p4."canonicalPlayerId", p4.id) = m.canonical AND p4.position IS NOT NULL
-       ORDER BY p4."updatedAt" DESC LIMIT 1) AS position,
-      (SELECT COALESCE(t."nameHe", t."nameEn") FROM "players" p5
-       JOIN "teams" t ON t.id = p5."teamId"
-       WHERE COALESCE(p5."canonicalPlayerId", p5.id) = m.canonical AND t."seasonId" = ${seasonId}
-       ORDER BY p5."updatedAt" DESC LIMIT 1) AS team,
       COALESCE(ra.rating_sum, 0) AS rating_sum,
       COALESCE(ra.matches_rated, 0) AS matches_rated,
       COALESCE(sa.goals, 0) AS goals,
@@ -138,6 +121,48 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
     LEFT JOIN rating_agg ra ON ra.canonical = m.canonical
     LEFT JOIN stats_agg sa ON sa.canonical = m.canonical
   `;
+
+  // Name / photo / position / this-season team, per person. These used to be four
+  // correlated subqueries per candidate, each filtering on COALESCE(canonicalPlayerId, id)
+  // — an expression no index covers — so every one scanned the whole players table.
+  // With ~1,550 candidates that was ~6,000 full scans (~15 ms each), past the proxy's
+  // 120 s limit, and the page never opened (HTTP 504). One indexed fetch instead.
+  const canonicals = aggregates.map((r) => r.canonical);
+  const familyRows: Array<{
+    id: string;
+    canonicalPlayerId: string | null;
+    nameHe: string | null;
+    nameEn: string;
+    photoUrl: string | null;
+    position: string | null;
+    updatedAt: Date;
+    team: { seasonId: string; nameHe: string | null; nameEn: string } | null;
+  }> = [];
+  for (let i = 0; i < canonicals.length; i += 1000) {
+    const chunk = canonicals.slice(i, i + 1000);
+    familyRows.push(...(await prisma.player.findMany({
+      where: { OR: [{ id: { in: chunk } }, { canonicalPlayerId: { in: chunk } }] },
+      select: {
+        id: true, canonicalPlayerId: true, nameHe: true, nameEn: true, photoUrl: true,
+        position: true, updatedAt: true,
+        team: { select: { seasonId: true, nameHe: true, nameEn: true } },
+      },
+    })));
+  }
+  // Newest row first, so the first value found per field is the most recently updated one —
+  // the same rule the subqueries applied with ORDER BY "updatedAt" DESC LIMIT 1.
+  familyRows.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  const info = new Map<string, { name: string | null; photo: string | null; position: string | null; team: string | null }>();
+  for (const row of familyRows) {
+    const key = row.canonicalPlayerId || row.id;
+    const cur = info.get(key) ?? { name: null, photo: null, position: null, team: null };
+    if (cur.name === null) cur.name = row.nameHe || row.nameEn;
+    if (cur.photo === null && row.photoUrl) cur.photo = row.photoUrl;
+    if (cur.position === null && row.position) cur.position = row.position;
+    if (cur.team === null && row.team?.seasonId === seasonId) cur.team = row.team.nameHe || row.team.nameEn;
+    info.set(key, cur);
+  }
+  const rows = aggregates.map((r) => ({ ...r, ...(info.get(r.canonical) ?? { name: null, photo: null, position: null, team: null }) }));
 
   const candidates: BestXiPlayer[] = rows
     .map((r) => {
