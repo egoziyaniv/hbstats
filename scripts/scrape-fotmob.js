@@ -149,6 +149,7 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
     const mp = matchPlayer(p.name || '', gm ? (isHome ? gm.homeTeamId : gm.awayTeamId) : null);
     return {
       isHome,
+      fotmobId: typeof p.id === 'number' ? p.id : Number(p.id) || null,
       name: mp.name,
       playerId: mp.playerId,
       isGK: !!p.isGoalkeeper,
@@ -285,6 +286,48 @@ async function importMatch(gameId, fotmobId, nd, flip, fmHomeId) {
     });
     if (existing) await prisma.playerMatchRating.update({ where: { id: existing.id }, data: { rating: ps.rating } });
     else await prisma.playerMatchRating.create({ data: { gameId, playerId: ps.playerId, source: 'fotmob', rating: ps.rating } });
+  }
+
+  // Per-player match stats into game_player_stats, which /statistics/advanced and the
+  // player pages read. It was filled once from API-Football (May 2026) and never again, so
+  // 2026/27 had no key passes, duels or dribbles at all. FotMob rows use the NEGATED FotMob
+  // player id as apiFootballPlayerId, a range API-Football ids never reach. Never written
+  // where an API-Football row already covers that player in that game, or the leaderboards
+  // (which SUM per game) would count him twice.
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null);
+  for (const ps of playerStats) {
+    if (!ps.playerId || !ps.fotmobId) continue;
+    const covered = await prisma.gamePlayerStats.findFirst({
+      where: { gameId, playerId: ps.playerId, apiFootballPlayerId: { gt: 0 } },
+      select: { id: true },
+    });
+    if (covered) continue;
+    const m = ps.stats || {};
+    const data = {
+      playerId: ps.playerId,
+      teamId: gm ? (ps.isHome ? gm.homeTeamId : gm.awayTeamId) : null,
+      playerName: ps.name,
+      rating: typeof ps.rating === 'number' ? ps.rating : null,
+      minutes: num(m['Minutes played']),
+      goals: num(m['Goals']),
+      assists: num(m['Assists']),
+      shotsTotal: num(m['Total shots']),
+      shotsOn: num(m['Shots on target']),
+      passesKey: num(m['Chances created']),
+      tacklesTotal: num(m['Tackles']),
+      interceptions: num(m['Interceptions']),
+      duelsWon: num(m['Duels won']),
+      duelsTotal: num(m['Duels won']) != null && num(m['Duels lost']) != null ? num(m['Duels won']) + num(m['Duels lost']) : null,
+      dribblesSuccess: num(m['Successful dribbles']),
+      foulsDrawn: num(m['Was fouled']),
+      foulsCommitted: num(m['Fouls committed']),
+      raw: { source: 'fotmob', stats: m },
+    };
+    await prisma.gamePlayerStats.upsert({
+      where: { gameId_apiFootballPlayerId: { gameId, apiFootballPlayerId: -ps.fotmobId } },
+      create: { gameId, apiFootballPlayerId: -ps.fotmobId, ...data },
+      update: data,
+    });
   }
 
   const statsData = { ...gsMap };
