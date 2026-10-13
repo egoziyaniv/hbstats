@@ -7,6 +7,7 @@ import { getCurrentSeasonStartYear, getDefaultDisplaySeasonId } from '@/lib/home
 import { getDisplayZeroStatPlayersSetting } from '@/lib/player-zero-stat-settings';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
+import { teamPlayerTotalsFromGames, gamesHaveLineupsFor } from '@/lib/team-player-stats-from-games';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
 
@@ -145,7 +146,8 @@ export default async function StatisticsPage({
           where: {
             seasonId: selectedSeason.id,
             ...(selectedCompetition ? { competitionId: selectedCompetition.id } : {}),
-            ...(selectedTeam ? { teamId: selectedTeam.id } : {}),
+            // Never filtered by team: a one-row table always ranks that row 1st, which is how
+            // Beer Sheva showed as top of the league while sitting 4th.
           },
           include: { team: true },
           orderBy: [{ position: 'asc' }, { points: 'desc' }],
@@ -278,17 +280,52 @@ export default async function StatisticsPage({
     return sortStandings(rawStandings);
   })();
 
+  // Only games actually played. `games` also holds the rest of the season's fixtures, so
+  // counting it read 26 Beer Sheva league games after six rounds. With a team chosen the
+  // goal figure is that team's goals — it used to add both sides (10 for + 7 against = 17).
+  const playedGames = games.filter((game) => game.status === 'COMPLETED');
   let totalGoals = 0;
-  for (const game of games) {
-    totalGoals += (game.homeScore ?? 0) + (game.awayScore ?? 0);
+  let goalsAgainst = 0;
+  for (const game of playedGames) {
+    const home = game.homeScore ?? 0;
+    const away = game.awayScore ?? 0;
+    if (!selectedTeam) totalGoals += home + away;
+    else if (game.homeTeamId === selectedTeam.id) { totalGoals += home; goalsAgainst += away; }
+    else { totalGoals += away; goalsAgainst += home; }
   }
-  const completedGames = games.length;
+  const completedGames = playedGames.length;
   const averageGoals = completedGames ? (totalGoals / completedGames).toFixed(2) : '0.00';
   const pointsLeader = standings[0];
+  const teamStanding = selectedTeam ? standings.find((row) => row.teamId === selectedTeam.id) ?? null : null;
+
+  // Per-player numbers for a chosen squad come from its played games (lineups + events).
+  // PlayerStatistics is an imported aggregate that lags them — Ofir Marciano read 1
+  // appearance after starting all six league games. Fall back to it only when the games
+  // lack lineups (older seasons), where counting from games would undercount.
+  const squadRowFor = new Map<string, string>();
+  for (const player of players) squadRowFor.set(player.id, player.id);
+  for (const player of players) {
+    if (player.canonicalPlayerId && !squadRowFor.has(player.canonicalPlayerId)) {
+      squadRowFor.set(player.canonicalPlayerId, player.id);
+    }
+  }
+  const gameTotals =
+    selectedTeam && gamesHaveLineupsFor(leaderGames, selectedTeam.id)
+      ? teamPlayerTotalsFromGames(leaderGames, selectedTeam.id, (id) => squadRowFor.get(id) ?? null)
+      : null;
 
   const playerRows = players
     .map((player) => {
-      const totals = player.playerStats.reduce(
+      const fromGames = gameTotals?.get(player.id);
+      const totals = gameTotals
+        ? {
+            gamesPlayed: fromGames?.gamesPlayed ?? 0,
+            goals: fromGames?.goals ?? 0,
+            assists: fromGames?.assists ?? 0,
+            yellowCards: fromGames?.yellowCards ?? 0,
+            redCards: fromGames?.redCards ?? 0,
+          }
+        : player.playerStats.reduce(
         (acc, stat) => ({
           gamesPlayed: acc.gamesPlayed + stat.gamesPlayed,
           goals: acc.goals + stat.goals,
@@ -449,6 +486,35 @@ export default async function StatisticsPage({
     }
   }
 
+  // With a team chosen, the leaderboards show that squad only. The league-wide entries above
+  // carry no team filter, so the cards listed Netanya and Haifa scorers under Beer Sheva.
+  // Built from the same game-derived rows as the squad table, so the two always agree.
+  if (selectedTeam) {
+    const teamName = selectedTeam.nameHe || selectedTeam.nameEn;
+    const teamCard = (title: string, valueLabel: string, pick: (t: (typeof playerRows)[number]['totals']) => number) => ({
+      title,
+      valueLabel,
+      rows: playerRows
+        .map((row) => ({
+          playerId: row.player.canonicalPlayerId || row.player.id,
+          playerName: formatPlayerName(row.player),
+          teamName,
+          value: pick(row.totals),
+          details: [],
+          emptyMessage: '',
+        }))
+        .filter((row) => row.value > 0)
+        .sort((a, b) => b.value - a.value || a.playerName.localeCompare(b.playerName, 'he'))
+        .slice(0, 20),
+    });
+    leaderboardCards = [
+      teamCard('מלך השערים', 'שערים', (t) => t.goals),
+      teamCard('מלך הבישולים', 'בישולים', (t) => t.assists),
+      teamCard('כרטיסים צהובים', 'צהובים', (t) => t.yellowCards),
+      teamCard('כרטיסים אדומים', 'אדומים', (t) => t.redCards),
+    ];
+  }
+
   if (displayMode === 'premier') {
     return (
       <PremierStatisticsView
@@ -463,8 +529,10 @@ export default async function StatisticsPage({
         selectedCompetitionId={selectedCompetitionId}
         completedGames={completedGames}
         totalGoals={totalGoals}
+        goalsAgainst={goalsAgainst}
         averageGoals={averageGoals}
         pointsLeader={pointsLeader}
+        teamStanding={teamStanding}
         playerRows={playerRows}
         standings={standings}
         totalPlayers={totalPlayers}
@@ -552,15 +620,15 @@ export default async function StatisticsPage({
 
             <div className="grid gap-4 p-6 md:grid-cols-4">
               <StatsCard title="שחקנים בסגל" value={String(totalPlayers)} subtitle="לפי הנתונים שמוצגים כרגע" />
-              <StatsCard title="ניצחונות" value={String(standings[0]?.wins ?? 0)} subtitle="בטבלת העונה הנבחרת" />
-              <StatsCard title="שערי זכות" value={String(standings[0]?.goalsFor ?? 0)} subtitle="במסגרת הסינון" />
+              <StatsCard title="ניצחונות" value={String(teamStanding?.wins ?? 0)} subtitle="בטבלת העונה הנבחרת" />
+              <StatsCard title="שערי זכות" value={String(teamStanding?.goalsFor ?? 0)} subtitle="במסגרת הסינון" />
               <StatsCard
                 title="נקודות"
-                value={String(standings[0]?.adjustedPoints ?? 0)}
+                value={String(teamStanding?.adjustedPoints ?? 0)}
                 subtitle={
-                  standings[0]?.pointsAdjustmentNoteHe ||
-                  (standings[0]?.pointsAdjustment
-                    ? `תיקון: ${standings[0].pointsAdjustment > 0 ? `+${standings[0].pointsAdjustment}` : standings[0].pointsAdjustment}`
+                  teamStanding?.pointsAdjustmentNoteHe ||
+                  (teamStanding?.pointsAdjustment
+                    ? `תיקון: ${teamStanding.pointsAdjustment > 0 ? `+${teamStanding.pointsAdjustment}` : teamStanding.pointsAdjustment}`
                     : 'ללא תיקון')
                 }
               />
@@ -663,8 +731,10 @@ function PremierStatisticsView({
   selectedCompetitionId,
   completedGames,
   totalGoals,
+  goalsAgainst,
   averageGoals,
   pointsLeader,
+  teamStanding,
   playerRows,
   standings,
   totalPlayers,
@@ -686,8 +756,10 @@ function PremierStatisticsView({
   selectedCompetitionId: string;
   completedGames: number;
   totalGoals: number;
+  goalsAgainst: number;
   averageGoals: string;
   pointsLeader: any;
+  teamStanding: any;
   playerRows: Array<{
     player: any;
     totals: { gamesPlayed: number; goals: number; assists: number; yellowCards: number; redCards: number };
@@ -754,12 +826,28 @@ function PremierStatisticsView({
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatsCard title="עונה" value={selectedSeason?.name || '-'} subtitle="הסינון הפעיל" />
             <StatsCard title="משחקים" value={String(completedGames)} subtitle="במסגרת הסינון" />
-            <StatsCard title="שערים" value={String(totalGoals)} subtitle={`ממוצע: ${averageGoals}`} />
             <StatsCard
-              title="מובילה בנקודות"
-              value={pointsLeader ? pointsLeader.team.nameHe || pointsLeader.team.nameEn : '-'}
-              subtitle={pointsLeader ? `${pointsLeader.adjustedPoints} נקודות` : 'אין נתונים'}
+              title={selectedTeam ? 'שערי זכות' : 'שערים'}
+              value={String(totalGoals)}
+              subtitle={selectedTeam ? `ספגה ${goalsAgainst} · ממוצע ${averageGoals} למשחק` : `ממוצע: ${averageGoals}`}
             />
+            {selectedTeam ? (
+              <StatsCard
+                title="מיקום בטבלה"
+                value={teamStanding ? `מקום ${teamStanding.displayPosition}` : '-'}
+                subtitle={
+                  teamStanding
+                    ? `${teamStanding.adjustedPoints} נקודות${pointsLeader && pointsLeader.teamId !== teamStanding.teamId ? ` · מובילה: ${pointsLeader.team.nameHe || pointsLeader.team.nameEn}` : ''}`
+                    : 'אין נתונים'
+                }
+              />
+            ) : (
+              <StatsCard
+                title="מובילה בנקודות"
+                value={pointsLeader ? pointsLeader.team.nameHe || pointsLeader.team.nameEn : '-'}
+                subtitle={pointsLeader ? `${pointsLeader.adjustedPoints} נקודות` : 'אין נתונים'}
+              />
+            )}
           </div>
         </section>
 
@@ -830,9 +918,19 @@ function PremierStatisticsView({
               <h3 className="text-xl font-black text-stone-900">תמונת מצב</h3>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <QuickMetric label="שחקנים מוצגים" value={String(totalPlayers)} accent="text-[#6d00b7]" />
-                <QuickMetric label="מובילת העונה" value={pointsLeader ? pointsLeader.team.nameHe || pointsLeader.team.nameEn : '-'} accent="text-cyan-700" />
-                <QuickMetric label="ניצחונות למובילה" value={String(pointsLeader?.wins ?? 0)} accent="text-emerald-700" />
-                <QuickMetric label="הפרש שערים" value={String(pointsLeader?.goalDifference ?? 0)} accent="text-rose-700" />
+                {selectedTeam ? (
+                  <>
+                    <QuickMetric label="מיקום בטבלה" value={teamStanding ? String(teamStanding.displayPosition) : '-'} accent="text-cyan-700" />
+                    <QuickMetric label="ניצחונות" value={String(teamStanding?.wins ?? 0)} accent="text-emerald-700" />
+                    <QuickMetric label="הפרש שערים" value={String(teamStanding?.goalDifference ?? 0)} accent="text-rose-700" />
+                  </>
+                ) : (
+                  <>
+                    <QuickMetric label="מובילת העונה" value={pointsLeader ? pointsLeader.team.nameHe || pointsLeader.team.nameEn : '-'} accent="text-cyan-700" />
+                    <QuickMetric label="ניצחונות למובילה" value={String(pointsLeader?.wins ?? 0)} accent="text-emerald-700" />
+                    <QuickMetric label="הפרש שערים" value={String(pointsLeader?.goalDifference ?? 0)} accent="text-rose-700" />
+                  </>
+                )}
               </div>
             </section>
 
@@ -841,8 +939,11 @@ function PremierStatisticsView({
                 <h3 className="text-xl font-black text-stone-900">דירוג קבוצות</h3>
               </div>
               <div className="divide-y divide-slate-100">
-                {standings.slice(0, 8).map((row, index) => (
-                  <div key={row.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                {(selectedTeam ? standings : standings.slice(0, 8)).map((row, index) => (
+                  <div
+                    key={row.id}
+                    className={`flex items-center justify-between gap-4 px-6 py-4 ${selectedTeam && row.teamId === selectedTeam.id ? 'bg-[#fbf8ff] ring-1 ring-inset ring-[#e9d5ff]' : ''}`}
+                  >
                     <div className="flex items-center gap-3">
                       <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black ${index === 0 ? 'bg-[#f4e8ff] text-[#6700b2]' : 'bg-slate-100 text-slate-700'}`}>
                         {row.displayPosition}
