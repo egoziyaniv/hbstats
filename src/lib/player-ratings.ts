@@ -70,6 +70,10 @@ function fillLineup(candidates: BestXiPlayer[]): BestXiPlayer[] {
 // lineup on the strength of the one tie they played against an Israeli club.
 const BEST_XI_COMPETITION = 'comp_liga_haal';
 
+// "שער אחד" / "שני שערים" / "3 שערים" — "1 שערים" reads as broken Hebrew.
+const goalsHe = (n: number) => (n === 1 ? 'שער אחד' : n === 2 ? 'שני שערים' : `${n} שערים`);
+const assistsHe = (n: number) => (n === 1 ? 'בישול אחד' : n === 2 ? 'שני בישולים' : `${n} בישולים`);
+
 export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
   // Total matchdays played in this season — distinct rounds among completed
   // league games. This is the denominator.
@@ -222,8 +226,8 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
       // player but is not on the 0-10 scale — it used to print as "ציון 0.50".
       const unified = r.matches_rated > 0 ? ratingSum / matchesRated : null;
       const parts: string[] = [];
-      if (r.goals > 0) parts.push(`${r.goals} שערים`);
-      if (r.assists > 0) parts.push(`${r.assists} בישולים`);
+      if (r.goals > 0) parts.push(goalsHe(r.goals));
+      if (r.assists > 0) parts.push(assistsHe(r.assists));
       if (unified != null) parts.push(`ציון ${unified.toFixed(2)}`);
       return {
         playerId: r.canonical,
@@ -295,7 +299,7 @@ export async function buildMatchdayXi(seasonId: string, matchday: string): Promi
       goals: r.goals,
       assists: r.assists,
       cumulativeScore: r.unified_rating,
-      reason: `ציון ${r.unified_rating.toFixed(2)}${r.goals > 0 ? ` · ${r.goals} שערים` : ''}${r.assists > 0 ? ` · ${r.assists} בישולים` : ''}`,
+      reason: `ציון ${r.unified_rating.toFixed(2)}${r.goals > 0 ? ` · ${goalsHe(r.goals)}` : ''}${r.assists > 0 ? ` · ${assistsHe(r.assists)}` : ''}`,
     }))
     .filter((p) => p.displayName !== '—')
     .sort((a, b) => (b.unifiedRating || 0) - (a.unifiedRating || 0));
