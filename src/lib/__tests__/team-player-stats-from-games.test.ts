@@ -61,6 +61,33 @@ describe('teamPlayerTotalsFromGames', () => {
   });
 });
 
+describe('card de-duplication', () => {
+  it('counts a booking once when two sources record it at the same minute', () => {
+    const games: TeamStatsGame[] = [{
+      lineupEntries: xi(['a']),
+      events: [
+        { type: 'YELLOW_CARD', playerId: 'a', relatedPlayerId: null, minute: 44 },
+        { type: 'YELLOW_CARD', playerId: 'a', relatedPlayerId: null, minute: 44 },
+        { type: 'RED_CARD', playerId: 'a', relatedPlayerId: null, minute: 44 },
+      ],
+    }];
+    const t = teamPlayerTotalsFromGames(games, T, resolve);
+    expect(t.get('a')?.yellowCards).toBe(1);
+    expect(t.get('a')?.redCards).toBe(1);
+  });
+
+  it('still counts two genuine bookings at different minutes', () => {
+    const games: TeamStatsGame[] = [{
+      lineupEntries: xi(['a']),
+      events: [
+        { type: 'YELLOW_CARD', playerId: 'a', relatedPlayerId: null, minute: 20 },
+        { type: 'YELLOW_CARD', playerId: 'a', relatedPlayerId: null, minute: 70 },
+      ],
+    }];
+    expect(teamPlayerTotalsFromGames(games, T, resolve).get('a')?.yellowCards).toBe(2);
+  });
+});
+
 describe('gamesHaveLineupsFor', () => {
   it('requires a full XI in every game', () => {
     const full = { lineupEntries: xi(Array.from({ length: 11 }, (_, i) => `p${i}`)), events: [] };

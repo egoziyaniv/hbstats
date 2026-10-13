@@ -12,6 +12,8 @@ export type TeamStatsGame = {
     playerId: string | null;
     relatedPlayerId: string | null;
     assistPlayerId?: string | null;
+    minute?: number | null;
+    extraMinute?: number | null;
   }>;
 };
 
@@ -56,6 +58,16 @@ export function teamPlayerTotalsFromGames(
     const started = new Set<string>();
     const cameOn = new Set<string>();
     const wentOff = new Set<string>();
+    // Cards arrive duplicated the same way: Eliel Peretz had two YELLOW_CARD rows at 44' in
+    // one game. One player cannot be booked twice in the same minute, so (type, player,
+    // minute) identifies a card.
+    const cardsSeen = new Set<string>();
+    const firstCard = (e: TeamStatsGame['events'][number], id: string) => {
+      const key = `${e.type}|${id}|${e.minute ?? ''}|${e.extraMinute ?? ''}`;
+      if (cardsSeen.has(key)) return false;
+      cardsSeen.add(key);
+      return true;
+    };
 
     for (const entry of game.lineupEntries) {
       if (entry.teamId !== teamId || entry.role !== 'STARTER') continue;
@@ -78,9 +90,9 @@ export function teamPlayerTotalsFromGames(
         const assister = own(e.playerId ? (e.relatedPlayerId ?? e.assistPlayerId) : e.assistPlayerId);
         if (assister && assister !== scorer) bump(assister, 'assists');
       } else if (e.type === 'YELLOW_CARD') {
-        const id = own(e.playerId); if (id) bump(id, 'yellowCards');
+        const id = own(e.playerId); if (id && firstCard(e, id)) bump(id, 'yellowCards');
       } else if (e.type === 'RED_CARD' || e.type === 'YELLOW_RED_CARD') {
-        const id = own(e.playerId); if (id) bump(id, 'redCards');
+        const id = own(e.playerId); if (id && firstCard(e, id)) bump(id, 'redCards');
       }
     }
 
