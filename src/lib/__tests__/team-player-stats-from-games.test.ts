@@ -97,3 +97,43 @@ describe('gamesHaveLineupsFor', () => {
     expect(gamesHaveLineupsFor([], T)).toBe(false);
   });
 });
+
+describe('playerBreakdownFromGames — where each stat happened', () => {
+  it('records the game, minute and the other player for goals and assists', () => {
+    const { playerBreakdownFromGames } = require('../team-player-stats-from-games');
+    const games: TeamStatsGame[] = [
+      { lineupEntries: xi(['a', 'b']), events: [] },
+      { lineupEntries: xi(['a', 'b']), events: [{ type: 'PENALTY_GOAL', playerId: 'a', relatedPlayerId: 'b', minute: 61 }] },
+    ];
+    const { occurrences } = playerBreakdownFromGames(games, T, resolve);
+    expect(occurrences.get('a').goals).toEqual([
+      { gameIndex: 1, minute: 61, extraMinute: null, kind: 'penalty', otherPlayerId: 'b' },
+    ]);
+    expect(occurrences.get('b').assists[0]).toMatchObject({ gameIndex: 1, minute: 61, otherPlayerId: 'a' });
+  });
+
+  it('lists a substitute appearance once, with the minute he came on', () => {
+    const { playerBreakdownFromGames } = require('../team-player-stats-from-games');
+    const games: TeamStatsGame[] = [{
+      lineupEntries: xi(['a']),
+      events: [
+        { type: 'SUBSTITUTION_OUT', playerId: 'a', relatedPlayerId: 'c', minute: 70 },
+        { type: 'SUBSTITUTION_IN', playerId: 'c', relatedPlayerId: 'a', minute: 70 },
+      ],
+    }];
+    const { occurrences } = playerBreakdownFromGames(games, T, resolve);
+    expect(occurrences.get('c').gamesPlayed).toEqual([{ gameIndex: 0, minute: 70, extraMinute: null, kind: 'sub' }]);
+  });
+
+  it('counts every team when teamId is null', () => {
+    const { playerBreakdownFromGames } = require('../team-player-stats-from-games');
+    const anyone = (id: string) => id;
+    const games: TeamStatsGame[] = [{
+      lineupEntries: [...xi(['a']), { playerId: 'x', role: 'STARTER', teamId: 'other' }],
+      events: [],
+    }];
+    const { totals } = playerBreakdownFromGames(games, null, anyone);
+    expect(totals.get('x').gamesPlayed).toBe(1);
+    expect(totals.get('a').gamesPlayed).toBe(1);
+  });
+});

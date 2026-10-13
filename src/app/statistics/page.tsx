@@ -7,7 +7,7 @@ import { getCurrentSeasonStartYear, getDefaultDisplaySeasonId } from '@/lib/home
 import { getDisplayZeroStatPlayersSetting } from '@/lib/player-zero-stat-settings';
 import { formatPlayerName, formatPlayerPosition } from '@/lib/player-display';
 import prisma from '@/lib/prisma';
-import { teamPlayerTotalsFromGames, gamesHaveLineupsFor } from '@/lib/team-player-stats-from-games';
+import { playerBreakdownFromGames, gamesHaveLineupsFor, type StatKey, type StatOccurrence } from '@/lib/team-player-stats-from-games';
 import { sortStandings } from '@/lib/standings';
 import { buildStandingsFromGames, shouldDeriveStandings } from '@/lib/standings-from-games';
 
@@ -309,10 +309,52 @@ export default async function StatisticsPage({
       squadRowFor.set(player.canonicalPlayerId, player.id);
     }
   }
-  const gameTotals =
+  const teamBreakdown =
     selectedTeam && gamesHaveLineupsFor(leaderGames, selectedTeam.id)
-      ? teamPlayerTotalsFromGames(leaderGames, selectedTeam.id, (id) => squadRowFor.get(id) ?? null)
+      ? playerBreakdownFromGames(leaderGames, selectedTeam.id, (id) => squadRowFor.get(id) ?? null)
       : null;
+  const gameTotals = teamBreakdown?.totals ?? null;
+
+  // League-wide, the same breakdown keyed by person (canonical id), so a leaderboard entry
+  // can list the games behind its number whichever season row the events point at.
+  const personKey = new Map<string, string>();
+  for (const player of leaderPlayers) {
+    const key = player.canonicalPlayerId || player.id;
+    personKey.set(player.id, key);
+    personKey.set(key, key);
+  }
+  const leagueBreakdown = selectedTeam
+    ? null
+    : playerBreakdownFromGames(leaderGames, null, (id) => personKey.get(id) ?? null);
+
+  // Turn "where it happened" into rows for the leaderboard modal — every stat links to its game.
+  const playerNameById = new Map<string, string>();
+  for (const player of leaderPlayers) {
+    playerNameById.set(player.id, formatPlayerName(player));
+    if (player.canonicalPlayerId) playerNameById.set(player.canonicalPlayerId, formatPlayerName(player));
+  }
+  const DETAIL_VALUE: Record<StatKey, string> = {
+    goals: 'שער', assists: 'בישול', yellowCards: 'צהוב', redCards: 'אדום',
+    gamesPlayed: 'הופעה', starts: 'הרכב פותח', subbedIn: 'נכנס', subbedOut: 'הוחלף',
+  };
+  const detailsFor = (occurrences: StatOccurrence[] | undefined, key: StatKey) =>
+    (occurrences ?? []).map((occ, index) => {
+      const game = leaderGames[occ.gameIndex];
+      const other = occ.otherPlayerId ? playerNameById.get(occ.otherPlayerId) : null;
+      let valueLabel = DETAIL_VALUE[key];
+      if (key === 'goals' && occ.kind === 'penalty') valueLabel = 'שער (פנדל)';
+      if (key === 'gamesPlayed') valueLabel = occ.kind === 'starter' ? 'הרכב פותח' : 'נכנס מהספסל';
+      return {
+        id: `${game.id}-${key}-${index}`,
+        href: `/games/${game.id}`,
+        roundLabel: roundLabel(game) || '-',
+        matchLabel: matchLabel(game),
+        valueLabel,
+        minuteLabel: occ.minute != null ? `${occ.minute}${occ.extraMinute ? `+${occ.extraMinute}` : ''}'` : null,
+        scoreLabel: scoreLabel(game),
+        note: other ? (key === 'goals' ? `בישול: ${other}` : key === 'assists' ? `כובש: ${other}` : null) : null,
+      };
+    });
 
   const playerRows = players
     .map((player) => {
@@ -464,8 +506,13 @@ export default async function StatisticsPage({
         return e.value;
       };
 
+      const CATEGORY_KEY: Record<string, StatKey> = {
+        TOP_SCORERS: 'goals', TOP_ASSISTS: 'assists', TOP_YELLOW_CARDS: 'yellowCards',
+        TOP_RED_CARDS: 'redCards', TOP_SUBSTITUTED_IN: 'subbedIn', TOP_SUBSTITUTED_OUT: 'subbedOut',
+      };
       leaderboardCards = Array.from(grouped.entries()).map(([category, entries]) => {
         const meta = categoryMap[category] || { title: category, valueLabel: 'ערך' };
+        const statKey = CATEGORY_KEY[category];
         return {
           title: meta.title,
           valueLabel: meta.valueLabel,
@@ -476,8 +523,11 @@ export default async function StatisticsPage({
               playerName: resolvePlayerName(e),
               teamName: e.teamNameHe || e.teamNameEn || '-',
               value: resolveValue(e, category),
-              details: [],
-              emptyMessage: '',
+              details:
+                statKey && e.playerId && leagueBreakdown
+                  ? detailsFor(leagueBreakdown.occurrences.get(personKey.get(e.playerId) ?? e.playerId)?.[statKey], statKey)
+                  : [],
+              emptyMessage: 'למשחקים של העונה הזו אין פירוט אירועים עבור שחקן זה.',
             }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 20),
@@ -491,7 +541,7 @@ export default async function StatisticsPage({
   // Built from the same game-derived rows as the squad table, so the two always agree.
   if (selectedTeam) {
     const teamName = selectedTeam.nameHe || selectedTeam.nameEn;
-    const teamCard = (title: string, valueLabel: string, pick: (t: (typeof playerRows)[number]['totals']) => number) => ({
+    const teamCard = (title: string, valueLabel: string, key: StatKey) => ({
       title,
       valueLabel,
       rows: playerRows
@@ -499,19 +549,25 @@ export default async function StatisticsPage({
           playerId: row.player.canonicalPlayerId || row.player.id,
           playerName: formatPlayerName(row.player),
           teamName,
-          value: pick(row.totals),
-          details: [],
-          emptyMessage: '',
+          value: teamBreakdown
+            ? teamBreakdown.totals.get(row.player.id)?.[key] ?? 0
+            : (row.totals as Record<string, number>)[key] ?? 0,
+          details: teamBreakdown ? detailsFor(teamBreakdown.occurrences.get(row.player.id)?.[key], key) : [],
+          emptyMessage: 'למשחקים של העונה הזו אין פירוט אירועים עבור שחקן זה.',
         }))
         .filter((row) => row.value > 0)
         .sort((a, b) => b.value - a.value || a.playerName.localeCompare(b.playerName, 'he'))
         .slice(0, 20),
     });
     leaderboardCards = [
-      teamCard('מלך השערים', 'שערים', (t) => t.goals),
-      teamCard('מלך הבישולים', 'בישולים', (t) => t.assists),
-      teamCard('כרטיסים צהובים', 'צהובים', (t) => t.yellowCards),
-      teamCard('כרטיסים אדומים', 'אדומים', (t) => t.redCards),
+      teamCard('מלך השערים', 'שערים', 'goals'),
+      teamCard('מלך הבישולים', 'בישולים', 'assists'),
+      teamCard('הופעות', 'הופעות', 'gamesPlayed'),
+      teamCard('כרטיסים צהובים', 'צהובים', 'yellowCards'),
+      teamCard('כרטיסים אדומים', 'אדומים', 'redCards'),
+      ...(teamBreakdown
+        ? [teamCard('נכנס כמחליף', 'כניסות', 'subbedIn'), teamCard('הוחלף', 'החלפות', 'subbedOut')]
+        : []),
     ];
   }
 

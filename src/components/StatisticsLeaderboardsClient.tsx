@@ -4,6 +4,8 @@ import { useState } from 'react';
 
 type LeaderboardDetail = {
   id: string;
+  /** The game this stat happened in — every stat links to its game. */
+  href?: string;
   roundLabel: string;
   matchLabel: string;
   valueLabel: string;
@@ -118,7 +120,15 @@ export default function StatisticsLeaderboardsClient({ cards }: { cards: Leaderb
                       {selected.details.map((detail) => (
                         <tr key={detail.id} className="border-b border-slate-100 text-sm text-slate-700">
                           <td className="px-3 py-3 font-semibold">{detail.roundLabel}</td>
-                          <td className="px-3 py-3 font-semibold text-slate-950">{detail.matchLabel}</td>
+                          <td className="px-3 py-3 font-semibold text-slate-950">
+                            {detail.href ? (
+                              <a href={detail.href} className="underline-offset-2 transition hover:text-[#5e00ad] hover:underline">
+                                {detail.matchLabel}
+                              </a>
+                            ) : (
+                              detail.matchLabel
+                            )}
+                          </td>
                           <td className="px-3 py-3 font-black text-[#5e00ad]">{detail.valueLabel}</td>
                           <td className="px-3 py-3">{detail.minuteLabel || '-'}</td>
                           <td className="px-3 py-3">{detail.scoreLabel || '-'}</td>
