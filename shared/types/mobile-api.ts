@@ -1237,3 +1237,43 @@ export interface SearchResultApiItem {
 export interface SearchPayload {
   results: SearchResultApiItem[];
 }
+
+// ---------- Team season snapshot ("תמונת עונה") ----------
+
+export interface SeasonRecord {
+  played: number; wins: number; draws: number; losses: number;
+  goalsFor: number; goalsAgainst: number; cleanSheets: number; failedToScore: number;
+}
+export interface SeasonDuel { us: number | null; them: number | null; games: number }
+export interface SeasonControl {
+  possession: SeasonDuel; shots: SeasonDuel; shotsOnTarget: SeasonDuel;
+  bigChances: SeasonDuel; boxTouches: SeasonDuel; xg: SeasonDuel;
+  conversion: number | null; savePct: number | null;
+  insight: string | null;
+}
+export interface SeasonGameLine {
+  id: string; date: string; competitionName: string; roundLabel: string | null; home: boolean;
+  opponentName: string; opponentLogo: string | null; goalsFor: number; goalsAgainst: number;
+  result: 'W' | 'D' | 'L'; firstGoal: 'us' | 'them' | null;
+}
+export interface SeasonPlayerLine { playerId: string; name: string; photoUrl: string | null; value: number; games: number; detail?: string }
+
+/** Same shape the web page renders; computed by src/lib/team-season-snapshot.ts. */
+export interface TeamSeasonPayload {
+  team: { id: string; nameHe: string; logoUrl: string | null };
+  seasonName: string;
+  standing: { position: number; points: number; played: number; leaderName: string | null; gapToLeader: number } | null;
+  leagueName: string | null;
+  competitive: SeasonRecord;
+  byCompetition: Array<{ id: string; name: string; type: string; record: SeasonRecord }>;
+  leagueHome: SeasonRecord | null;
+  leagueAway: SeasonRecord | null;
+  leagueControl: SeasonControl | null;
+  europeControl: SeasonControl | null;
+  timing: { scored: number[]; conceded: number[]; coverage: number };
+  lines: SeasonGameLine[];
+  leaguePoints: Array<{ n: number; label: string; opponent: string; points: number }>;
+  scorers: SeasonPlayerLine[];
+  assisters: SeasonPlayerLine[];
+  ratings: SeasonPlayerLine[];
+}

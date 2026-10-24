@@ -127,8 +127,8 @@ export default function TeamScreen() {
         </Section>
       ) : null}
 
-      {/* Season stats grid */}
-      <Section title="סטטיסטיקות עונה" dense>
+      {/* Season stats grid — "תמונת עונה" opens the full season analysis */}
+      <Section title="סטטיסטיקות עונה" dense actionLabel="תמונת עונה ←" onAction={() => router.push(`/teams/season/${id}` as any)}>
         <Card pad={false}>
           <View style={{ flexDirection: rtlRow(), padding: 14, gap: 8 }}>
             <MetricCell value={data.seasonStats.goalsScored} label="שערים בעד" tone="accent" />

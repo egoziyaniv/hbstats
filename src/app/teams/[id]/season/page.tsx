@@ -54,26 +54,8 @@ function DuelBar({ label, duel, unit = '' }: { label: string; duel: Duel; unit?:
   );
 }
 
-/** Only say it when the numbers say it. */
-function controlInsight(c: ControlBlock): string | null {
-  const share = (d: Duel) => (d.us !== null && d.them !== null && d.us + d.them > 0 ? d.us / (d.us + d.them) : null);
-  const poss = share(c.possession);
-  const chances = share(c.bigChances);
-  const sot = share(c.shotsOnTarget);
-  if (poss !== null && poss >= 0.58 && chances !== null && chances <= 0.55) {
-    return `שולטת בכדור (${c.possession.us}%), אבל מייצרת הזדמנויות גדולות כמעט כמו היריבות (${c.bigChances.us} מול ${c.bigChances.them} למשחק).`;
-  }
-  if (poss !== null && poss >= 0.58 && sot !== null && sot <= 0.55) {
-    return `שולטת בכדור (${c.possession.us}%), אבל בועטת למסגרת כמעט כמו היריבות (${c.shotsOnTarget.us} מול ${c.shotsOnTarget.them}).`;
-  }
-  if (poss !== null && poss <= 0.45 && chances !== null && chances >= 0.5) {
-    return `משאירה את הכדור ליריבה, ועדיין מייצרת יותר הזדמנויות גדולות — קבוצה של מעברים.`;
-  }
-  return null;
-}
-
 function ControlCard({ title, c }: { title: string; c: ControlBlock }) {
-  const insight = controlInsight(c);
+  const insight = c.insight;
   return (
     <Card title={title} subtitle={`ממוצע למשחק · ${c.possession.games} משחקים`}>
       <div className="mb-3 flex justify-between text-xs font-bold text-stone-400"><span>אנחנו</span><span>יריבות</span></div>

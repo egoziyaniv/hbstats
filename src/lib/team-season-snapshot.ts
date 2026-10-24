@@ -39,7 +39,27 @@ export type ControlBlock = {
   conversion: number | null;
   /** 1 − conceded ÷ opponent shots on target, %. */
   savePct: number | null;
+  /** One plain-language line, only when the numbers clearly say it. Shared by web and app. */
+  insight: string | null;
 };
+
+/** Only say it when the numbers say it. */
+export function controlInsight(c: Omit<ControlBlock, 'insight'>): string | null {
+  const share = (d: Duel) => (d.us !== null && d.them !== null && d.us + d.them > 0 ? d.us / (d.us + d.them) : null);
+  const poss = share(c.possession);
+  const chances = share(c.bigChances);
+  const sot = share(c.shotsOnTarget);
+  if (poss !== null && poss >= 0.58 && chances !== null && chances <= 0.55) {
+    return `שולטת בכדור (${c.possession.us}%), אבל מייצרת הזדמנויות גדולות כמעט כמו היריבות (${c.bigChances.us} מול ${c.bigChances.them} למשחק).`;
+  }
+  if (poss !== null && poss >= 0.58 && sot !== null && sot <= 0.55) {
+    return `שולטת בכדור (${c.possession.us}%), אבל בועטת למסגרת כמעט כמו היריבות (${c.shotsOnTarget.us} מול ${c.shotsOnTarget.them}).`;
+  }
+  if (poss !== null && poss <= 0.45 && chances !== null && chances >= 0.5) {
+    return 'משאירה את הכדור ליריבה, ועדיין מייצרת יותר הזדמנויות גדולות — קבוצה של מעברים.';
+  }
+  return null;
+}
 export type GameLine = {
   id: string; date: string; competitionName: string; roundLabel: string | null; home: boolean;
   opponentName: string; opponentLogo: string | null; goalsFor: number; goalsAgainst: number;
@@ -142,7 +162,7 @@ export function controlOf(teamId: string, games: SnapGame[]): ControlBlock {
     if (u !== null) { ourSot += u; goalsOnTarget += gf; }
     if (t !== null) { theirSot += t; conceded += ga; }
   });
-  return {
+  const block = {
     possession: duel(games.map((g) => st(g, 'homePossession', 'awayPossession'))),
     shots: duel(games.map((g) => st(g, 'homeShots', 'awayShots'))),
     shotsOnTarget: duel(sot),
@@ -152,6 +172,7 @@ export function controlOf(teamId: string, games: SnapGame[]): ControlBlock {
     conversion: ourSot ? Math.round((100 * goalsOnTarget) / ourSot) : null,
     savePct: theirSot ? Math.round(100 * (1 - conceded / theirSot)) : null,
   };
+  return { ...block, insight: controlInsight(block) };
 }
 
 export function timingOf(teamId: string, games: SnapGame[]) {
