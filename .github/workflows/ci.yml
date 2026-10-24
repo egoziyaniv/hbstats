@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+# Node comes from .nvmrc (one place for CI, local dev and the server). It is 24, not 20:
+# Node 20 reached end of life on 2026-04-30 and gets no fix for CVE-2026-111497 (an RCE
+# in the bundled Brotli decoder); "24" resolves to the newest 24.x, i.e. >= 24.22.1.
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version-file: '.nvmrc', cache: 'npm' }
       - run: npm ci
       - run: npx prisma generate
       - run: npx prisma db push
@@ -48,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm', cache-dependency-path: mobile/package-lock.json }
+        with: { node-version-file: '.nvmrc', cache: 'npm', cache-dependency-path: mobile/package-lock.json }
       - run: npm ci --legacy-peer-deps
       - run: npx tsc --noEmit
       - run: npm test -- --ci --forceExit
@@ -61,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm', cache-dependency-path: mobile/package-lock.json }
+        with: { node-version-file: '.nvmrc', cache: 'npm', cache-dependency-path: mobile/package-lock.json }
       - run: npm ci --legacy-peer-deps
       - name: Export Metro bundle
         run: npx expo export --platform ios --output-dir dist
