@@ -173,3 +173,21 @@ node scripts/apply-commons-player-photos.js --dry-run
 ```
 
 זיהוי מאומת מול היסטוריית המועדונים בערך בוויקיפדיה העברית — לא מהתאמת שם בלבד.
+
+---
+
+## 6. גרסת Node
+
+**Node 24 בכל מקום** — מקור האמת הוא [`.nvmrc`](../.nvmrc), ממנו קוראים ה-CI (`node-version-file`
+עם `check-latest: true`) והפיתוח המקומי (`nvm use`). ב-`package.json` מוגדר `engines.node`
+`>=24.22.1 <25` (אזהרה בלבד).
+
+**למה:** CVE-2026-111497 (אוקטובר 2026) — כתיבה מחוץ לגבולות במפענח ה-Brotli של Node, שמאפשרת
+הרצת קוד ברגע ש-Node מפענח Brotli בשליטת תוקף. `fetch()` עושה את זה אוטומטית לכל תשובה, וה-crons
+שלנו פונים לכ-15 אתרים חיצוניים. תוקן ב-24.22.1; Node 20 יצא מתמיכה ב-30.4.2026 ולא יקבל תיקון.
+
+- `check-latest: true` חיוני: בלעדיו `setup-node` לוקח את ה-24 השמור במכונת GitHub (היה 24.21.0, פגיע).
+- בשרת Node מותקן מ-NodeSource (`/etc/apt/sources.list.d/nodesource.sources`). מעבר גרסה:
+  `sudo bash ops/upgrade-node-24.root.sh` ואז כ-hbs `bash ops/upgrade-node-24.app.sh`.
+  חצי ה-root גם מוסיף ל-nginx דחיית בקשות עם `Content-Encoding: br`.
+- **pm2 לא עובר לבד:** ה-daemon ממשיך לרוץ על ה-Node שבו הופעל עד `pm2 update`.
