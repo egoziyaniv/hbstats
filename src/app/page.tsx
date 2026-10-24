@@ -454,9 +454,13 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       orderBy: { game: { dateTime: 'desc' } },
       take: 15,
     }),
-    // All yellow cards this season — single JOIN query instead of N+1 batch loads
+    // Yellow cards toward suspension — ONE per player per game. A player can carry at most
+    // one yellow out of a game into the accumulation count: a second yellow is a sending-off,
+    // and two sources sometimes record the same booking twice. Counting raw events put Eliel
+    // Peretz on 4 ("at risk") after a game with two YELLOW_CARD rows at 44' and a red.
     prisma.$queryRaw<Array<{ playerId: string; nameHe: string | null; teamNameHe: string | null; roundNameEn: string | null; dateTime: Date | null }>>`
-      SELECT ge."playerId", p."nameHe", t."nameHe" AS "teamNameHe",
+      SELECT DISTINCT ON (ge."gameId", ge."playerId")
+             ge."playerId", p."nameHe", t."nameHe" AS "teamNameHe",
              g."roundNameEn", g."dateTime"
       FROM game_events ge
       JOIN games g ON g.id = ge."gameId"
@@ -466,7 +470,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
         AND ge."playerId" IS NOT NULL
         AND g."seasonId" = ${statsSeason.id}
         AND g."competitionId" = 'comp_liga_haal'
-      ORDER BY g."dateTime" ASC
+      ORDER BY ge."gameId", ge."playerId", g."dateTime" ASC
     `,
     prisma.$queryRaw<Array<{ bucket: string; goals: number }>>`
       SELECT

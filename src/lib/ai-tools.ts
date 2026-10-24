@@ -374,16 +374,19 @@ export async function getTeamCardSummary(args: { teamName: string; seasonYear?: 
     playerId: string; nameHe: string; nameEn: string; yellow: number; red: number; lastYellow: Date | null;
   }>>`
     SELECT p.id AS "playerId", p."nameHe", p."nameEn",
-      SUM(CASE WHEN ge.type = 'YELLOW_CARD' THEN 1 ELSE 0 END)::int AS yellow,
-      SUM(CASE WHEN ge.type IN ('RED_CARD', 'YELLOW_RED_CARD') THEN 1 ELSE 0 END)::int AS red,
+      -- One yellow at most per game toward accumulation (a second yellow is a red, and
+      -- sources duplicate bookings); only games of this season (g.id IS NOT NULL — the season
+      -- filter sits in the LEFT JOIN, so other seasons' events would otherwise count).
+      COUNT(DISTINCT CASE WHEN ge.type = 'YELLOW_CARD' AND g.id IS NOT NULL THEN ge."gameId" END)::int AS yellow,
+      COUNT(DISTINCT CASE WHEN ge.type IN ('RED_CARD', 'YELLOW_RED_CARD') AND g.id IS NOT NULL THEN ge."gameId" END)::int AS red,
       MAX(CASE WHEN ge.type = 'YELLOW_CARD' THEN g."dateTime" END) AS "lastYellow"
     FROM players p
     LEFT JOIN game_events ge ON ge."playerId" = p.id
     LEFT JOIN games g ON g.id = ge."gameId" AND g."seasonId" = ${seasonRow.id}
     WHERE p."teamId" = ANY(${teamIds}::text[])
     GROUP BY p.id, p."nameHe", p."nameEn"
-    HAVING SUM(CASE WHEN ge.type = 'YELLOW_CARD' THEN 1 ELSE 0 END) > 0
-        OR SUM(CASE WHEN ge.type IN ('RED_CARD', 'YELLOW_RED_CARD') THEN 1 ELSE 0 END) > 0
+    HAVING COUNT(DISTINCT CASE WHEN ge.type = 'YELLOW_CARD' AND g.id IS NOT NULL THEN ge."gameId" END) > 0
+        OR COUNT(DISTINCT CASE WHEN ge.type IN ('RED_CARD', 'YELLOW_RED_CARD') AND g.id IS NOT NULL THEN ge."gameId" END) > 0
     ORDER BY yellow DESC, red DESC
   `;
 
