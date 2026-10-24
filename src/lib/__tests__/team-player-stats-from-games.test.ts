@@ -39,14 +39,15 @@ describe('teamPlayerTotalsFromGames', () => {
     expect(t.get('b')?.goals ?? 0).toBe(0);
   });
 
-  it('treats relatedPlayerId as the scorer when playerId is missing', () => {
+  it('never credits relatedPlayerId as the scorer — with no playerId the scorer is just unlinked', () => {
+    // Kangwa's goal at Víkingur: scorer unlinked, Zlatanović (relatedPlayerId) assisted.
     const games: TeamStatsGame[] = [{
       lineupEntries: xi(['a']),
       events: [{ type: 'GOAL', playerId: null, relatedPlayerId: 'a' }],
     }];
     const t = teamPlayerTotalsFromGames(games, T, resolve);
-    expect(t.get('a')?.goals).toBe(1);
-    expect(t.get('a')?.assists ?? 0).toBe(0);
+    expect(t.get('a')?.goals ?? 0).toBe(0);
+    expect(t.get('a')?.assists).toBe(1);
   });
 
   it('ignores opponents and the other team lineup', () => {

@@ -1102,7 +1102,10 @@ function isScoringEventForPlayer(event: any, playerId: string) {
     return false;
   }
 
-  return event.playerId === playerId || (!event.playerId && event.relatedPlayerId === playerId);
+  // The scorer is playerId only. relatedPlayerId on a goal is the ASSIST — in all 70 goal
+  // events that have it without a playerId, the scorer was simply unlinked and relatedPlayer
+  // was the assister, so falling back to it credited assists as goals.
+  return event.playerId === playerId;
 }
 
 function isAssistEventForPlayer(event: any, playerId: string) {

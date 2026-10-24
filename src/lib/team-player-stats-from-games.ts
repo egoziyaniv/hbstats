@@ -109,10 +109,12 @@ export function playerBreakdownFromGames(
         const on = own(e.playerId); if (on && !cameOn.has(on)) cameOn.set(on, at(e, { kind: 'sub' }));
         const off = own(e.relatedPlayerId); if (off && !wentOff.has(off)) wentOff.set(off, at(e));
       } else if (e.type === 'GOAL' || e.type === 'PENALTY_GOAL') {
-        // The scorer is playerId; when only relatedPlayerId is set it IS the scorer.
-        // Otherwise relatedPlayerId (or the rarely-filled assistPlayerId) is the assist.
-        const scorerRaw = e.playerId ?? e.relatedPlayerId;
-        const assistRaw = e.playerId ? (e.relatedPlayerId ?? e.assistPlayerId) : e.assistPlayerId;
+        // The scorer is playerId; relatedPlayerId (or the rarely-filled assistPlayerId) is the
+        // assist. Never fall back to relatedPlayerId as the scorer: when playerId is empty the
+        // scorer was just not linked, and relatedPlayer is still the assister — true in all 70
+        // such goal events (e.g. Kangwa's goal at Víkingur was being credited to Zlatanović).
+        const scorerRaw = e.playerId;
+        const assistRaw = e.relatedPlayerId ?? e.assistPlayerId;
         const scorer = own(scorerRaw);
         const assister = own(assistRaw);
         if (scorer) {

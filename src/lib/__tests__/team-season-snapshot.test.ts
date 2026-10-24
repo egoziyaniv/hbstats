@@ -75,3 +75,18 @@ describe('pointsProgression', () => {
     expect(pointsProgression(lines).map((p) => p.points)).toEqual([3, 4, 4]);
   });
 });
+
+describe('reconciling goal events with the score', () => {
+  it('drops a playerless goal the score does not account for (a chalked-off goal)', () => {
+    const g = game({
+      homeScore: 2, awayScore: 0,
+      goals: [
+        { type: 'GOAL', minute: 65, extraMinute: null, teamId: T, playerId: 'z' },
+        { type: 'GOAL', minute: 80, extraMinute: null, teamId: T, playerId: 'g' },
+        { type: 'GOAL', minute: 90, extraMinute: null, teamId: 'opp', playerId: null },
+      ],
+    });
+    expect(orderedGoals(g).map((x) => x.minute)).toEqual([65, 80]);
+    expect(timingOf(T, [g]).conceded).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+});

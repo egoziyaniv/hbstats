@@ -111,13 +111,13 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
     ),
     -- Goals and assists counted from the league games' events (the record), with the
     -- imported league PlayerStatistics as a floor for seasons whose events are thin.
-    -- A goal's scorer is playerId (or relatedPlayerId when playerId is empty); when
-    -- playerId is set, relatedPlayerId is the assist.
+    -- A goal's scorer is playerId; relatedPlayerId is always the assist (never a fallback
+    -- scorer — when playerId is empty the scorer is just unlinked).
     event_contrib AS (
       SELECT COALESCE(sp."canonicalPlayerId", sp.id) AS canonical, 1 AS goals, 0 AS assists
       FROM "game_events" e
       JOIN "games" g ON g.id = e."gameId"
-      JOIN "players" sp ON sp.id = COALESCE(e."playerId", e."relatedPlayerId")
+      JOIN "players" sp ON sp.id = e."playerId"
       WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED'
         AND g."competitionId" = ${BEST_XI_COMPETITION}
         AND e.type IN ('GOAL', 'PENALTY_GOAL')
@@ -128,7 +128,7 @@ export async function buildSeasonXi(seasonId: string): Promise<BestXiPlayer[]> {
       JOIN "players" ap ON ap.id = e."relatedPlayerId"
       WHERE g."seasonId" = ${seasonId} AND g.status = 'COMPLETED'
         AND g."competitionId" = ${BEST_XI_COMPETITION}
-        AND e.type IN ('GOAL', 'PENALTY_GOAL') AND e."playerId" IS NOT NULL
+        AND e.type IN ('GOAL', 'PENALTY_GOAL')
     ),
     event_agg AS (
       SELECT canonical, SUM(goals)::int AS goals, SUM(assists)::int AS assists

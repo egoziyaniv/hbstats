@@ -5,7 +5,7 @@
 // bottom fetches the games and the player names/photos.
 import prisma from '@/lib/prisma';
 
-export type SnapGoal = { type: string; minute: number; extraMinute: number | null; teamId: string | null; playerId: string | null };
+export type SnapGoal = { type: string; minute: number; extraMinute: number | null; teamId: string | null; playerId: string | null; relatedPlayerId?: string | null };
 export type SnapTeamStat = { label: string; home: string | number | null; away: string | number | null };
 
 export type SnapGame = {
@@ -54,11 +54,15 @@ const ownedGoal = (g: SnapGoal) => ['GOAL', 'PENALTY_GOAL', 'OWN_GOAL'].includes
  *  checked against final scores on every own goal since 2024 — so it is credited as-is. */
 const goalTeam = (g: SnapGoal) => g.teamId;
 
-/** Goals in kick-off order, deduplicated: two sources sometimes record the same goal, and a
- *  side cannot score twice in the same minute by the same player. */
+/** Goals in kick-off order, reconciled with the final score.
+ *  - De-duplicated: two sources sometimes record the same goal, and a side cannot score
+ *    twice in the same minute by the same player.
+ *  - Capped at each side's actual score: a source can keep a goal that was later chalked off
+ *    (Víkingur 0-2 Beer Sheva carries a playerless Víkingur "goal" at 90'). Playerless
+ *    extras are dropped first, then the latest. */
 export function orderedGoals(game: SnapGame): SnapGoal[] {
   const seen = new Set<string>();
-  return game.goals
+  const unique = game.goals
     .filter(ownedGoal)
     .filter((g) => {
       const k = `${goalTeam(g)}|${g.playerId ?? ''}|${g.minute}|${g.extraMinute ?? ''}`;
@@ -67,6 +71,19 @@ export function orderedGoals(game: SnapGame): SnapGoal[] {
       return true;
     })
     .sort((a, b) => a.minute - b.minute || (a.extraMinute ?? 0) - (b.extraMinute ?? 0));
+
+  const capped = new Set<SnapGoal>(unique);
+  for (const [teamId, score] of [[game.homeTeamId, game.homeScore], [game.awayTeamId, game.awayScore]] as const) {
+    const mine = unique.filter((g) => goalTeam(g) === teamId);
+    let excess = mine.length - score;
+    const dropOrder = [...mine.filter((g) => !g.playerId).reverse(), ...mine.filter((g) => g.playerId).reverse()];
+    for (const g of dropOrder) {
+      if (excess <= 0) break;
+      capped.delete(g);
+      excess -= 1;
+    }
+  }
+  return unique.filter((g) => capped.has(g));
 }
 
 export const bucketOf = (minute: number) => Math.min(Math.max(Math.floor((minute - 1) / 15), 0), 5);
@@ -255,7 +272,7 @@ export async function buildTeamSeasonSnapshot(teamId: string): Promise<TeamSeaso
         homeXg: s.homeXg, awayXg: s.awayXg,
       } : null,
       teamStats: Array.isArray(g.fotmobData?.teamStats) ? (g.fotmobData!.teamStats as SnapTeamStat[]) : null,
-      goals: g.events.map((e) => ({ type: e.type, minute: e.minute, extraMinute: e.extraMinute, teamId: e.teamId, playerId: e.playerId })),
+      goals: g.events.map((e) => ({ type: e.type, minute: e.minute, extraMinute: e.extraMinute, teamId: e.teamId, playerId: e.playerId, relatedPlayerId: e.relatedPlayerId })),
     };
   });
 
@@ -293,16 +310,17 @@ export async function buildTeamSeasonSnapshot(teamId: string): Promise<TeamSeaso
   // FotMob ratings from game_player_stats (30+ minutes), all keyed by person.
   const scorerCount = new Map<string, { goals: number; pens: number; games: Set<string> }>();
   const assistCount = new Map<string, { n: number; games: Set<string> }>();
-  for (const g of raw) {
-    for (const e of g.events) {
+  for (const g of games) {
+    // The same reconciled list as the timing chart, so tallies never exceed the scoreline.
+    for (const e of orderedGoals(g)) {
       if (e.teamId !== teamId || e.type === 'OWN_GOAL') continue;
-      const scorer = e.playerId ?? e.relatedPlayerId;
+      const scorer = e.playerId; // relatedPlayerId is the assist, never a fallback scorer
       if (scorer) {
         const c = scorerCount.get(scorer) ?? { goals: 0, pens: 0, games: new Set() };
         c.goals += 1; if (e.type === 'PENALTY_GOAL') c.pens += 1; c.games.add(g.id);
         scorerCount.set(scorer, c);
       }
-      if (e.playerId && e.relatedPlayerId) {
+      if (e.relatedPlayerId && e.relatedPlayerId !== e.playerId) {
         const a = assistCount.get(e.relatedPlayerId) ?? { n: 0, games: new Set() };
         a.n += 1; a.games.add(g.id);
         assistCount.set(e.relatedPlayerId, a);
