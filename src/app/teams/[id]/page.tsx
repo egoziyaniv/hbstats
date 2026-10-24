@@ -621,6 +621,9 @@ export default async function TeamPage({
             <Link href={buildTeamChartsHref(team.id, team.seasonId, selectedCompetitionId)} className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-700">
               גרפים
             </Link>
+            <Link href={`/teams/${team.id}/season`} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-bold text-white">
+              תמונת עונה
+            </Link>
           </div>
           {displayMode === 'premier' ? (
             <div className="border-t border-stone-200 bg-white px-6 py-4">
