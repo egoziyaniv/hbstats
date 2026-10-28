@@ -67,6 +67,44 @@ function statNumber(v: unknown) {
   return m ? Number(m[0]) : null;
 }
 
+export type TableGame = { homeTeamId: string; awayTeamId: string; homeScore: number; awayScore: number };
+
+/** League position from the games played so far: points (plus any deduction), goal difference,
+ *  goals scored. Null before anyone has played. */
+export function positionFromGames(games: TableGame[], adjustments: Map<string, number>, teamId: string): number | null {
+  if (!games.length) return null;
+  const rows = new Map<string, { pts: number; gd: number; gf: number }>();
+  const row = (id: string) => rows.get(id) ?? rows.set(id, { pts: adjustments.get(id) ?? 0, gd: 0, gf: 0 }).get(id)!;
+  for (const g of games) {
+    const h = row(g.homeTeamId), a = row(g.awayTeamId);
+    h.gf += g.homeScore; a.gf += g.awayScore;
+    h.gd += g.homeScore - g.awayScore; a.gd += g.awayScore - g.homeScore;
+    if (g.homeScore > g.awayScore) h.pts += 3;
+    else if (g.homeScore < g.awayScore) a.pts += 3;
+    else { h.pts += 1; a.pts += 1; }
+  }
+  if (!rows.has(teamId)) return null;
+  const order = [...rows].sort(([, x], [, y]) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf);
+  return order.findIndex(([id]) => id === teamId) + 1;
+}
+
+/** Where the opponent stood going INTO the game — "מוליכת הטבלה" is about the table the
+ *  teams kicked off under, not the one the result produced. */
+async function positionBeforeGame(seasonId: string, competitionId: string, kickoff: Date, teamId: string) {
+  const [games, standings] = await Promise.all([
+    prisma.game.findMany({
+      where: { seasonId, competitionId, status: 'COMPLETED', dateTime: { lt: kickoff }, homeScore: { not: null }, awayScore: { not: null } },
+      select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+    }),
+    prisma.standing.findMany({ where: { seasonId, competitionId }, select: { teamId: true, pointsAdjustment: true } }),
+  ]);
+  return positionFromGames(
+    games.map((x) => ({ homeTeamId: x.homeTeamId, awayTeamId: x.awayTeamId, homeScore: x.homeScore ?? 0, awayScore: x.awayScore ?? 0 })),
+    new Map(standings.map((r) => [r.teamId, r.pointsAdjustment])),
+    teamId,
+  );
+}
+
 export async function buildLastMatchSummary(gameId: string, focusTeamIds: string[] = []): Promise<LastMatchSummary | null> {
   const g = await prisma.game.findUnique({
     where: { id: gameId },
@@ -142,11 +180,8 @@ export async function buildLastMatchSummary(gameId: string, focusTeamIds: string
   const opponent = focus === 'home' ? g.awayTeam : g.homeTeam;
   const opponentName = opponent.nameHe || opponent.nameEn;
 
-  const opponentStanding = g.competition?.type === 'LEAGUE' && g.competitionId
-    ? await prisma.standing.findFirst({
-        where: { seasonId: g.seasonId, competitionId: g.competitionId, teamId: opponentId },
-        select: { position: true },
-      })
+  const opponentPosition = g.competition?.type === 'LEAGUE' && g.competitionId
+    ? await positionBeforeGame(g.seasonId, g.competitionId, g.dateTime, opponentId)
     : null;
   const firstGoal = moments.find((m) => m.kind !== 'red-card');
 
@@ -154,7 +189,7 @@ export async function buildLastMatchSummary(gameId: string, focusTeamIds: string
     goalsFor: gf,
     goalsAgainst: ga,
     home: focus === 'home',
-    opponentPosition: opponentStanding?.position ?? null,
+    opponentPosition,
     opponentName,
     cameFromBehind: gf > ga && !!firstGoal && firstGoal.side !== focus,
   });
