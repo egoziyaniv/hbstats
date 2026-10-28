@@ -88,12 +88,16 @@ export function positionFromGames(games: TableGame[], adjustments: Map<string, n
   return order.findIndex(([id]) => id === teamId) + 1;
 }
 
-/** Where the opponent stood going INTO the game — "מוליכת הטבלה" is about the table the
- *  teams kicked off under, not the one the result produced. */
-async function positionBeforeGame(seasonId: string, competitionId: string, kickoff: Date, teamId: string) {
+/** Where the opponent stood going INTO the round — "מוליכת הטבלה" is about the table the
+ *  round started from, not the one the result produced. A round is spread over several days,
+ *  so games of the same round played a day earlier don't count. */
+async function positionBeforeGame(seasonId: string, competitionId: string, kickoff: Date, round: string | null, teamId: string) {
   const [games, standings] = await Promise.all([
     prisma.game.findMany({
-      where: { seasonId, competitionId, status: 'COMPLETED', dateTime: { lt: kickoff }, homeScore: { not: null }, awayScore: { not: null } },
+      where: {
+        seasonId, competitionId, status: 'COMPLETED', dateTime: { lt: kickoff }, homeScore: { not: null }, awayScore: { not: null },
+        ...(round ? { NOT: { roundNameHe: round } } : {}),
+      },
       select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
     }),
     prisma.standing.findMany({ where: { seasonId, competitionId }, select: { teamId: true, pointsAdjustment: true } }),
@@ -181,7 +185,7 @@ export async function buildLastMatchSummary(gameId: string, focusTeamIds: string
   const opponentName = opponent.nameHe || opponent.nameEn;
 
   const opponentPosition = g.competition?.type === 'LEAGUE' && g.competitionId
-    ? await positionBeforeGame(g.seasonId, g.competitionId, g.dateTime, opponentId)
+    ? await positionBeforeGame(g.seasonId, g.competitionId, g.dateTime, g.roundNameHe, opponentId)
     : null;
   const firstGoal = moments.find((m) => m.kind !== 'red-card');
 
