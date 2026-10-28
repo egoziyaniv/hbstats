@@ -5,11 +5,25 @@ type ClubHubTile = {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
+  /** Filled in the club colour so it reads as the band's lead entry. */
+  featured?: boolean;
 };
 
 const ICON_CLASS = 'h-5 w-5';
 
 const TILES: ClubHubTile[] = [
+  {
+    // /club/season always resolves to the current season, so this never goes stale.
+    href: '/club/season',
+    title: 'תמונת עונה',
+    subtitle: 'מאזן, שליטה, תזמון שערים וכובשים',
+    featured: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={ICON_CLASS} aria-hidden="true">
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+      </svg>
+    ),
+  },
   { href: '/club/calendar', title: 'יומן משחקים', subtitle: 'מנוי מתעדכן ליומן שלכם', icon: <span aria-hidden="true" className="text-xl">▦</span> },
   { href: '/matchdays', title: 'המשחקים שלי', subtitle: 'מאזן, אצטדיונים וזיכרונות', icon: <span aria-hidden="true" className="text-xl">✓</span> },
   { href: '/club/archive', title: 'ארכיון אוהדים', subtitle: 'סיפורים וכרטיסים מהיציע', icon: <span aria-hidden="true" className="text-xl">▤</span> },
@@ -77,14 +91,28 @@ export default function ClubHubBand() {
           <Link
             key={`${tile.href}-${tile.title}`}
             href={tile.href}
-            className="group flex items-center gap-3 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)]/30 hover:shadow-md"
+            className={
+              tile.featured
+                ? 'group flex items-center gap-3 rounded-2xl border border-[var(--accent)] bg-[var(--accent)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md'
+                : 'group flex items-center gap-3 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)]/30 hover:shadow-md'
+            }
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-glow)] text-[var(--accent)]">
+            <span
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                tile.featured ? 'bg-white/20 text-white' : 'bg-[var(--accent-glow)] text-[var(--accent)]'
+              }`}
+            >
               {tile.icon}
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-black text-stone-900 transition group-hover:text-[var(--accent)]">{tile.title}</span>
-              <span className="block text-[12px] text-stone-400">{tile.subtitle}</span>
+              <span
+                className={`block text-sm font-black transition ${
+                  tile.featured ? 'text-white' : 'text-stone-900 group-hover:text-[var(--accent)]'
+                }`}
+              >
+                {tile.title}
+              </span>
+              <span className={`block text-[12px] ${tile.featured ? 'text-white/80' : 'text-stone-400'}`}>{tile.subtitle}</span>
             </span>
           </Link>
         ))}
