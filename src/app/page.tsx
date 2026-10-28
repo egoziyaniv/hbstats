@@ -8,13 +8,15 @@ import {
   DEFAULT_TELEGRAM_SOURCES,
   fetchTelegramMessagesFromSources,
   normalizeTelegramSource,
-  type TelegramChannelMessage,
 } from '@/lib/telegram';
 import { getHomepageLiveLimitSetting } from '@/lib/homepage-live-settings';
 import { getCurrentSeasonStartYear, getHomepageLiveSnapshots, getIsraeliTeamApiFootballIds } from '@/lib/home-live';
 import HomeLivePanel from '@/components/HomeLivePanel';
 import OnThisDayCard from '@/components/OnThisDayCard';
-import { HeroMatchCarousel, type HeroSlide } from '@/components/HeroMatchCarousel';
+import { HeroMatchCarousel, type HeroLastResult, type HeroSlide } from '@/components/HeroMatchCarousel';
+import { LastMatchCard } from '@/components/LastMatchCard';
+import { TelegramLiveFeed } from '@/components/TelegramLiveFeed';
+import { buildLastMatchSummary } from '@/lib/last-match-summary';
 import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import { ClubPointsTrendChart, GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
@@ -42,7 +44,9 @@ type HeadToHeadGroup = {
 
 function formatDate(date: Date | null | undefined, withTime = false) {
   if (!date) return 'לא זמין';
+  // The server runs in UTC; kickoff times are read in Israel.
   return new Intl.DateTimeFormat('he-IL', {
+    timeZone: 'Asia/Jerusalem',
     dateStyle: 'medium',
     ...(withTime ? { timeStyle: 'short' } : {}),
   }).format(date);
@@ -61,25 +65,6 @@ function getStatusLabel(status: string) {
   if (status === 'COMPLETED') return 'הסתיים';
   if (status === 'CANCELLED') return 'בוטל';
   return 'בקרוב';
-}
-
-function truncateText(text: string, maxLength: number) {
-  // Slice by code points, not UTF-16 code units, so emoji surrogate pairs
-  // (e.g. 🚩) don't get split — a lone surrogate on the server renders as
-  // ◆ (U+FFFD) on the client and breaks hydration.
-  const chars = Array.from(text);
-  if (chars.length <= maxLength) return text;
-  return `${chars.slice(0, maxLength).join('').trim()}...`;
-}
-
-function getTelegramPreviewTitle(text: string) {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  if (!normalized) return 'עדכון טלגרם חדש';
-  return truncateText(normalized.split('\n')[0].replace(/[!?.:;,]+$/g, ''), 80);
-}
-
-function shouldCollapseTelegramText(text: string) {
-  return text.length > 220 || text.split('\n').length > 3;
 }
 
 function gameMatchesPreferredTeam(
@@ -738,10 +723,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
   }
 
   const headToHeadGroups = Array.from(groupedHeadToHeadMap.values()).slice(0, 3);
-  const featuredTelegramMessage = telegramMessages[0] || null;
-  const telegramFeedMessages = featuredTelegramMessage ? telegramMessages.slice(1) : telegramMessages;
-
-  const heroGame = liveGame || nextGame || lastGame;
+  const newsFeed = telegramMessages.slice(0, 8);
 
   // Rotating hero: live Israeli games first, then the soonest ranked upcoming
   // games (already Israeli-filtered + preference-ranked), deduped. Live scores
@@ -772,6 +754,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       dateLabel: formatDate(g.dateTime, true),
       showScore: isLive || isCompleted,
       showTeaser: g.status === 'SCHEDULED',
+      kickoffIso: new Date(g.dateTime).toISOString(),
     };
   };
   // With a team filter on, the hero must stay inside that team: rankedUpcoming holds
@@ -788,6 +771,19 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
   const heroSlides: HeroSlide[] = heroSourceDeduped.length
     ? heroSourceDeduped.map(buildHeroSlide)
     : lastGame ? [buildHeroSlide(lastGame)] : [];
+  const lastMatch = lastGame ? await buildLastMatchSummary(lastGame.id, selectedTeamIds) : null;
+  const heroLastResult: HeroLastResult | null = lastMatch
+    ? {
+        id: lastMatch.id,
+        meta: [lastMatch.competitionName, lastMatch.roundLabel].filter(Boolean).join(' · '),
+        homeName: lastMatch.home.name,
+        awayName: lastMatch.away.name,
+        homeScore: lastMatch.home.score,
+        awayScore: lastMatch.away.score,
+        result: lastMatch.result,
+        headline: lastMatch.headline,
+      }
+    : null;
   const clubArchiveGame = selectedTeam
     ? pickClubArchiveGame(selectedTeam.id, featuredSeason.id, await clubArchiveCandidatesPromise)
     : null;
@@ -800,7 +796,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
   return (
     <div className="min-h-screen">
       {/* ── HERO: rotating featured matches (live + soonest upcoming, ranked) ── */}
-      <HeroMatchCarousel slides={heroSlides} />
+      <HeroMatchCarousel slides={heroSlides} lastResult={heroLastResult} />
 
       {/* ── Team/League selector ── */}
       <HomeFilterBar teams={seasonTeams} selectedTeamId={selectedTeam?.id || null} />
@@ -970,8 +966,10 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
             )}
           </div>
 
-          {/* ── COL 2: Next Round + Last Game ── */}
+          {/* ── COL 2: Last Game + Next Round ── */}
           <div className="space-y-5">
+            {lastMatch ? <LastMatchCard summary={lastMatch} dateLabel={formatDate(lastMatch.dateTime, true)} /> : null}
+
             <Card title={`משחקי ${nextRoundLabel || 'המחזור'}`} actionHref="/games" actionLabel="כל המשחקים">
               <div className="space-y-2">
                 {nextRoundGames.map((game) => {
@@ -1015,20 +1013,6 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
                 {nextRoundGames.length === 0 && <EmptyState text="אין משחקי מחזור קרוב." />}
               </div>
             </Card>
-
-            {lastGame && heroGame?.id !== lastGame.id && (
-              <Card title="משחק אחרון" actionHref={`/games/${lastGame.id}`} actionLabel="לדף המשחק">
-                <Link href={`/games/${lastGame.id}`} className="block rounded-xl border border-stone-200 bg-stone-50 p-4 transition hover:bg-white">
-                  <div className="text-center text-xs text-stone-400">{getCompetitionDisplayName(lastGame.competition)}</div>
-                  <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                    <span className="text-center text-base font-black text-stone-900">{getTeamLabel(lastGame.homeTeam)}</span>
-                    <span className="shrink-0 rounded-xl bg-red-800 px-5 py-2 text-xl font-black tabular-nums text-white">{lastGame.homeScore ?? 0} - {lastGame.awayScore ?? 0}</span>
-                    <span className="text-center text-base font-black text-stone-900">{getTeamLabel(lastGame.awayTeam)}</span>
-                  </div>
-                  <div className="mt-2 text-center text-[11px] text-stone-400">{formatDate(lastGame.dateTime, true)}</div>
-                </Link>
-              </Card>
-            )}
 
             <HomeStatTeaser />
 
@@ -1077,46 +1061,8 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
 
           {/* ── COL 3: Telegram ── */}
           <div className="space-y-5">
-            <Card title="חדשות" actionHref="https://t.me/vasermilya" actionLabel="לערוצי טלגרם">
-              {featuredTelegramMessage ? (
-                <div className="mb-4 overflow-hidden rounded-xl border border-stone-200">
-                  <div className="relative h-44">
-                    {featuredTelegramMessage.imageUrl ? (
-                      <img src={featuredTelegramMessage.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                    ) : featuredTelegramMessage.channelPhotoUrl ? (
-                      <img src={featuredTelegramMessage.channelPhotoUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-900 to-stone-900" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-3">
-                      <div className="text-sm font-black leading-5 text-white">{getTelegramPreviewTitle(featuredTelegramMessage.text)}</div>
-                      <div className="mt-1 text-[11px] text-white/60">{featuredTelegramMessage.sourceLabel} · {formatDate(featuredTelegramMessage.publishedAt, true)}</div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-3">
-                    <TelegramMessageBody message={featuredTelegramMessage} featured />
-                    <a href={featuredTelegramMessage.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-red-700 hover:text-red-600">פתח בטלגרם →</a>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="space-y-3">
-                {telegramFeedMessages.map((message) => (
-                  <article key={message.id} className="rounded-xl border border-stone-100 bg-white p-3 transition hover:border-stone-300 hover:shadow-sm">
-                    <div className="grid grid-cols-[1fr_48px] items-start gap-3">
-                      <div className="min-w-0 text-sm font-bold leading-5 text-stone-900">{getTelegramPreviewTitle(message.text)}</div>
-                      <img src={message.imageUrl || message.channelPhotoUrl || ''} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                    </div>
-                    <TelegramMessageBody message={message} />
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-[11px] text-stone-400">{message.sourceLabel} · {formatDate(message.publishedAt, true)}</span>
-                      <a href={message.url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-red-700 hover:text-red-600">בטלגרם →</a>
-                    </div>
-                  </article>
-                ))}
-                {telegramMessages.length === 0 && <EmptyState text="אין הודעות טלגרם." />}
-              </div>
+            <Card title="מבזקים" actionHref="https://t.me/vasermilya" actionLabel="לערוצי טלגרם">
+              {newsFeed.length ? <TelegramLiveFeed messages={newsFeed} now={now} /> : <EmptyState text="אין הודעות טלגרם." />}
             </Card>
           </div>
         </div>
@@ -1170,19 +1116,6 @@ function Card({ title, actionHref, actionLabel, children }: { title: string; act
       </div>
       {children}
     </section>
-  );
-}
-
-function TelegramMessageBody({ message, featured = false }: { message: TelegramChannelMessage; featured?: boolean }) {
-  const collapsible = shouldCollapseTelegramText(message.text);
-  const textClasses = featured ? 'text-sm leading-6 text-stone-600' : 'text-[13px] leading-5 text-stone-500';
-  if (!collapsible) return <div className={`mt-2 whitespace-pre-line ${textClasses}`}>{message.text}</div>;
-  return (
-    <details className="group mt-2">
-      <div className={`whitespace-pre-line group-open:hidden ${textClasses}`}>{truncateText(message.text, featured ? 280 : 120)}</div>
-      <div className={`hidden whitespace-pre-line rounded-lg bg-stone-50 p-3 group-open:block ${textClasses}`}>{message.text}</div>
-      <summary className="mt-1 cursor-pointer list-none text-[11px] font-bold text-red-700 marker:hidden hover:text-red-600">הצג עוד</summary>
-    </details>
   );
 }
 
