@@ -17,6 +17,7 @@ import { HeroMatchCarousel, type HeroLastResult, type HeroSlide } from '@/compon
 import { LastMatchCard } from '@/components/LastMatchCard';
 import { TelegramLiveFeed } from '@/components/TelegramLiveFeed';
 import { buildLastMatchSummary } from '@/lib/last-match-summary';
+import { buildH2H, type H2HSummary } from '@/lib/h2h';
 import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import { ClubPointsTrendChart, GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
@@ -731,12 +732,15 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
   const liveIsraeliGames = ongoingGamesRaw
     .filter(involvesIsraeliTeam)
     .sort((a, b) => prefRank(a) - prefRank(b) || +new Date(a.dateTime) - +new Date(b.dateTime));
+  // Filled below once the hero games are known; buildHeroSlide only runs after that.
+  const h2hByGame = new Map<string, H2HSummary | null>();
   const buildHeroSlide = (g: {
     id: string; status: string; dateTime: Date; homeScore: number | null; awayScore: number | null;
-    homeTeam: { nameHe: string | null; nameEn: string }; awayTeam: { nameHe: string | null; nameEn: string };
+    homeTeam: { nameHe: string | null; nameEn: string; logoUrl: string | null }; awayTeam: { nameHe: string | null; nameEn: string; logoUrl: string | null };
     competition: { nameHe: string | null; nameEn: string; apiFootballId: number | null } | null;
     season?: { name: string } | null;
   }): HeroSlide => {
+    const h = h2hByGame.get(g.id);
     const isLive = g.status === 'ONGOING';
     const isCompleted = g.status === 'COMPLETED';
     const liveItem = isLive ? initialLiveItems.find((it) => it.gameHref === `/games/${g.id}`) || null : null;
@@ -755,6 +759,11 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       showScore: isLive || isCompleted,
       showTeaser: g.status === 'SCHEDULED',
       kickoffIso: new Date(g.dateTime).toISOString(),
+      homeLogo: g.homeTeam.logoUrl,
+      awayLogo: g.awayTeam.logoUrl,
+      h2h: h && h.totalGames > 0
+        ? { total: h.totalGames, homeWins: h.winsA, draws: h.draws, awayWins: h.winsB, goalsHome: h.goalsA, goalsAway: h.goalsB }
+        : null,
     };
   };
   // With a team filter on, the hero must stay inside that team: rankedUpcoming holds
@@ -768,6 +777,11 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
     : heroPoolAll;
   const heroSourcePool = heroPoolForTeam.length ? heroPoolForTeam : heroPoolAll;
   const heroSourceDeduped = heroSourcePool.filter((g, idx) => heroSourcePool.findIndex((x) => x.id === g.id) === idx).slice(0, 6);
+  await Promise.all(
+    heroSourceDeduped
+      .filter((g) => g.status !== 'COMPLETED')
+      .map(async (g) => h2hByGame.set(g.id, await buildH2H(g.homeTeamId, g.awayTeamId).catch(() => null))),
+  );
   const heroSlides: HeroSlide[] = heroSourceDeduped.length
     ? heroSourceDeduped.map(buildHeroSlide)
     : lastGame ? [buildHeroSlide(lastGame)] : [];
@@ -780,6 +794,8 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
         awayName: lastMatch.away.name,
         homeScore: lastMatch.home.score,
         awayScore: lastMatch.away.score,
+        homeLogo: lastMatch.home.logoUrl,
+        awayLogo: lastMatch.away.logoUrl,
         result: lastMatch.result,
         headline: lastMatch.headline,
       }

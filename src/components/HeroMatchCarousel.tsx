@@ -18,6 +18,10 @@ export type HeroSlide = {
   showScore: boolean;       // live or completed → show scoreline
   showTeaser: boolean;      // scheduled → show the pre-match teaser line
   kickoffIso: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  /** All-time meetings, wins counted from the home side. Null when they never met. */
+  h2h: { total: number; homeWins: number; draws: number; awayWins: number; goalsHome: number; goalsAway: number } | null;
 };
 
 /** The team's most recent result, kept beside the next game so it is never buried. */
@@ -28,6 +32,8 @@ export type HeroLastResult = {
   awayName: string;
   homeScore: number;
   awayScore: number;
+  homeLogo: string | null;
+  awayLogo: string | null;
   result: 'W' | 'D' | 'L';
   headline: string;
 };
@@ -53,6 +59,32 @@ function useCountdown(iso: string | null) {
   return { days: Math.floor(mins / 1440), hours: Math.floor((mins % 1440) / 60), minutes: mins % 60 };
 }
 
+function Crest({ src, size }: { src: string | null; size: string }) {
+  if (!src) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" className={`${size} mx-auto shrink-0 object-contain drop-shadow`} />;
+}
+
+/** Head-to-head in one line and one bar, sized for the red hero. Home side on the right. */
+function HeroH2H({ h, homeName, awayName }: { h: NonNullable<HeroSlide['h2h']>; homeName: string; awayName: string }) {
+  const pct = (v: number) => `${(v / h.total) * 100}%`;
+  return (
+    <div className="mx-auto mt-4 w-full max-w-lg rounded-xl bg-black/15 px-4 py-2.5 text-[11px] text-white/75">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span><b className="text-sm text-white">{h.homeWins}</b> ניצחונות {homeName}</span>
+        <span className="shrink-0 font-bold text-white/60">{h.total} פגישות · {h.draws} תיקו</span>
+        <span><b className="text-sm text-white">{h.awayWins}</b> ניצחונות {awayName}</span>
+      </div>
+      <div className="flex h-1.5 overflow-hidden rounded-full bg-white/10">
+        <i className="block bg-white" style={{ width: pct(h.homeWins) }} />
+        <i className="block bg-white/35" style={{ width: pct(h.draws) }} />
+        <i className="block bg-stone-950/60" style={{ width: pct(h.awayWins) }} />
+      </div>
+      <div className="mt-1.5 text-center text-[10px] text-white/50">היסטוריית עימותים · שערים {h.goalsHome}–{h.goalsAway}</div>
+    </div>
+  );
+}
+
 function LastResultPanel({ r }: { r: HeroLastResult }) {
   const style = RESULT_STYLE[r.result];
   return (
@@ -65,16 +97,22 @@ function LastResultPanel({ r }: { r: HeroLastResult }) {
         <span className="truncate text-[10px] font-semibold text-white/50">{r.meta}</span>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-        <span className="truncate text-center text-sm font-black text-white">{r.homeName}</span>
-        <span className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1 text-xl font-black tabular-nums text-white">
+        <span className="flex flex-col items-center gap-1 text-center">
+          <Crest src={r.homeLogo} size="h-9 w-9" />
+          <span className="text-sm font-black leading-tight text-white">{r.homeName}</span>
+        </span>
+        <span className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1 text-2xl font-black tabular-nums text-white">
           <span>{r.homeScore}</span><span className="text-white/30">–</span><span>{r.awayScore}</span>
         </span>
-        <span className="truncate text-center text-sm font-black text-white">{r.awayName}</span>
+        <span className="flex flex-col items-center gap-1 text-center">
+          <Crest src={r.awayLogo} size="h-9 w-9" />
+          <span className="text-sm font-black leading-tight text-white">{r.awayName}</span>
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${style.cls}`}>{style.label}</span>
-        <span className="min-w-0 truncate text-xs font-bold text-white/85">{r.headline}</span>
-        <span className="mr-auto shrink-0 text-[11px] font-bold text-white/60 group-hover:text-white">לפרטים ←</span>
+      <div className="flex items-start gap-2">
+        <span className={`mt-px shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${style.cls}`}>{style.label}</span>
+        <span className="min-w-0 flex-1 text-[13px] font-bold leading-5 text-white/90">{r.headline}</span>
+        <span className="shrink-0 pt-px text-[11px] font-bold text-white/60 group-hover:text-white">לפרטים ←</span>
       </div>
     </Link>
   );
@@ -123,15 +161,16 @@ export function HeroMatchCarousel({ slides, lastResult = null }: { slides: HeroS
           <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/50">{s.seasonName}</span>
         </div>
 
-        <div className={sideResult ? 'grid gap-3 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]' : ''}>
-        {sideResult ? <div className="order-2 md:order-none"><LastResultPanel r={sideResult} /></div> : null}
+        <div className={sideResult ? 'grid gap-3 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]' : ''}>
+        {sideResult ? <div className="order-2 lg:order-none"><LastResultPanel r={sideResult} /></div> : null}
         {/* key on id re-triggers the fade when the slide changes */}
         <Link href={`/games/${s.id}`} className="block rounded-2xl bg-black/10 px-3 py-4 transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/60" aria-label={`${s.homeName} נגד ${s.awayName}`}>
           <div key={s.id} className="hero-slide-fade text-center">
             <div className="text-[11px] font-bold text-white/55">{s.competitionName}</div>
-            <div className="mt-3 flex items-center justify-center gap-5 md:gap-14">
-              <div className="min-w-[90px] text-center">
-                <div className="text-lg font-black text-white md:text-3xl leading-tight">{s.homeName}</div>
+            <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 md:gap-8">
+              <div className="min-w-0 text-center">
+                <Crest src={s.homeLogo} size="mb-1.5 h-12 w-12 md:h-16 md:w-16" />
+                <div className="text-lg font-black text-white md:text-3xl leading-tight [text-wrap:balance]">{s.homeName}</div>
                 <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">בית</div>
               </div>
               <div className="flex flex-col items-center">
@@ -156,11 +195,13 @@ export function HeroMatchCarousel({ slides, lastResult = null }: { slides: HeroS
                   </div>
                 )}
               </div>
-              <div className="min-w-[90px] text-center">
-                <div className="text-lg font-black text-white md:text-3xl leading-tight">{s.awayName}</div>
+              <div className="min-w-0 text-center">
+                <Crest src={s.awayLogo} size="mb-1.5 h-12 w-12 md:h-16 md:w-16" />
+                <div className="text-lg font-black text-white md:text-3xl leading-tight [text-wrap:balance]">{s.awayName}</div>
                 <div className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-white/35">חוץ</div>
               </div>
             </div>
+            {s.h2h && !s.showScore ? <HeroH2H h={s.h2h} homeName={s.homeName} awayName={s.awayName} /> : null}
             {s.showTeaser ? (
               <div className="mt-4 inline-flex rounded-full bg-[var(--accent)] px-3 py-1.5 text-[11px] font-black text-white">למרכז המשחק · כושר, פציעות והרכבים ←</div>
             ) : null}
