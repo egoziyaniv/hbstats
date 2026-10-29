@@ -36,7 +36,7 @@ describe('buildFullH2H', () => {
     const res = await buildFullH2H('a1', 'b1');
     expect(res).not.toBeNull();
     expect(res!.totals).toMatchObject({ games: 3, winsA: 1, draws: 1, winsB: 1, goalsA: 7, goalsB: 3 });
-    expect(res!.byCompetition.find((c) => c.competitionNameHe === 'league')!.games).toBe(2);
+    expect(res!.byCompetition.find((c) => c.competitionNameHe === 'ליגת העל')!.games).toBe(2);
     expect(res!.atAHome).toMatchObject({ games: 2, winsA: 1, draws: 1, winsB: 0 });
     expect(res!.atBHome).toMatchObject({ games: 1, winsB: 1 });
     expect(res!.biggestAWin!.gameId).toBe('g1');

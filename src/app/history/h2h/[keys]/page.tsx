@@ -100,11 +100,14 @@ export default async function H2HPairPage({ params: paramsPromise }: { params: P
                   <div key={c.competitionNameHe} className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs">
                     <span className="font-bold text-stone-800">{c.competitionNameHe}</span>
                     <span className="text-stone-400"> · {c.games} מש&#39; · </span>
-                    <span className="text-emerald-700">{c.winsA}</span>
-                    <span className="text-stone-400">-</span>
-                    <span className="text-stone-500">{c.draws}</span>
-                    <span className="text-stone-400">-</span>
-                    <span className="text-red-700">{c.winsB}</span>
+                    {/* A flex row keeps the order right-to-left; as plain text "37-18-23" reads backwards. */}
+                    <span className="inline-flex gap-0.5 align-baseline" dir="rtl">
+                      <span className="text-emerald-700">{c.winsA}</span>
+                      <span className="text-stone-400">-</span>
+                      <span className="text-stone-500">{c.draws}</span>
+                      <span className="text-stone-400">-</span>
+                      <span className="text-red-700">{c.winsB}</span>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -183,8 +186,10 @@ export default async function H2HPairPage({ params: paramsPromise }: { params: P
                         <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-stone-700">{m.homeTeamName}</Link>
                       </td>
                       <td className="p-0">
-                        <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-center font-black text-stone-900">
-                          {m.homeScore}:{m.awayScore}
+                        {/* Host's score on the right, under the host column — "2:5" as one string renders
+                            left-to-right and put the host's goals under the visitor. */}
+                        <Link href={`/games/${m.gameId}`} className="flex justify-center gap-1 px-4 py-3 font-black tabular-nums text-stone-900" dir="rtl">
+                          <span>{m.homeScore}</span><span className="text-stone-400">:</span><span>{m.awayScore}</span>
                         </Link>
                       </td>
                       <td className="p-0">

@@ -5,6 +5,7 @@
  * perspective, goals tally). Drives the H2H deep-dive panel on the game page.
  */
 import prisma from '@/lib/prisma';
+import { getCompetitionDisplayName } from '@/lib/competition-display';
 
 export interface H2HMeeting {
   gameId: string;
@@ -65,7 +66,7 @@ export async function buildH2H(teamAId: string, teamBId: string, limit = 10): Pr
     include: {
       homeTeam: { select: { nameHe: true, nameEn: true } },
       awayTeam: { select: { nameHe: true, nameEn: true } },
-      competition: { select: { nameHe: true } },
+      competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } },
     },
     orderBy: { dateTime: 'desc' },
   });
@@ -86,7 +87,7 @@ export async function buildH2H(teamAId: string, teamBId: string, limit = 10): Pr
       meetings.push({
         gameId: g.id,
         date: g.dateTime.toISOString().slice(0, 10),
-        competitionNameHe: g.competition?.nameHe || null,
+        competitionNameHe: g.competition ? getCompetitionDisplayName(g.competition) : null,
         homeTeamName: g.homeTeam.nameHe || g.homeTeam.nameEn,
         awayTeamName: g.awayTeam.nameHe || g.awayTeam.nameEn,
         homeScore: g.homeScore!,
@@ -188,7 +189,7 @@ async function computeFullH2H(teamAId: string, teamBId: string): Promise<FullH2H
     include: {
       homeTeam: { select: { nameHe: true, nameEn: true } },
       awayTeam: { select: { nameHe: true, nameEn: true } },
-      competition: { select: { nameHe: true } },
+      competition: { select: { nameHe: true, nameEn: true, apiFootballId: true } },
     },
     orderBy: { dateTime: 'desc' },
   });
@@ -225,7 +226,8 @@ async function computeFullH2H(teamAId: string, teamBId: string): Promise<FullH2H
 
     // Per-competition split — keyed on nameHe, grouped in insertion (games)
     // order; sorted by games desc at the end.
-    const compName = g.competition?.nameHe || 'לא ידוע';
+    // Display name, not the raw row: some cup rows carry an English name ("State Cup").
+    const compName = g.competition ? getCompetitionDisplayName(g.competition) : 'לא ידוע';
     let split = compMap.get(compName);
     if (!split) {
       split = { competitionNameHe: compName, games: 0, winsA: 0, draws: 0, winsB: 0 };
@@ -265,7 +267,7 @@ async function computeFullH2H(teamAId: string, teamBId: string): Promise<FullH2H
     meetings.push({
       gameId: g.id,
       date: g.dateTime.toISOString().slice(0, 10),
-      competitionNameHe: g.competition?.nameHe || null,
+      competitionNameHe: g.competition ? getCompetitionDisplayName(g.competition) : null,
       homeTeamName: g.homeTeam.nameHe || g.homeTeam.nameEn,
       awayTeamName: g.awayTeam.nameHe || g.awayTeam.nameEn,
       homeScore: g.homeScore!,
