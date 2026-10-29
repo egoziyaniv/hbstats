@@ -6,7 +6,7 @@ import Link from 'next/link';
 import React from 'react';
 import type { H2HSummary } from '@/lib/h2h';
 
-export function H2HPanel({ summary }: { summary: H2HSummary }) {
+export function H2HPanel({ summary, allHref = null }: { summary: H2HSummary; allHref?: string | null }) {
   if (summary.totalGames === 0) {
     return <p className="text-sm text-stone-500">אין פגישות קודמות בין הקבוצות.</p>;
   }
@@ -59,6 +59,14 @@ export function H2HPanel({ summary }: { summary: H2HSummary }) {
             </tbody>
           </table>
         </div>
+        {allHref ? (
+          <Link
+            href={allHref}
+            className="mt-2 flex items-center justify-center rounded-lg border border-stone-200 py-2 text-xs font-bold text-[var(--accent)] transition hover:border-[var(--accent)]/40 hover:bg-stone-50"
+          >
+            לכל {summary.totalGames} המפגשים ←
+          </Link>
+        ) : null}
       </div>
     </div>
   );

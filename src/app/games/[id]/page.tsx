@@ -149,6 +149,12 @@ export default async function GamePage({
   const { homeLineup, awayLineup } = await enrichCoaches(homeLineupRaw, awayLineupRaw);
   const { buildH2H } = await import('@/lib/h2h');
   const h2hSummary = await buildH2H(game.homeTeamId, game.awayTeamId);
+  // The panel shows the last ten; the club-pair history page lists every meeting.
+  const { getClubFamilyByTeamId } = await import('@/lib/history/club-identity');
+  const [homeClub, awayClub] = await Promise.all([getClubFamilyByTeamId(game.homeTeamId), getClubFamilyByTeamId(game.awayTeamId)]);
+  const h2hAllHref = homeClub && awayClub && homeClub.clubKey !== awayClub.clubKey
+    ? `/history/h2h/${homeClub.clubKey}__${awayClub.clubKey}`
+    : null;
 
   // Predicted lineups — only useful before kickoff, when actual lineups aren't
   // yet known. We use the last 5 completed games of each team in this season.
@@ -258,6 +264,7 @@ export default async function GamePage({
         awayLineup={awayLineup}
         bestPlayer={bestPlayer}
         h2hSummary={h2hSummary}
+        h2hAllHref={h2hAllHref}
         ratingPlayers={ratingPlayers}
         predictedLineups={predictedLineups}
         matchPreview={matchPreview}
@@ -458,6 +465,7 @@ function PremierGameView({
   awayLineup,
   bestPlayer,
   h2hSummary,
+  h2hAllHref,
   ratingPlayers,
   predictedLineups,
   matchPreview,
@@ -477,6 +485,7 @@ function PremierGameView({
   awayLineup: ReturnType<typeof buildTeamLineup>;
   bestPlayer: { player: LineupPlayer; side: 'home' | 'away' } | null;
   h2hSummary: import('@/lib/h2h').H2HSummary | null;
+  h2hAllHref: string | null;
   ratingPlayers: Array<{ playerId: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; position: string | null; side: 'home' | 'away' }>;
   predictedLineups: [import('@/lib/predicted-lineup').PredictedPlayer[], import('@/lib/predicted-lineup').PredictedPlayer[]] | null;
   matchPreview: MatchPreview | null;
@@ -644,7 +653,7 @@ function PremierGameView({
 
               {h2hSummary && h2hSummary.totalGames > 0 ? (
                 <PremierPanel title="היסטוריית עימותים">
-                  <H2HPanel summary={h2hSummary} />
+                  <H2HPanel summary={h2hSummary} allHref={h2hAllHref} />
                 </PremierPanel>
               ) : null}
 
