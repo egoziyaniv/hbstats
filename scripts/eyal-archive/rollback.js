@@ -13,6 +13,7 @@
  *   node scripts/eyal-archive/rollback.js --batch <batchId>            # dry run
  *   node scripts/eyal-archive/rollback.js --batch <batchId> --apply
  *   node scripts/eyal-archive/rollback.js --all [--basis round-inferred] [--raw] --apply
+ *   node scripts/eyal-archive/rollback.js --source rsssf-cup-fix --all --apply
  */
 const fs = require('fs');
 const path = require('path');
@@ -33,7 +34,7 @@ function loadEnv(file) {
 loadEnv(path.resolve(__dirname, '..', '..', '.env'));
 
 const { PrismaClient } = require('@prisma/client');
-const { SOURCE } = require('../lib/eyal-archive');
+const { SOURCE: ARCHIVE } = require('../lib/eyal-archive');
 
 const arg = (name) => {
   const i = process.argv.indexOf(name);
@@ -44,6 +45,8 @@ const BATCH = arg('--batch');
 const ALL = process.argv.includes('--all');
 const BASIS = arg('--basis');
 const RAW = process.argv.includes('--raw');
+// Other clean-ups that write the same ledger (scripts/fix-rsssf-cup-games.js) undo the same way.
+const SOURCE = arg('--source') || ARCHIVE;
 const prisma = new PrismaClient();
 
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -99,6 +102,13 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
 
   if (!APPLY) { console.log('\nDry run — re-run with --apply.'); await prisma.$disconnect(); return; }
 
+  // Teams a clean-up removed come back first — restored games point at them.
+  const deletedTeams = changes.filter((c) => c.table === 'teams' && c.field === '*deleted*');
+  for (const c of deletedTeams) {
+    const { createdAt, updatedAt, ...data } = c.oldValue;
+    if (!(await prisma.team.findUnique({ where: { id: data.id } }))) await prisma.team.create({ data });
+    restoredLedgerIds.push(c.id);
+  }
   for (const [id, data] of restore) await prisma.game.update({ where: { id }, data });
   for (const c of eventRestore) await prisma.gameEvent.update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
   await prisma.gameEvent.deleteMany({ where: { id: { in: createdEvents }, source: SOURCE } });
