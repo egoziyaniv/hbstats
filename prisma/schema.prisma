@@ -519,6 +519,8 @@ model Game {
   homePenalty         Int?
   awayScoreRegular    Int?
   homeScoreRegular    Int?
+  /// Spectators, when a source reports it (Eyal Hatav's archive, 1950-2020).
+  attendance          Int?
   activityLogs        ActivityLog[]
   fetchJobs           FetchJob[]
   events              GameEvent[]
@@ -588,6 +590,9 @@ model GameEvent {
   teamId                 String?
   participantName        String?
   relatedParticipantName String?
+  /// Who created the row when it was imported in bulk (e.g. 'eyal-archive'), so one import
+  /// can be removed without touching events from other sources.
+  source                 String?
   game                   Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
   player                 Player?   @relation("PrimaryPlayer", fields: [playerId], references: [id])
   relatedPlayer          Player?   @relation("RelatedPlayer", fields: [relatedPlayerId], references: [id])
@@ -596,6 +601,7 @@ model GameEvent {
   @@index([gameId, sortOrder])
   @@index([playerId])
   @@index([relatedPlayerId])
+  @@index([source])
   @@map("game_events")
 }
 
@@ -2156,4 +2162,27 @@ model FanArchiveRevision {
   item FanArchiveItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   @@index([itemId, createdAt])
   @@map("fan_archive_revisions")
+}
+
+/// One field changed by a bulk import, with the value it replaced — so an import can be
+/// undone field by field (scripts/eyal-archive/rollback.js) without reverting later edits.
+model DataImportChange {
+  id        String   @id @default(cuid())
+  source    String
+  batchId   String
+  table     String
+  recordId  String
+  field     String
+  oldValue  Json?
+  newValue  Json?
+  /// 'direct' — the source states it for this game; 'round-inferred' — copied from the
+  /// round's Beer Sheva game (same matchday, date not stated for this game).
+  basis     String   @default("direct")
+  /// Where in the source it came from, e.g. 'p62-r300' (book page, sheet row).
+  sourceRef String?
+  createdAt DateTime @default(now())
+
+  @@index([source, batchId])
+  @@index([table, recordId])
+  @@map("data_import_changes")
 }
