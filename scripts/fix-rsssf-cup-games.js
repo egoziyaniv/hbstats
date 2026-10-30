@@ -95,7 +95,7 @@ function leagueTwin(team, seasonTeams) {
 
   console.log(`${APPLY ? 'APPLY' : 'DRY RUN'} — tagged teams ${tagged.length}: fold into a league team ${folds.length}, keep (cup-only clubs) ${keep.length}`);
   console.log(`cup games to move ${LEAGUE} → ${CUP}: ${cupGames.length}`);
-  for (const f of folds.slice(0, 8)) console.log(`  ${f.from.nameEn} → ${f.to.nameEn} / ${f.to.nameHe}`);
+  for (const f of folds) if (f.from.nameHe !== f.to.nameHe || process.argv.includes("--all-folds")) console.log(`  ${f.from.nameEn} / ${f.from.nameHe} → ${f.to.nameEn} / ${f.to.nameHe}`);
 
   if (!APPLY) { console.log('\nDry run — re-run with --apply.'); await prisma.$disconnect(); return; }
 
