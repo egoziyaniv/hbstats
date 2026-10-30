@@ -42,7 +42,7 @@ export function H2HPanel({ summary, allHref = null }: { summary: H2HSummary; all
             <tbody>
               {summary.meetings.map((m) => (
                 <tr key={m.gameId} className="border-t border-stone-100 hover:bg-stone-50">
-                  <td className="px-2 py-1.5 text-stone-400" dir="ltr">{m.date}</td>
+                  {m.dateLabelHe ? <td className="px-2 py-1.5 text-stone-400">{m.dateLabelHe}</td> : <td className="px-2 py-1.5 text-stone-400" dir="ltr">{m.date}</td>}
                   <td className="px-2 py-1.5">{m.homeTeamName}</td>
                   <td className="px-2 py-1.5 text-center font-black text-stone-900" dir="ltr">{m.awayScore}-{m.homeScore}</td>
                   <td className="px-2 py-1.5">{m.awayTeamName}</td>

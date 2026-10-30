@@ -6,10 +6,13 @@
  */
 import prisma from '@/lib/prisma';
 import { getCompetitionDisplayName } from '@/lib/competition-display';
+import { placeholderDateLabel } from '@/lib/game-date';
 
 export interface H2HMeeting {
   gameId: string;
   date: string;
+  /** Season/round label when the stored date is a placeholder; otherwise null. */
+  dateLabelHe: string | null;
   competitionNameHe: string | null;
   homeTeamName: string;
   awayTeamName: string;
@@ -87,6 +90,7 @@ export async function buildH2H(teamAId: string, teamBId: string, limit = 10): Pr
       meetings.push({
         gameId: g.id,
         date: g.dateTime.toISOString().slice(0, 10),
+        dateLabelHe: placeholderDateLabel(g),
         competitionNameHe: g.competition ? getCompetitionDisplayName(g.competition) : null,
         homeTeamName: g.homeTeam.nameHe || g.homeTeam.nameEn,
         awayTeamName: g.awayTeam.nameHe || g.awayTeam.nameEn,
@@ -267,6 +271,7 @@ async function computeFullH2H(teamAId: string, teamBId: string): Promise<FullH2H
     meetings.push({
       gameId: g.id,
       date: g.dateTime.toISOString().slice(0, 10),
+      dateLabelHe: placeholderDateLabel(g),
       competitionNameHe: g.competition ? getCompetitionDisplayName(g.competition) : null,
       homeTeamName: g.homeTeam.nameHe || g.homeTeam.nameEn,
       awayTeamName: g.awayTeam.nameHe || g.awayTeam.nameEn,

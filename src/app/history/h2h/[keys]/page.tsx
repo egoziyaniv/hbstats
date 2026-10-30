@@ -178,9 +178,13 @@ export default async function H2HPairPage({ params: paramsPromise }: { params: P
                   {h2h.meetings.map((m) => (
                     <tr key={m.gameId} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
                       <td className="p-0">
-                        <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-stone-400" dir="ltr">
-                          {fmtDate(m.date)}
-                        </Link>
+                        {m.dateLabelHe ? (
+                          <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-stone-400">{m.dateLabelHe}</Link>
+                        ) : (
+                          <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-stone-400" dir="ltr">
+                            {fmtDate(m.date)}
+                          </Link>
+                        )}
                       </td>
                       <td className="p-0">
                         <Link href={`/games/${m.gameId}`} className="block px-4 py-3 text-stone-700">{m.homeTeamName}</Link>

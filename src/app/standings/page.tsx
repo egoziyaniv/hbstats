@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { gameDateLabel } from '@/lib/game-date';
 
 import { getCompetitionDisplayName, getRoundDisplayName } from '@/lib/competition-display';
 import { getCompetitionById } from '@/lib/competitions';
@@ -933,7 +934,7 @@ function PremierStandingsView({
                           className="block rounded-xl border border-stone-200 bg-white p-3 transition hover:border-[var(--accent)]/30 hover:shadow-sm"
                         >
                           <div className="flex items-center justify-between gap-2 text-xs text-stone-400">
-                            <span>{game.dateTime.toLocaleDateString('he-IL')}</span>
+                            <span>{gameDateLabel(game, (d) => d.toLocaleDateString('he-IL'))}</span>
                             <span>{game.status === 'COMPLETED' ? 'הסתיים' : game.status === 'ONGOING' ? '● חי' : 'מתוכנן'}</span>
                           </div>
                           <div className="mt-2 flex items-center justify-between gap-2">

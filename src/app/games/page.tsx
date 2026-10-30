@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import SmartFilterForm from '@/components/SmartFilterForm';
 import { getDisplayMode } from '@/lib/display-mode';
 import prisma from '@/lib/prisma';
+import { gameDateLabel } from '@/lib/game-date';
 import { getCompetitionDisplayName, getGameScoreDisplay, getRoundDisplayName } from '@/lib/competition-display';
 import { formatPlayerName } from '@/lib/player-display';
 
@@ -354,7 +355,7 @@ export default async function GamesPage({
                       {getCompetitionDisplayName(game.competition)} · {getRoundDisplayName(game.roundNameHe, game.roundNameEn)}
                     </div>
                     <div className="text-[11px] text-stone-400">
-                      {new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' }).format(game.dateTime)}
+                      {gameDateLabel({ ...game, seasonYear: selectedSeason?.year, roundNameHe: null, roundNameEn: null }, (d) => new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' }).format(d))}
                     </div>
                   </div>
 

@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { gameDateLabel } from '@/lib/game-date';
 import { formatPlayerName } from '@/lib/player-display';
 import type { SearchResultApiItem } from '@shared/types/mobile-api';
 
@@ -73,7 +74,7 @@ export async function searchEntities(query: string): Promise<SearchResultItem[]>
       id: game.id,
       type: 'game' as const,
       label: `${game.homeTeam.nameHe || game.homeTeam.nameEn} מול ${game.awayTeam.nameHe || game.awayTeam.nameEn}`,
-      subtitle: new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium' }).format(game.dateTime),
+      subtitle: gameDateLabel(game, (d) => new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium' }).format(d)),
       href: `/games/${game.id}`,
     })),
     ...venues.map((venue) => ({

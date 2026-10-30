@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { gameDateLabel } from '@/lib/game-date';
 import { requireUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { buildMatchdaySummary, HAPOEL_BEER_SHEVA_API_ID } from '@/lib/matchday-summary';
@@ -57,7 +58,7 @@ export default async function MyMatchdaysPage({ searchParams }: { searchParams: 
     <p className="text-xs text-stone-600">המאזן, השערים והאצטדיונים מחושבים רק ממשחקי הפועל באר שבע שהסתיימו עם תוצאה ידועה, בסינון הנוכחי. אצטדיון לא ידוע אינו נספר. הנוכחות היא דיווח אישי.</p>
     {filtered.length ? <section className="divide-y divide-stone-100 overflow-hidden rounded-3xl border border-stone-200 bg-white">{filtered.map(({ game, note }) => <article key={game.id}>
       <Link href={`/games/${game.id}`} className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-stone-50">
-        <time className="text-xs text-stone-500">{formatDate(game.dateTime)}</time>
+        <time className="text-xs text-stone-500">{gameDateLabel(game, (d) => formatDate(d))}</time>
         <span className="min-w-0 flex-1"><span className="block text-sm font-black">{game.homeTeam.nameHe || game.homeTeam.nameEn} נגד {game.awayTeam.nameHe || game.awayTeam.nameEn}</span><span className="mt-1 block text-xs text-stone-500">{game.season.name} · {game.competition?.nameHe || game.competition?.nameEn} · {game.venue?.nameHe || game.venue?.nameEn || 'אצטדיון לא ידוע'}</span></span>
         <strong dir="ltr" className="rounded-lg bg-stone-950 px-3 py-1.5 text-sm text-white">{game.homeScore === null || game.awayScore === null ? 'אין תוצאה' : `${game.awayScore}:${game.homeScore}`}</strong>
       </Link><MatchdayMemoryEditor gameId={game.id} initialNote={note} />

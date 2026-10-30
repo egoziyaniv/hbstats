@@ -80,6 +80,12 @@ export function getRoundDisplayName(roundHe?: string | null, roundEn?: string | 
     return `מחזור ${regularSeasonMatch[1]}`;
   }
 
+  // RSSSF history rows: "Round 12"
+  const plainRoundMatch = rawRound.match(/^Round\s+(\d+)$/i);
+  if (plainRoundMatch) {
+    return `מחזור ${plainRoundMatch[1]}`;
+  }
+
   const championshipRoundMatch = rawRound.match(/^Championship (?:Round|Group)\s*-\s*(\d+)$/i);
   if (championshipRoundMatch) {
     return `פליאוף עליון - מחזור ${championshipRoundMatch[1]}`;

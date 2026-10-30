@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { gameDateLabel } from '@/lib/game-date';
 import { notFound } from 'next/navigation';
 import { LeaderboardCategory } from '@prisma/client';
 import { derivePlayerDeepStats } from '@/lib/deep-stats';
@@ -1462,7 +1463,7 @@ function CardHistoryPanel({
       </h3>
       <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">
         {items.map((c) => {
-          const dateStr = new Intl.DateTimeFormat('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(c.dateTime));
+          const dateStr = gameDateLabel(c, (d) => new Intl.DateTimeFormat('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(d));
           const opponent = c.opponentNameHe || c.opponentNameEn;
           const sideLabel = c.isHome ? 'בית' : 'חוץ';
           const isRed = c.type === 'RED_CARD' || c.type === 'YELLOW_RED_CARD';
@@ -1586,7 +1587,7 @@ function buildPlayerGameRow(
     playerId: player.id,
     gameId: game.id,
     dateTime: game.dateTime,
-    displayDate: new Date(game.dateTime).toLocaleDateString('he-IL'),
+    displayDate: gameDateLabel(game, (d) => d.toLocaleDateString('he-IL')),
     seasonName: player.team.season.name,
     competitionName: game.competition?.nameHe || game.competition?.nameEn || '-',
     matchLabel: `${homeName} - ${awayName}`,

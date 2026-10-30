@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { gameDateLabel } from '@/lib/game-date';
 import { notFound } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { derivePlayerDeepStats, deriveTeamDeepStats } from '@/lib/deep-stats';
@@ -949,7 +950,7 @@ export default async function TeamPage({
                     >
                       {result}
                     </div>
-                    <div className="mt-2 text-xs font-semibold text-stone-500">{formatDate(game.dateTime)}</div>
+                    <div className="mt-2 text-xs font-semibold text-stone-500">{gameDateLabel(game, (d) => formatDate(d))}</div>
                     <div className="mt-1 text-sm font-black text-stone-900">{`${game.homeScore ?? 0}-${game.awayScore ?? 0}`}</div>
                     <div className="mt-1 text-[11px] text-stone-500">
                       {getOpponentName(game, team.id)}
@@ -978,7 +979,7 @@ export default async function TeamPage({
                         {game.homeTeam.nameHe || game.homeTeam.nameEn} - {game.awayTeam.nameHe || game.awayTeam.nameEn}
                       </div>
                     </div>
-                    <div className="text-xs font-bold text-stone-500">{formatDate(game.dateTime, true)}</div>
+                    <div className="text-xs font-bold text-stone-500">{gameDateLabel(game, (d) => formatDate(d, true))}</div>
                   </div>
                 </Link>
               ))}
@@ -1012,7 +1013,7 @@ export default async function TeamPage({
                       const resultColor = result === 'נ' ? 'bg-emerald-100 text-emerald-700' : result === 'ה' ? 'bg-red-100 text-red-700' : result === 'ת' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500';
                       return (
                         <tr key={game.id} className="border-b border-stone-100 transition hover:bg-stone-50">
-                          <td className="px-2 py-2.5 text-xs text-stone-500 whitespace-nowrap">{formatDate(game.dateTime)}</td>
+                          <td className="px-2 py-2.5 text-xs text-stone-500 whitespace-nowrap">{gameDateLabel(game, (d) => formatDate(d))}</td>
                           <td className="px-2 py-2.5 text-xs text-stone-500">{game.competition?.nameHe || game.competition?.nameEn || '—'}</td>
                           <td className="px-2 py-2.5">
                             <span className={`font-semibold ${isHome ? 'text-stone-900' : 'text-stone-500'}`}>
@@ -1469,7 +1470,7 @@ function GameSpotlight({
           <div className="mt-1 text-lg font-black text-stone-900">
             {game.homeTeam.nameHe || game.homeTeam.nameEn} - {game.awayTeam.nameHe || game.awayTeam.nameEn}
           </div>
-          <div className="mt-1 text-xs text-stone-500">{formatDate(game.dateTime, true)}</div>
+          <div className="mt-1 text-xs text-stone-500">{gameDateLabel(game, (d) => formatDate(d, true))}</div>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${isCompleted ? 'bg-stone-900 text-white' : 'bg-red-100 text-red-900'}`}>
           {isCompleted ? 'הסתיים' : 'בקרוב'}

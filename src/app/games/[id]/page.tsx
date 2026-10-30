@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { gameDateLabel } from '@/lib/game-date';
 import { getCompetitionDisplayName, getGameScoreDisplay, getRoundDisplayName } from '@/lib/competition-display';
 import { getEventDisplayLabel, getEventIconPath } from '@/lib/event-display';
 import { getCurrentUser } from '@/lib/auth';
@@ -59,6 +60,7 @@ export default async function GamePage({
       homeTeam: true,
       awayTeam: true,
       competition: true,
+      season: { select: { year: true } },
       gameStats: true,
       sofascoreMatchStats: true,
       fotmobData: true,
@@ -300,7 +302,7 @@ export default async function GamePage({
                   {getGameScoreDisplay(game)}
                 </div>
                 <div className="mt-2 text-xs text-stone-500">
-                  {new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium', timeStyle: 'short' }).format(game.dateTime)}
+                  {gameDateLabel({ ...game, seasonYear: game.season.year, roundNameHe: null, roundNameEn: null }, (d) => new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium', timeStyle: 'short' }).format(d))}
                 </div>
                 <div className="mt-2 text-sm font-semibold text-stone-700">
                   {getCompetitionDisplayName(game.competition)}
@@ -523,7 +525,7 @@ function PremierGameView({
                     <div className="text-sm font-semibold text-white/80">{getCompetitionDisplayName(game.competition)}</div>
                     <div dir="ltr" className="mt-2 text-4xl font-black tracking-tight md:text-5xl">{getGameScoreDisplay({ ...game, homeScore: game.awayScore, awayScore: game.homeScore, homeScoreRegular: game.awayScoreRegular, awayScoreRegular: game.homeScoreRegular, homePenalty: game.awayPenalty, awayPenalty: game.homePenalty })}</div>
                     <div className="mt-2 text-sm text-white/80">
-                      {new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium', timeStyle: 'short' }).format(game.dateTime)}
+                      {gameDateLabel({ ...game, seasonYear: game.season.year, roundNameHe: null, roundNameEn: null }, (d) => new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium', timeStyle: 'short' }).format(d))}
                     </div>
                     <div className="mt-1 text-sm font-semibold text-white/90">
                       {getRoundDisplayName(game.roundNameHe, game.roundNameEn)}

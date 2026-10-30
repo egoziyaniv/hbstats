@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { gameDateLabel } from '@/lib/game-date';
 import { getCurrentUser } from '@/lib/auth';
 import { getCompetitionDisplayName, getRoundDisplayName } from '@/lib/competition-display';
 import { getDisplayMode } from '@/lib/display-mode';
@@ -755,7 +756,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
       homeScore: (isLive ? liveItem?.homeScore ?? g.homeScore : g.homeScore) ?? 0,
       awayScore: (isLive ? liveItem?.awayScore ?? g.awayScore : g.awayScore) ?? 0,
       minuteLabel: isLive ? liveItem?.minuteLabel || 'חי' : null,
-      dateLabel: formatDate(g.dateTime, true),
+      dateLabel: gameDateLabel(g, (d) => formatDate(d, true)),
       showScore: isLive || isCompleted,
       showTeaser: g.status === 'SCHEDULED',
       kickoffIso: new Date(g.dateTime).toISOString(),
@@ -873,7 +874,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
               <h2 className="mt-1 text-lg font-black">{clubArchiveGame.season.name}</h2>
             </div>
             <Link href={`/games/${clubArchiveGame.id}`} className="block p-5 transition hover:bg-stone-50">
-              <div className="text-xs font-semibold text-stone-500">{getCompetitionDisplayName(clubArchiveGame.competition)} · {formatDate(clubArchiveGame.dateTime)}</div>
+              <div className="text-xs font-semibold text-stone-500">{getCompetitionDisplayName(clubArchiveGame.competition)} · {gameDateLabel(clubArchiveGame, (d) => formatDate(d))}</div>
               <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
                 <span className="text-sm font-black text-stone-900">{getTeamLabel(clubArchiveGame.homeTeam)}</span>
                 <span className="rounded-xl bg-stone-950 px-4 py-2 text-lg font-black tabular-nums text-white">{clubArchiveGame.homeScore}:{clubArchiveGame.awayScore}</span>
@@ -984,7 +985,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
 
           {/* ── COL 2: Last Game + Next Round ── */}
           <div className="space-y-5">
-            {lastMatch ? <LastMatchCard summary={lastMatch} dateLabel={formatDate(lastMatch.dateTime, true)} /> : null}
+            {lastMatch ? <LastMatchCard summary={lastMatch} dateLabel={gameDateLabel(lastMatch, (d) => formatDate(d, true))} /> : null}
 
             <Card title={`משחקי ${nextRoundLabel || 'המחזור'}`} actionHref="/games" actionLabel="כל המשחקים">
               <div className="space-y-2">
@@ -1003,7 +1004,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
                         )}
                         <span className={`text-center text-sm font-bold ${isFav ? 'text-[var(--accent-text)]' : 'text-stone-800'}`}>{getTeamLabel(game.awayTeam)}</span>
                       </div>
-                      <div className="mt-1 text-center text-[11px] text-stone-400">{formatDate(game.dateTime, true)}</div>
+                      <div className="mt-1 text-center text-[11px] text-stone-400">{gameDateLabel(game, (d) => formatDate(d, true))}</div>
                       {wo && !completed && (
                         <div className="mt-2 grid grid-cols-3 gap-1 border-t border-stone-200 pt-2">
                           <div className="rounded-md bg-white px-1 py-1 text-center">
