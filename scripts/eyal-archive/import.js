@@ -111,7 +111,9 @@ function matchRow(row, ctx) {
   const bsAway = isBsName(row['קבוצת חוץ']);
   if (bsHome === bsAway) return { status: 'no-teams' };
   const opponent = row['יריבה'];
-  const round = A.roundNumber(row['מחזור / סיבוב']);
+  // In a play-off stage ("גמר-רגל עליון") the book restarts the count at 1; we number those
+  // rounds on from the regular season (27-36), so the book's round can't be compared.
+  const round = row['שלב'] ? null : A.roundNumber(row['מחזור / סיבוב']);
   const isLeague = row['מסגרת'] === 'משחקי הליגה';
 
   let cands = ctx.games.filter((g) => years.includes(g.season.year)
@@ -158,7 +160,8 @@ function matchRow(row, ctx) {
       return { status: 'conflict', game, reason: `score ${game.homeScore}:${game.awayScore} vs book ${file.home}:${file.away}` };
     }
   }
-  return { status: 'matched', game, kind, file, round, bsHome };
+  // The round as WE number it — what round-dates must key on.
+  return { status: 'matched', game, kind, file, round: ourRound ?? round, bsHome };
 }
 
 /** Field changes for one matched game — only into empty fields (a placeholder date counts as empty). */
@@ -359,8 +362,22 @@ async function recordBatch(batchId, stage, counts) {
   console.log(`\nunmatched top-flight league rows: ${unmatchedLeague.length}`);
   for (const u of unmatchedLeague.slice(0, 12)) console.log(`  ${u.ref} ${u.season} ${u.game} — ${u.status}`);
 
+  // Our round vs the book's, per season — where they disagree, one numbering is wrong.
+  const roundCheck = {};
+  for (const { row, m } of results) {
+    if (!m.game || row['מסגרת'] !== 'משחקי הליגה') continue;
+    if (row['שלב']) continue;
+    const book = A.roundNumber(row['מחזור / סיבוב']);
+    const ours = A.roundNumber(m.game.roundNameHe || m.game.roundNameEn);
+    if (book === null || ours === null) continue;
+    const k = row['עונה'];
+    roundCheck[k] = roundCheck[k] || { same: 0, diff: 0 };
+    roundCheck[k][book === ours ? 'same' : 'diff'] += 1;
+  }
+  console.log('\nround agreement (season same/diff):', Object.entries(roundCheck).map(([k, v]) => `${k} ${v.same}/${v.diff}`).join(' · '));
+
   if (REPORT) {
-    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length }, null, 1));
+    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length }, null, 1));
     console.log(`\nreport → ${REPORT}`);
   }
 
