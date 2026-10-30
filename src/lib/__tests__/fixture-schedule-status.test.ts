@@ -1,3 +1,4 @@
+export {};
 const { schedulingStatusUpdate } = require('../../../scripts/lib/fixture-schedule-status');
 const game = { status: 'SCHEDULED', statusShort: 'NS', statusLong: 'Not Started' };
 
