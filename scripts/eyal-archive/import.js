@@ -155,7 +155,9 @@ function matchRow(row, ctx) {
   if (kind === 'invalid') return { status: 'conflict', game, reason: `unreadable note: ${row['הערה לתוצאה']}` };
   if (file && game.homeScore !== null && game.awayScore !== null) {
     if (kind === 'pens') {
-      if (game.homeScore !== game.awayScore) return { status: 'conflict', game, reason: `shootout row but our score ${game.homeScore}:${game.awayScore}` };
+      // A drawn game, or the second leg of a tie decided on aggregate — then the shootout we hold must agree.
+      const shootoutAgrees = game.homePenalty === file.home && game.awayPenalty === file.away;
+      if (game.homeScore !== game.awayScore && !shootoutAgrees) return { status: 'conflict', game, reason: `shootout row but our score ${game.homeScore}:${game.awayScore}` };
     } else if (!['technical', 'technical-no-points'].includes(kind) && (file.home !== game.homeScore || file.away !== game.awayScore)) {
       return { status: 'conflict', game, reason: `score ${game.homeScore}:${game.awayScore} vs book ${file.home}:${file.away}` };
     }
@@ -304,11 +306,14 @@ const RECONCILE_FROM = 1991;
 function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
   const groups = new Map();
   const skipped = {};
-  const skip = (why) => { skipped[why] = (skipped[why] || 0) + 1; };
+  const skippedRefs = [];
+  let current = null;
+  const skip = (why) => { skipped[why] = (skipped[why] || 0) + 1; if (current) skippedRefs.push({ ref: A.sourceRef(current), why }); };
   for (const { row, m } of results) {
     if (m.status === 'matched') continue;
     const year = A.seasonStartYear(row['עונה']);
     if (year < RECONCILE_FROM) continue;
+    current = row;
     const target = A.competitionTarget(row);
     if (!target || target.europe) { skip('competition'); continue; }
     const bsHome = isBsName(row['קבוצת בית']);
@@ -322,6 +327,8 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
     const opp = scored.filter((x) => x.score === best);
     if (best < 2 || opp.length !== 1) { skip(best < 2 ? 'opponent-unknown' : 'opponent-ambiguous'); continue; }
     const key = `${year}|${comps[0]}|${opp[0].t.id}`;
+    // Every team the name could be — a club held twice ("בני יהודה" / "בני יהודה תל אביב") must not get a second copy of a game.
+    const oppIds = new Set(scored.filter((x) => x.score >= 2).map((x) => x.t.id));
     if (!groups.has(key)) {
       // A season can sit under two season rows (and Beer Sheva under two team rows): take the common one.
       const mode = (xs) => [...xs.reduce((m, x) => m.set(x, (m.get(x) || 0) + 1), new Map())].sort((a, b) => b[1] - a[1])[0][0];
@@ -329,7 +336,7 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
         seasonId: mode(bsGames.map((g) => g.seasonId)), competitionId: comps[0], oppId: opp[0].t.id,
         bsId: mode(bsGames.map((g) => (ctx.bsIds.has(g.homeTeamId) ? g.homeTeamId : g.awayTeamId))), rows: [],
         games: ctx.games.filter((g) => g.season.year === year && g.competitionId === comps[0] && !matchedIds.has(g.id)
-          && (g.homeTeamId === opp[0].t.id || g.awayTeamId === opp[0].t.id)),
+          && (oppIds.has(g.homeTeamId) || oppIds.has(g.awayTeamId))),
       });
     }
     const isLeague = row['מסגרת'] === 'משחקי הליגה';
@@ -338,7 +345,8 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
     groups.get(key).rows.push({ row, bsHome, isLeague, round, kind: A.resultKind(row['הערה לתוצאה']), file: A.parseScore(row['תוצאה (בית:חוץ)']) });
   }
 
-  const plan = { swap: [], fix: [], create: [], left: [], skipped };
+  current = null;
+  const plan = { swap: [], fix: [], create: [], left: [], skipped, skippedRefs };
   for (const grp of groups.values()) {
     let rows = grp.rows;
     let games = grp.games;
@@ -566,7 +574,7 @@ async function recordBatch(batchId, stage, counts) {
   for (const f of rec.fix) console.log(`  fix ${f.ref} ${f.gameId}: ${f.changes.map((c) => `${c.field} ${JSON.stringify(c.oldValue)}→${JSON.stringify(c.newValue)}`).join(', ')}`);
 
   if (REPORT) {
-    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length, reconcile: { swap: rec.swap.map((w) => ({ ref: w.ref, gameId: w.game.id })), fix: rec.fix, create: rec.create, left: rec.left }, swaps: swaps.map((w) => ({ ref: w.ref, gameId: w.game.id })) }, null, 1));
+    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length, reconcile: { swap: rec.swap.map((w) => ({ ref: w.ref, gameId: w.game.id })), fix: rec.fix, create: rec.create, left: rec.left, skippedRefs: rec.skippedRefs }, swaps: swaps.map((w) => ({ ref: w.ref, gameId: w.game.id })) }, null, 1));
     console.log(`\nreport → ${REPORT}`);
   }
 

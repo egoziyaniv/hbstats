@@ -26,6 +26,7 @@ function normalizeTeamName(name) {
     .replace(/[״”“]/g, '"')
     .replace(/[׳’‘]/g, "'")
     .replace(/מכביתל/g, 'מכבי תל')
+    .replace(/ניר רמת/g, 'רמת')
     .replace(/-/g, ' ')
     .replace(/\./g, '')
     .replace(/תקוה/g, 'תקווה')
