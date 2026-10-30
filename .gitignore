@@ -69,3 +69,7 @@ mobile/docs/apple-credentials.md
 .superpowers/
 .worktrees/
 scratchpad/
+
+# Source archives shared privately (e.g. Eyal Hatav's HBS games archive). The repo is public —
+# these files go to the server by scp, never into git.
+docs/games/
