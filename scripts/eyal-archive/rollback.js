@@ -83,16 +83,26 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
     restore.set(c.recordId, data);
     restoredLedgerIds.push(c.id);
   }
-  console.log(`  games to restore: ${restore.size}, events to delete: ${createdEvents.length}, edited since import (kept): ${editedSince.length}`);
+  // Event fields (the home/away swap flips `team`): restore when untouched since.
+  const eventChanges = changes.filter((c) => c.table === 'game_events' && c.field !== '*created*');
+  const eventsNow = new Map((await prisma.gameEvent.findMany({ where: { id: { in: eventChanges.map((c) => c.recordId) } }, select: { id: true, team: true } })).map((e) => [e.id, e]));
+  const eventRestore = [];
+  for (const c of eventChanges) {
+    const e = eventsNow.get(c.recordId);
+    if (e && same(e[c.field], c.newValue)) eventRestore.push(c);
+    else if (e) editedSince.push(`${c.recordId}.${c.field}`);
+  }
+  console.log(`  games to restore: ${restore.size}, events to delete: ${createdEvents.length}, event fields to restore: ${eventRestore.length}, edited since import (kept): ${editedSince.length}`);
   for (const e of editedSince.slice(0, 10)) console.log(`    kept ${e}`);
   if (RAW) console.log(`  scraped rows to delete: ${await prisma.scrapedMatch.count({ where: { source: SOURCE } })}`);
 
   if (!APPLY) { console.log('\nDry run — re-run with --apply.'); await prisma.$disconnect(); return; }
 
   for (const [id, data] of restore) await prisma.game.update({ where: { id }, data });
+  for (const c of eventRestore) await prisma.gameEvent.update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
   await prisma.gameEvent.deleteMany({ where: { id: { in: createdEvents }, source: SOURCE } });
   // Ledger rows of fields edited since stay, so the history of what the archive wrote is kept.
-  const eventLedgerIds = changes.filter((c) => c.table === 'game_events').map((c) => c.id);
+  const eventLedgerIds = [...changes.filter((c) => c.table === 'game_events' && c.field === '*created*'), ...eventRestore].map((c) => c.id);
   await prisma.dataImportChange.deleteMany({ where: { id: { in: [...restoredLedgerIds, ...eventLedgerIds] } } });
   if (RAW) await prisma.scrapedMatch.deleteMany({ where: { source: SOURCE } });
   console.log('  done');

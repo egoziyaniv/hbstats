@@ -52,7 +52,7 @@ const FILE = arg('--file');
 const STAGE = arg('--stage');
 const APPLY = process.argv.includes('--apply');
 const REPORT = arg('--report');
-const STAGES = ['raw', 'enrich', 'goals', 'round-dates'];
+const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap'];
 if (!FILE) { console.error('--file <archive.json> is required'); process.exit(1); }
 if (APPLY && !STAGES.includes(STAGE)) { console.error(`--apply needs --stage ${STAGES.join('|')}`); process.exit(1); }
 if (STAGE && !STAGES.includes(STAGE)) { console.error(`unknown stage ${STAGE}`); process.exit(1); }
@@ -268,6 +268,29 @@ async function roundDatePlan(matches) {
   return { plan, rounds: rounds.size };
 }
 
+/**
+ * Score conflicts where OUR data has the hosts the wrong way round: the book's game exists
+ * with the teams reversed and the same result for each team (2001-05 imports). Each such
+ * game gets home and away swapped. A game the book already matched is never touched.
+ */
+function swapPlan(results, ctx, matchedIds) {
+  const plan = new Map();
+  for (const { row, m } of results) {
+    if (m.status !== 'conflict' || !m.reason.startsWith('score')) continue;
+    const file = A.parseScore(row['תוצאה (בית:חוץ)']);
+    if (!file) continue;
+    const g = m.game;
+    const flips = ctx.games.filter((x) => x.seasonId === g.seasonId && x.competitionId === g.competitionId
+      && x.homeTeamId === g.awayTeamId && x.awayTeamId === g.homeTeamId
+      && x.homeScore === file.away && x.awayScore === file.home);
+    if (flips.length !== 1 || matchedIds.has(flips[0].id) || flips[0].apiFootballId != null) continue;
+    plan.set(flips[0].id, { game: flips[0], ref: A.sourceRef(row) });
+  }
+  return [...plan.values()];
+}
+
+const SWAP_PAIRS = [['homeTeamId', 'awayTeamId'], ['homeScore', 'awayScore'], ['homeScoreRegular', 'awayScoreRegular'], ['homePenalty', 'awayPenalty']];
+
 const toPrismaValue = (field, v) => (field === 'dateTime' && v ? new Date(v) : v);
 
 async function writeChanges(batchId, items) {
@@ -376,8 +399,13 @@ async function recordBatch(batchId, stage, counts) {
   }
   console.log('\nround agreement (season same/diff):', Object.entries(roundCheck).map(([k, v]) => `${k} ${v.same}/${v.diff}`).join(' · '));
 
+  // ── swap ──
+  const swaps = swapPlan(results, ctx, new Set(good.map((x) => x.m.game.id)));
+  console.log(`\nswap: ${swaps.length} games of ours have home and away the wrong way round`);
+  for (const w of swaps.slice(0, 6)) console.log(`  ${w.ref} ${w.game.homeTeam.nameHe} - ${w.game.awayTeam.nameHe} ${w.game.homeScore}:${w.game.awayScore} → swapped`);
+
   if (REPORT) {
-    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length }, null, 1));
+    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length, swaps: swaps.map((w) => ({ ref: w.ref, gameId: w.game.id })) }, null, 1));
     console.log(`\nreport → ${REPORT}`);
   }
 
@@ -444,6 +472,39 @@ async function recordBatch(batchId, stage, counts) {
     const updated = await writeChanges(batchId, items);
     await recordBatch(batchId, STAGE, { updated });
     console.log(`\nround-dates: ${updated} games dated — batch ${batchId}`);
+  }
+
+  if (STAGE === 'swap') {
+    let updated = 0;
+    const skipped = [];
+    for (const w of swaps) {
+      const g = await prisma.game.findUnique({
+        where: { id: w.game.id },
+        include: { events: { select: { id: true, team: true } }, gameStats: { select: { id: true } }, sofascoreMatchStats: { select: { id: true } }, fotmobData: { select: { id: true } } },
+      });
+      // Per-side statistics would need swapping too — none of these old games has them; skip if one does.
+      if (g.gameStats || g.sofascoreMatchStats || g.fotmobData) { skipped.push(w.ref); continue; }
+      const changes = [];
+      for (const [h, a] of SWAP_PAIRS) {
+        if (g[h] === g[a]) continue;
+        changes.push({ field: h, oldValue: g[h], newValue: g[a] }, { field: a, oldValue: g[a], newValue: g[h] });
+      }
+      const flip = (t) => (t === 'home' ? 'away' : t === 'away' ? 'home' : t);
+      const events = g.events.filter((e) => flip(e.team) !== e.team);
+      await prisma.$transaction([
+        prisma.game.update({ where: { id: g.id }, data: Object.fromEntries(changes.map((c) => [c.field, c.newValue])) }),
+        ...events.map((e) => prisma.gameEvent.update({ where: { id: e.id }, data: { team: flip(e.team) } })),
+        prisma.dataImportChange.createMany({
+          data: [
+            ...changes.map((c) => ({ source: A.SOURCE, batchId, table: 'games', recordId: g.id, field: c.field, oldValue: c.oldValue ?? undefined, newValue: c.newValue ?? undefined, basis: 'home-away-swap', sourceRef: w.ref })),
+            ...events.map((e) => ({ source: A.SOURCE, batchId, table: 'game_events', recordId: e.id, field: 'team', oldValue: e.team, newValue: flip(e.team), basis: 'home-away-swap', sourceRef: w.ref })),
+          ],
+        }),
+      ]);
+      updated += 1;
+    }
+    await recordBatch(batchId, STAGE, { updated });
+    console.log(`\nswap: ${updated} games swapped${skipped.length ? `, skipped (have per-side stats): ${skipped.join(' ')}` : ''} — batch ${batchId}. Re-run enrich, goals and round-dates to fill them.`);
   }
 
   await prisma.$disconnect();
