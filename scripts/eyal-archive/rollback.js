@@ -67,7 +67,8 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   // Events: delete what the import created.
   const createdEvents = changes.filter((c) => c.table === 'game_events' && c.field === '*created*').map((c) => c.recordId);
   // Game fields: restore when untouched since.
-  const gameChanges = changes.filter((c) => c.table === 'games');
+  const createdGames = changes.filter((c) => c.table === 'games' && c.field === '*created*').map((c) => c.recordId);
+  const gameChanges = changes.filter((c) => c.table === 'games' && c.field !== '*created*');
   const gameIds = [...new Set(gameChanges.map((c) => c.recordId))];
   const games = new Map((await prisma.game.findMany({ where: { id: { in: gameIds } } })).map((g) => [g.id, g]));
   const restore = new Map();
@@ -92,7 +93,7 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
     if (e && same(e[c.field], c.newValue)) eventRestore.push(c);
     else if (e) editedSince.push(`${c.recordId}.${c.field}`);
   }
-  console.log(`  games to restore: ${restore.size}, events to delete: ${createdEvents.length}, event fields to restore: ${eventRestore.length}, edited since import (kept): ${editedSince.length}`);
+  console.log(`  games to restore: ${restore.size}, events to delete: ${createdEvents.length}, event fields to restore: ${eventRestore.length}, games to delete: ${createdGames.length}, edited since import (kept): ${editedSince.length}`);
   for (const e of editedSince.slice(0, 10)) console.log(`    kept ${e}`);
   if (RAW) console.log(`  scraped rows to delete: ${await prisma.scrapedMatch.count({ where: { source: SOURCE } })}`);
 
@@ -101,6 +102,16 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   for (const [id, data] of restore) await prisma.game.update({ where: { id }, data });
   for (const c of eventRestore) await prisma.gameEvent.update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
   await prisma.gameEvent.deleteMany({ where: { id: { in: createdEvents }, source: SOURCE } });
+  // Created games go last, with any archive events on them; a game something else now hangs on is kept.
+  const deletedGames = [];
+  for (const id of createdGames) {
+    try {
+      await prisma.$transaction([prisma.gameEvent.deleteMany({ where: { gameId: id, source: SOURCE } }), prisma.game.delete({ where: { id } })]);
+      deletedGames.push(id);
+    } catch (e) { console.log(`    kept created game ${id}: ${e.code || e.message}`); }
+  }
+  const createdLedgerIds = changes.filter((c) => c.field === '*created*' && c.table === 'games' && deletedGames.includes(c.recordId)).map((c) => c.id);
+  restoredLedgerIds.push(...createdLedgerIds);
   // Ledger rows of fields edited since stay, so the history of what the archive wrote is kept.
   const eventLedgerIds = [...changes.filter((c) => c.table === 'game_events' && c.field === '*created*'), ...eventRestore].map((c) => c.id);
   await prisma.dataImportChange.deleteMany({ where: { id: { in: [...restoredLedgerIds, ...eventLedgerIds] } } });
