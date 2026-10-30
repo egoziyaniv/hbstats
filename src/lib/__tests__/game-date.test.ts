@@ -1,4 +1,4 @@
-import { gameDateLabel, isPlaceholderGameDate, placeholderDateLabel } from '@/lib/game-date';
+import { gameDateLabel, isDateOnlyGameDate, isPlaceholderGameDate, placeholderDateLabel } from '@/lib/game-date';
 import { getRoundDisplayName } from '@/lib/competition-display';
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
@@ -29,5 +29,14 @@ describe('placeholder game dates', () => {
   });
   it('shows RSSSF "Round N" rounds in Hebrew', () => {
     expect(getRoundDisplayName(null, 'Round 7')).toBe('מחזור 7');
+  });
+});
+
+describe('date-only game dates', () => {
+  it('shows a known day without inventing a kickoff time', () => {
+    expect(isDateOnlyGameDate('1994-03-12T10:00:00.000Z')).toBe(true);
+    expect(isDateOnlyGameDate('1994-03-12T10:00:00.000Z', 99)).toBe(false);
+    expect(isDateOnlyGameDate('1994-03-12T17:30:00.000Z')).toBe(false);
+    expect(gameDateLabel({ dateTime: '1994-03-12T10:00:00.000Z' }, () => 'with time')).toBe('12.3.1994');
   });
 });

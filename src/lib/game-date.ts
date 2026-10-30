@@ -15,6 +15,20 @@ export function isPlaceholderGameDate(dateTime: Date | string, apiFootballId?: n
   return iso.slice(5) === '09-01T00:00:00.000Z' || iso.slice(5) === '05-01T20:00:00.000Z';
 }
 
+/**
+ * A game whose day is known but not its kickoff (Eyal Hatav's archive gives dates only)
+ * is stored at 10:00 UTC. It is shown as a date alone, never as "12:00".
+ */
+export function isDateOnlyGameDate(dateTime: Date | string, apiFootballId?: number | null): boolean {
+  if (apiFootballId != null) return false;
+  return new Date(dateTime).toISOString().slice(10) === 'T10:00:00.000Z';
+}
+
+/** "12.3.1994" in Israel time. */
+export function formatDateOnlyHe(d: Date): string {
+  return new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Jerusalem' }).format(d);
+}
+
 /** "עונת 1993/94" from the season's start year. */
 export function seasonLabelHe(startYear: number): string {
   return `עונת ${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`;
@@ -42,7 +56,11 @@ export function placeholderDateLabel(game: GameDateInput): string | null {
   return round ? `${seasonLabelHe(year)} · ${round}` : seasonLabelHe(year);
 }
 
-/** The game's date via `format`, or its season/round label when the date is a placeholder. */
+/** The game's date via `format`, its season/round label when the date is a placeholder,
+ *  or the bare date when only the day is known. */
 export function gameDateLabel(game: GameDateInput, format: (d: Date) => string): string {
-  return placeholderDateLabel(game) ?? format(new Date(game.dateTime));
+  const placeholder = placeholderDateLabel(game);
+  if (placeholder) return placeholder;
+  const d = new Date(game.dateTime);
+  return isDateOnlyGameDate(d, game.apiFootballId) ? formatDateOnlyHe(d) : format(d);
 }

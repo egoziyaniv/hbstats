@@ -76,6 +76,7 @@ export default async function GamePage({
           nameHe: true,
         },
       },
+      venue: { select: { nameHe: true, nameEn: true } },
       events: {
         include: {
           player: true,
@@ -311,6 +312,7 @@ export default async function GamePage({
                 <div className="mt-3 inline-flex rounded-full bg-stone-100 px-3 py-1.5 text-xs font-bold text-stone-700">
                   שופט: {game.referee?.nameHe || game.referee?.nameEn || game.refereeHe || game.refereeEn || 'לא זמין'}
                 </div>
+                <GameFactsLine game={game} className="mt-2 justify-center text-xs text-stone-500" />
               </div>
               <div className="text-center md:text-right">
                 {game.awayTeam.logoUrl ? (
@@ -546,6 +548,7 @@ function PremierGameView({
                     ) : null;
                   })()}
                 </div>
+                <GameFactsLine game={game} className="text-xs text-white/75" />
                 <MatchdayAttendanceButton gameId={game.id} initialAttended={initiallyAttended} isLoggedIn={isLoggedIn} />
               </div>
 
@@ -831,6 +834,31 @@ function PremierGameView({
           </>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+type GameFacts = {
+  venue?: { nameHe: string; nameEn: string } | null;
+  venueNameHe?: string | null;
+  venueNameEn?: string | null;
+  attendance?: number | null;
+  additionalInfo?: unknown;
+};
+
+/** Stadium, crowd and — for games enriched from it — the credit to Eyal Hatav's archive. */
+function GameFactsLine({ game, className }: { game: GameFacts; className: string }) {
+  const venue = game.venue?.nameHe || game.venueNameHe || game.venue?.nameEn || game.venueNameEn;
+  const fromArchive = Boolean((game.additionalInfo as { eyalArchive?: unknown } | null)?.eyalArchive);
+  const facts = [
+    venue ? `אצטדיון: ${venue}` : null,
+    game.attendance ? `קהל: ${game.attendance.toLocaleString('he-IL')}` : null,
+    fromArchive ? 'מקור: הארכיון של אייל חטב' : null,
+  ].filter(Boolean);
+  if (!facts.length) return null;
+  return (
+    <div className={`flex flex-wrap gap-x-3 gap-y-1 ${className}`}>
+      {facts.map((fact) => <span key={fact}>{fact}</span>)}
     </div>
   );
 }
