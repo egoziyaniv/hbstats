@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { gameDateLabel } from '@/lib/game-date';
+import { formatDateOnlyHe, gameDateLabel } from '@/lib/game-date';
 import { getCompetitionDisplayName, getGameScoreDisplay, getRoundDisplayName } from '@/lib/competition-display';
 import { getEventDisplayLabel, getEventIconPath } from '@/lib/event-display';
 import { getCurrentUser } from '@/lib/auth';
@@ -313,6 +313,7 @@ export default async function GamePage({
                   שופט: {game.referee?.nameHe || game.referee?.nameEn || game.refereeHe || game.refereeEn || 'לא זמין'}
                 </div>
                 <GameFactsLine game={game} className="mt-2 justify-center text-xs text-stone-500" />
+                <AbandonedMatchNote additionalInfo={game.additionalInfo} className="mt-2 text-xs font-semibold text-amber-800" />
               </div>
               <div className="text-center md:text-right">
                 {game.awayTeam.logoUrl ? (
@@ -549,6 +550,7 @@ function PremierGameView({
                   })()}
                 </div>
                 <GameFactsLine game={game} className="text-xs text-white/75" />
+                <AbandonedMatchNote additionalInfo={game.additionalInfo} className="rounded-2xl bg-amber-400/90 px-3 py-2 text-xs font-semibold text-amber-950" />
                 <MatchdayAttendanceButton gameId={game.id} initialAttended={initiallyAttended} isLoggedIn={isLoggedIn} />
               </div>
 
@@ -845,6 +847,30 @@ type GameFacts = {
   attendance?: number | null;
   additionalInfo?: unknown;
 };
+
+type AbandonedMatch = {
+  date?: string | null;
+  venueHe?: string | null;
+  homeTeamHe?: string | null;
+  awayTeamHe?: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  reasonHe?: string | null;
+};
+
+/** A replay: the first game was abandoned. "המשחק המקורי (22.4.1985, איצטדיון רמת-גן) הופסק ב-1:1 עקב גשם שוטף". */
+function AbandonedMatchNote({ additionalInfo, className }: { additionalInfo: unknown; className: string }) {
+  const a = (additionalInfo as { abandonedMatch?: AbandonedMatch } | null)?.abandonedMatch;
+  if (!a) return null;
+  const date = a.date ? formatDateOnlyHe(new Date(`${a.date}T10:00:00.000Z`)) : null;
+  const where = [date, a.venueHe].filter(Boolean).join(', ');
+  const score = a.homeScore != null && a.awayScore != null ? ` במצב ${a.homeTeamHe} ${a.homeScore}, ${a.awayTeamHe} ${a.awayScore}` : '';
+  return (
+    <div className={className}>
+      משחק חוזר. המשחק המקורי{where ? ` (${where})` : ''} הופסק{score}{a.reasonHe ? ` עקב ${a.reasonHe}` : ''}.
+    </div>
+  );
+}
 
 /** Stadium, crowd and — for games enriched from it — the credit to Eyal Hatav's archive. */
 function GameFactsLine({ game, className }: { game: GameFacts; className: string }) {

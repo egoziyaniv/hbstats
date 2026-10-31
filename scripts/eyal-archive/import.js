@@ -52,7 +52,7 @@ const FILE = arg('--file');
 const STAGE = arg('--stage');
 const APPLY = process.argv.includes('--apply');
 const REPORT = arg('--report');
-const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap', 'reconcile'];
+const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap', 'reconcile', 'abandoned'];
 if (!FILE) { console.error('--file <archive.json> is required'); process.exit(1); }
 if (APPLY && !STAGES.includes(STAGE)) { console.error(`--apply needs --stage ${STAGES.join('|')}`); process.exit(1); }
 if (STAGE && !STAGES.includes(STAGE)) { console.error(`unknown stage ${STAGE}`); process.exit(1); }
@@ -289,6 +289,39 @@ function swapPlan(results, ctx, matchedIds) {
     plan.set(flips[0].id, { game: flips[0], ref: A.sourceRef(row) });
   }
   return [...plan.values()];
+}
+
+/** Why a game was abandoned, where the book doesn't say — from the owner, by book row. */
+const ABANDONED_REASONS = { 'p164-r1051': 'גשם שוטף' };
+
+/**
+ * An abandoned game ("הופסק") replayed later: the book has both rows. The replay is the game
+ * of record; the abandoned one is kept on it as a note — date, ground, score at the stop.
+ */
+function abandonedPlan(results, good) {
+  const plan = [];
+  for (const { row } of results) {
+    if (A.resultKind(row['הערה לתוצאה']) !== 'abandoned') continue;
+    const replay = good.find(({ row: r }) => r['עונה'] === row['עונה'] && r['מסגרת'] === row['מסגרת'] && r['יריבה'] === row['יריבה']
+      && /חוזר/.test(String(r['מחזור / סיבוב'] || '')) && String(r['מחזור / סיבוב']).startsWith(String(row['מחזור / סיבוב'] || '')));
+    if (!replay) continue;
+    const g = replay.m.game;
+    const score = A.parseScore(row['תוצאה (בית:חוץ)']);
+    const note = {
+      ref: A.sourceRef(row),
+      date: isYmd(row['תאריך']) ? row['תאריך'] : null,
+      venueHe: row['מגרש'] || null,
+      homeTeamHe: row['קבוצת בית'], awayTeamHe: row['קבוצת חוץ'],
+      homeScore: score?.home ?? null, awayScore: score?.away ?? null,
+      refereeHe: row['שופט'] || null,
+      attendance: Number.isFinite(row['קהל']) ? row['קהל'] : null,
+      reasonHe: ABANDONED_REASONS[A.sourceRef(row)] || null,
+    };
+    const info = g.additionalInfo && typeof g.additionalInfo === 'object' ? g.additionalInfo : {};
+    if (JSON.stringify(info.abandonedMatch) === JSON.stringify(note)) continue;
+    plan.push({ gameId: g.id, ref: note.ref, changes: [{ field: 'additionalInfo', oldValue: g.additionalInfo ?? null, newValue: { ...info, abandonedMatch: note } }] });
+  }
+  return plan;
 }
 
 /** The book starts in 1950. Before 1991 we hold each top-flight season's table and its teams but
@@ -573,6 +606,10 @@ async function recordBatch(batchId, stage, counts) {
   }
   console.log('\nround agreement (season same/diff):', Object.entries(roundCheck).map(([k, v]) => `${k} ${v.same}/${v.diff}`).join(' · '));
 
+  // ── abandoned games ──
+  const abandoned = abandonedPlan(results, good);
+  console.log(`\nabandoned: ${abandoned.length} replays get a note of the abandoned game`);
+
   // ── swap ──
   const swaps = swapPlan(results, ctx, new Set(good.map((x) => x.m.game.id)));
   console.log(`\nswap: ${swaps.length} games of ours have home and away the wrong way round`);
@@ -691,6 +728,12 @@ async function recordBatch(batchId, stage, counts) {
     }
     await recordBatch(batchId, STAGE, { updated });
     console.log(`\nswap: ${updated} games swapped${skipped.length ? `, skipped (have per-side stats): ${skipped.join(' ')}` : ''} — batch ${batchId}. Re-run enrich, goals and round-dates to fill them.`);
+  }
+
+  if (STAGE === 'abandoned') {
+    const updated = await writeChanges(batchId, abandoned);
+    await recordBatch(batchId, STAGE, { updated });
+    console.log(`\nabandoned: ${updated} replays noted — batch ${batchId}`);
   }
 
   if (STAGE === 'reconcile') {

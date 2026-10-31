@@ -89,7 +89,7 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   }
   // Event fields (the home/away swap flips `team`): restore when untouched since.
   const eventChanges = changes.filter((c) => c.table === 'game_events' && c.field !== '*created*');
-  const eventsNow = new Map((await prisma.gameEvent.findMany({ where: { id: { in: eventChanges.map((c) => c.recordId) } }, select: { id: true, team: true } })).map((e) => [e.id, e]));
+  const eventsNow = new Map((await prisma.gameEvent.findMany({ where: { id: { in: eventChanges.map((c) => c.recordId) } }, })).map((e) => [e.id, e]));
   const eventRestore = [];
   for (const c of eventChanges) {
     const e = eventsNow.get(c.recordId);
@@ -124,6 +124,14 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   }
   for (const c of eventRestore) await prisma.gameEvent.update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
   await prisma.gameEvent.deleteMany({ where: { id: { in: createdEvents }, source: SOURCE } });
+  // Players a squad build created, once their goals point nowhere again.
+  const createdPlayers = changes.filter((c) => c.table === 'players' && c.field === '*created*');
+  for (const c of createdPlayers) {
+    try {
+      await prisma.player.delete({ where: { id: c.recordId } });
+      restoredLedgerIds.push(c.id);
+    } catch (e) { console.log(`    kept created player ${c.recordId}: ${e.code || e.message}`); }
+  }
   // Created games go last, with any archive events on them; a game something else now hangs on is kept.
   const deletedGames = [];
   for (const id of createdGames) {
