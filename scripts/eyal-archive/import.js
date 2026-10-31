@@ -868,10 +868,10 @@ async function recordBatch(batchId, stage, counts) {
       // Same day — or, for a twin with no real date (an import placeholder), the same competition.
       const twins = (await prisma.game.findMany({
         where: { seasonId: g.seasonId, id: { not: g.id }, homeScore: g.homeScore, awayScore: g.awayScore },
-        select: { id: true, dateTime: true, apiFootballId: true, competitionId: true, homeTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+        select: { id: true, dateTime: true, apiFootballId: true, competitionId: true, homeTeamId: true, awayTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
       })).filter((t) => (t.dateTime.toISOString().slice(0, 10) === day
           || (isPlaceholderDate(t.dateTime, t.apiFootballId) && t.competitionId === g.competitionId))
-        && !createdIds.has(t.id) && ctx.bsIds.has(t.homeTeamId) === bsHome
+        && !createdIds.has(t.id) && ctx.bsIds.has(bsHome ? t.homeTeamId : t.awayTeamId)
         && A.normalizeTeamName(bsHome ? t.awayTeam.nameHe : t.homeTeam.nameHe) === opp);
       if (!twins.length) continue;
       console.log(`  duplicate ${day} ${g.homeTeam.nameHe} ${g.homeScore}:${g.awayScore} ${g.awayTeam.nameHe} = ${twins[0].id}`);
