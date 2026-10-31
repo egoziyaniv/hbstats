@@ -111,7 +111,40 @@ function parseScorers(text) {
   return { goals, shootout };
 }
 
-const EUROPE = new Set(['ליגת האלופות', 'הליגה האירופית', 'אינטרטוטו', 'גביע אופ"א', 'גביע מחזיקות גביע']);
+const EUROPE = new Set(['ליגת האלופות', 'הליגה האירופית']);
+
+/**
+ * Competitions we held nothing of until the archive: the historical lower leagues (by the
+ * name the book gives Beer Sheva's league that season), friendlies, old cups and the
+ * European cups of the 1970s-90s. Created by the import's 'history' stage.
+ */
+const HISTORY_COMPETITIONS = [
+  { id: 'comp_hist_liga_alef', nameHe: "ליגה א'", nameEn: 'Liga Alef (historical)', type: 'LEAGUE', league: "ליגה א'" },
+  { id: 'comp_hist_liga_bet', nameHe: "ליגה ב'", nameEn: 'Liga Bet (historical)', type: 'LEAGUE', league: "ליגה ב'" },
+  { id: 'comp_hist_liga_gimel', nameHe: "ליגה ג'", nameEn: 'Liga Gimel (historical)', type: 'LEAGUE', league: "ליגה ג'" },
+  { id: 'comp_hist_liga_artzit', nameHe: 'ליגה ארצית', nameEn: 'Liga Artzit', type: 'LEAGUE', league: 'ליגה ארצית' },
+  { id: 'comp_hist_regional', nameHe: 'ליגה אזורית', nameEn: 'Regional League', type: 'LEAGUE', frame: 'ליגה אזורית' },
+  { id: 'comp_hist_test_matches', nameHe: 'משחקי מבחן', nameEn: 'Promotion Test Matches', type: 'CUP', frame: 'משחקי המבחן' },
+  { id: 'comp_friendlies', nameHe: 'משחקי ידידות', nameEn: 'Friendlies', type: 'CUP', frame: 'משחקי ידידות' },
+  { id: 'comp_hist_cup_20', nameHe: "גביע כ' למדינה", nameEn: '20th Anniversary Cup', type: 'CUP', frame: "גביע כ' למדינה" },
+  { id: 'comp_hist_cup_25', nameHe: 'גביע כ"ה למדינה', nameEn: '25th Anniversary Cup', type: 'CUP', frame: 'גביע כ"ה למדינה' },
+  { id: 'comp_hist_league_cup', nameHe: 'גביע הליגה', nameEn: 'League Cup', type: 'CUP', frame: 'גביע הליגה' },
+  { id: 'comp_hist_ifa_cup', nameHe: 'גביע ההתאחדות', nameEn: 'IFA Cup', type: 'CUP', frame: 'גביע ההתאחדות' },
+  { id: 'comp_hist_hakoah_cup', nameHe: 'גביע ותיקי הכח', nameEn: 'Hakoah Veterans Cup', type: 'CUP', frame: 'גביע ותיקי הכח' },
+  { id: 'comp_hist_capital_tournament', nameHe: 'טורניר הבירה', nameEn: 'Capital Tournament', type: 'CUP', frame: 'טורניר הבירה' },
+  { id: 'comp_hist_lilian_cup', nameHe: 'גביע יהודה ליליאן', nameEn: 'Yehuda Lilian Cup', type: 'CUP', frame: 'גביע יהודה ליליאן' },
+  { id: 'comp_hist_toto_artzit', nameHe: 'גביע הטוטו ליגה ארצית', nameEn: 'Toto Cup Artzit', type: 'CUP', frame: 'גביע הטוטו ארצית' },
+  { id: 'comp_hist_super_cup_alef', nameHe: "אלוף האלופים ליגה א'", nameEn: 'Liga Alef Super Cup', type: 'CUP', frame: "אלוף האלופים א'" },
+  { id: 'comp_hist_intertoto', nameHe: 'אינטרטוטו', nameEn: 'Intertoto Cup', type: 'EUROPE', frame: 'אינטרטוטו' },
+  { id: 'comp_hist_uefa_cup', nameHe: 'גביע אופ"א', nameEn: 'UEFA Cup', type: 'EUROPE', frame: 'גביע אופ"א' },
+  { id: 'comp_hist_cwc', nameHe: 'גביע מחזיקות גביע', nameEn: "Cup Winners' Cup", type: 'EUROPE', frame: 'גביע מחזיקות גביע' },
+];
+const HISTORY_IDS = new Set(HISTORY_COMPETITIONS.map((c) => c.id));
+
+/** "ליגה ג' הנגב" / "ליגה א' דרום" → "ליגה ג'" / "ליגה א'": the league without its region. */
+function leagueBaseName(name) {
+  return String(name || '').replace(/\s+(ה?נגב|ה?דרום|ה?צפון|ה?מרכז)$/, '').trim();
+}
 
 /**
  * Which of our competitions a row can match:
@@ -123,10 +156,15 @@ function competitionTarget(row) {
   const f = String(row['מסגרת'] || '').trim();
   if (f === 'משחקי הליגה') {
     const level = row['רמת ליגה'];
+    // Beer Sheva's league that season, from the book's season sheet (set on the row by the import).
+    const hist = HISTORY_COMPETITIONS.find((c) => c.league && c.league === leagueBaseName(row._leagueName));
+    if (level !== 1 && hist) return { ids: [hist.id] };
     if (level === 1) return { ids: ['comp_liga_haal'] };
     if (level === 2) return { ids: ['comp_liga_leumit'] };
     return null;
   }
+  const histCup = HISTORY_COMPETITIONS.find((c) => c.frame === f);
+  if (histCup) return { ids: [histCup.id] };
   if (f.startsWith('גביע המדינה')) return { ids: ['comp_state_cup'] };
   if (f.startsWith('גביע הטוטו')) return { ids: ['comp_toto_cup_al', 'comp_toto_cup_leumit', 'comp_toto_cup'] };
   if (f.startsWith('אלוף האלופים')) return { ids: ['comp_super_cup'] };
@@ -155,6 +193,9 @@ module.exports = {
   resultKind,
   parseScorers,
   competitionTarget,
+  HISTORY_COMPETITIONS,
+  HISTORY_IDS,
+  leagueBaseName,
   roundNumber,
   sourceRef,
 };

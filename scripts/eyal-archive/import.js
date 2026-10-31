@@ -52,7 +52,7 @@ const FILE = arg('--file');
 const STAGE = arg('--stage');
 const APPLY = process.argv.includes('--apply');
 const REPORT = arg('--report');
-const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap', 'reconcile', 'abandoned'];
+const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap', 'reconcile', 'abandoned', 'history'];
 if (!FILE) { console.error('--file <archive.json> is required'); process.exit(1); }
 if (APPLY && !STAGES.includes(STAGE)) { console.error(`--apply needs --stage ${STAGES.join('|')}`); process.exit(1); }
 if (STAGE && !STAGES.includes(STAGE)) { console.error(`unknown stage ${STAGE}`); process.exit(1); }
@@ -324,6 +324,102 @@ function abandonedPlan(results, good) {
   return plan;
 }
 
+/** A club's name as we write it: "מכבי פתח-תקוה (ארצית)" → "מכבי פתח תקווה". */
+function displayTeamName(name) {
+  return String(name || '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/מכביתל/g, 'מכבי תל')
+    .replace(/-/g, ' ')
+    .replace(/תקוה/g, 'תקווה')
+    .replace(/קרית/g, 'קריית')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+/** "אריס סלוניקי (יוון)" → "יוון"; a league marker ("(ארצית)", "(ליגה א')") is not a country. */
+function countryOf(name) {
+  const m = String(name || '').match(/\(([^)]*)\)/);
+  if (!m || /ליגה|ארצית|לאומית|^[אבג]'$/.test(m[1])) return null;
+  return m[1].trim();
+}
+
+/**
+ * Stage 2 part B — what is still unmatched where we hold nothing to match against: games of the
+ * historical leagues, friendlies, old and European cups, and cup games against clubs from
+ * below the league table. Teams that don't exist in that season are created; a league game of
+ * a league we already hold whose opponent isn't found is only reported (a spelling we don't
+ * know would otherwise become a second copy of a club).
+ */
+function historyPlan(results, ctx, seasonTeams, seasonInfo, seasonComps) {
+  const plan = { competitions: [], teams: new Map(), games: [], report: [], skipped: {} };
+  const skip = (why, row) => { plan.skipped[why] = (plan.skipped[why] || 0) + 1; if (row) plan.report.push({ ref: A.sourceRef(row), why }); };
+  const needComp = new Set();
+  for (const { row, m } of results) {
+    if (m.status === 'matched' || m.status === 'conflict' || m.status === 'ambiguous') continue;
+    const target = A.competitionTarget(row);
+    if (!target || target.europe) { skip('competition', null); continue; }
+    const compId = target.ids.length === 1 ? target.ids[0]
+      : row['רמת ליגה'] === 2 ? 'comp_toto_cup_leumit' : 'comp_toto_cup_al';
+    const isHistory = A.HISTORY_IDS.has(compId);
+    const isCup = ['comp_state_cup', 'comp_toto_cup_al', 'comp_toto_cup_leumit'].includes(compId);
+    const year = A.seasonStartYear(row['עונה']);
+    const info = seasonInfo.get(year);
+    if (!info) { skip('no-season', row); continue; }
+    const bsHome = isBsName(row['קבוצת בית']);
+    if (bsHome === isBsName(row['קבוצת חוץ'])) { skip('teams', row); continue; }
+    const kind = A.resultKind(row['הערה לתוצאה']);
+    const file = A.parseScore(row['תוצאה (בית:חוץ)']);
+    if (!file || !['normal', 'aet', 'technical', 'technical-no-points'].includes(kind)) { skip(`result-${kind}`, row); continue; }
+
+    // The opponent: a team of that season by name, else (where allowed) a new team.
+    const teams = [...(seasonTeams.get(year) || new Map()).values()];
+    const name = displayTeamName(row['יריבה']);
+    // A shortened name ("צפרירים חולון") counts when all its words are in the team's ("הפועל צפרירים חולון").
+    const contains = (a, b) => { const w = A.normalizeTeamName(a).split(' '); const t = new Set(A.normalizeTeamName(b).split(' ')); return w.length >= 2 && w.every((x) => t.has(x)); };
+    const scored = teams.map((t) => ({ t, score: Math.max(A.teamNameScore(name, t.nameHe), A.teamNameScore(name, t.nameEn), contains(name, t.nameHe) ? 2 : 0) }));
+    const best = Math.max(0, ...scored.map((x) => x.score));
+    const hits = scored.filter((x) => x.score === best && best >= 2);
+    let oppRef;
+    if (hits.length === 1) oppRef = { id: hits[0].t.id };
+    else if (hits.length > 1) { skip('opponent-ambiguous', row); continue; }
+    else if (isHistory || isCup || !(seasonComps.get(year) || new Set()).has(compId)) {
+      const key = `${year}|${name}`;
+      if (!plan.teams.has(key)) plan.teams.set(key, { key, seasonId: info.seasonId, nameHe: name, nameEn: name, countryHe: countryOf(row['יריבה']) });
+      oppRef = { key };
+    } else { skip('opponent-unknown-in-held-league', row); continue; }
+
+    // The same game held under another competition (same hosts and score) is not created twice.
+    if (oppRef.id) {
+      const oppIds = new Set(scored.filter((x) => x.score >= 2).map((x) => x.t.id));
+      const elsewhere = ctx.games.some((g) => g.season.year === year
+        && (bsHome ? ctx.bsIds.has(g.homeTeamId) && oppIds.has(g.awayTeamId) : oppIds.has(g.homeTeamId) && ctx.bsIds.has(g.awayTeamId))
+        && g.homeScore === file.home && g.awayScore === file.away);
+      if (elsewhere) { skip('held-elsewhere', row); continue; }
+    }
+    if (isHistory) needComp.add(compId);
+    const label = String(row['שלב'] || row['מחזור / סיבוב'] || '').replace(/-/g, ' ').trim();
+    plan.games.push({
+      ref: A.sourceRef(row), oppRef, bsRef: info.bsId ? { id: info.bsId } : { bsOf: info.seasonId }, bsHome,
+      data: {
+        seasonId: info.seasonId,
+        competitionId: compId,
+        dateTime: (isYmd(row['תאריך']) ? dateOnly(row['תאריך']) : new Date(`${year}-09-01T00:00:00.000Z`)).toISOString(),
+        homeScore: file.home,
+        awayScore: file.away,
+        status: 'COMPLETED',
+        statusShort: kind === 'aet' ? 'AET' : 'FT',
+        ...(label ? { roundNameHe: /^\d+$/.test(label) ? `מחזור ${label}` : label } : {}),
+        additionalInfo: {
+          sources: [A.SOURCE],
+          eyalArchive: { ref: A.sourceRef(row), page: row['עמוד בספר'] ?? null, created: true, ...(row['הערת מסגרת / בית'] ? { groupHe: row['הערת מסגרת / בית'] } : {}) },
+          ...(kind.startsWith('technical') ? { awarded: { noteHe: row['הערה לתוצאה'] } } : {}),
+        },
+      },
+    });
+  }
+  plan.competitions = A.HISTORY_COMPETITIONS.filter((c) => needComp.has(c.id));
+  return plan;
+}
+
 /** The book starts in 1950. Before 1991 we hold each top-flight season's table and its teams but
  *  hardly a game, so the games are created against those teams (stage 2). */
 const RECONCILE_FROM = 1949;
@@ -533,6 +629,9 @@ async function recordBatch(batchId, stage, counts) {
 (async () => {
   const archive = JSON.parse(fs.readFileSync(FILE, 'utf-8'));
   const rows = archive.games;
+  // Beer Sheva's league each season ("ליגה ג' הנגב") — names the historical lower leagues.
+  const leagueBySeason = new Map((archive.seasons || []).map((x) => [x['עונה'], x['ליגה']]));
+  for (const r of rows) Object.defineProperty(r, '_leagueName', { value: leagueBySeason.get(r['עונה']) || null, enumerable: false });
   console.log(`${APPLY ? `APPLY ${STAGE}` : 'DRY RUN'} — ${A.SOURCE_LABEL_HE}: ${rows.length} rows`);
   const batchId = `${A.SOURCE}-${STAGE || 'dry'}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 
@@ -647,10 +746,23 @@ async function recordBatch(batchId, stage, counts) {
   }
   const rec = reconcilePlan(results, ctx, new Set(good.map((x) => x.m.game.id)), seasonTeams, seasonInfo);
   console.log(`\nreconcile: swap ${rec.swap.length}, fix ${rec.fix.length}, create ${rec.create.length}, left ${rec.left.length}; skipped`, rec.skipped);
+  // Which competitions we hold any game of, per season — a league season we hold nothing of is created like a historical one.
+  const seasonComps = new Map();
+  for (const x of await prisma.game.groupBy({ by: ['seasonId', 'competitionId'], _count: { _all: true } })) {
+    const y = [...seasonInfo.entries()].find(([, v]) => v.seasonId === x.seasonId)?.[0];
+    if (y == null) continue;
+    seasonComps.set(y, new Set([...(seasonComps.get(y) || []), x.competitionId]));
+  }
+  const hist = historyPlan(results, ctx, seasonTeams, seasonInfo, seasonComps);
+  {
+    const byComp = {};
+    for (const g of hist.games) byComp[g.data.competitionId] = (byComp[g.data.competitionId] || 0) + 1;
+    console.log(`\nhistory: ${hist.games.length} games, ${hist.teams.size} new teams, ${hist.competitions.length} new competitions; by competition`, byComp, '; skipped', hist.skipped);
+  }
   for (const f of rec.fix) console.log(`  fix ${f.ref} ${f.gameId}: ${f.changes.map((c) => `${c.field} ${JSON.stringify(c.oldValue)}→${JSON.stringify(c.newValue)}`).join(', ')}`);
 
   if (REPORT) {
-    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length, reconcile: { swap: rec.swap.map((w) => ({ ref: w.ref, gameId: w.game.id })), fix: rec.fix, create: rec.create, left: rec.left, skippedRefs: rec.skippedRefs }, swaps: swaps.map((w) => ({ ref: w.ref, gameId: w.game.id })) }, null, 1));
+    fs.writeFileSync(REPORT, JSON.stringify({ byStatus, byDecade, roundCheck, fieldCounts, goalSkips, conflicts, unmatched, roundDates: rd.plan.length, reconcile: { swap: rec.swap.map((w) => ({ ref: w.ref, gameId: w.game.id })), fix: rec.fix, create: rec.create, left: rec.left, skippedRefs: rec.skippedRefs }, history: { games: hist.games, teams: [...hist.teams.values()], competitions: hist.competitions, report: hist.report }, swaps: swaps.map((w) => ({ ref: w.ref, gameId: w.game.id })) }, null, 1));
     console.log(`\nreport → ${REPORT}`);
   }
 
@@ -734,6 +846,53 @@ async function recordBatch(batchId, stage, counts) {
     const updated = await writeChanges(batchId, abandoned);
     await recordBatch(batchId, STAGE, { updated });
     console.log(`\nabandoned: ${updated} replays noted — batch ${batchId}`);
+  }
+
+  if (STAGE === 'history') {
+    const competitions = await prisma.competition.findMany({ where: { id: { in: hist.competitions.map((c) => c.id) } }, select: { id: true } });
+    const have = new Set(competitions.map((c) => c.id));
+    for (const c of hist.competitions) {
+      if (have.has(c.id)) continue;
+      const data = { id: c.id, nameHe: c.nameHe, nameEn: c.nameEn, type: c.type, countryHe: c.type === 'EUROPE' ? null : 'ישראל', countryEn: c.type === 'EUROPE' ? null : 'Israel' };
+      await prisma.$transaction([
+        prisma.competition.create({ data }),
+        prisma.dataImportChange.create({ data: { source: A.SOURCE, batchId, table: 'competitions', recordId: c.id, field: '*created*', newValue: data, basis: 'created' } }),
+      ]);
+    }
+    // Beer Sheva's own team in a season we held none of.
+    const bsTemplate = await prisma.team.findFirst({ where: { apiFootballId: 563 }, orderBy: { createdAt: 'asc' } });
+    const bsOf = new Map();
+    const newTeam = async (data) => {
+      const t = await prisma.team.create({ data, select: { id: true } });
+      await prisma.dataImportChange.create({ data: { source: A.SOURCE, batchId, table: 'teams', recordId: t.id, field: '*created*', newValue: data, basis: 'created' } });
+      return t.id;
+    };
+    const teamIds = new Map();
+    for (const t of hist.teams.values()) {
+      teamIds.set(t.key, await newTeam({ seasonId: t.seasonId, nameHe: t.nameHe, nameEn: t.nameEn, ...(t.countryHe ? { countryHe: t.countryHe } : { countryHe: 'ישראל', countryEn: 'Israel' }), additionalInfo: { sources: [A.SOURCE] } }));
+    }
+    let created = 0;
+    for (const g of hist.games) {
+      let bsId = g.bsRef.id;
+      if (!bsId) {
+        if (!bsOf.has(g.bsRef.bsOf)) {
+          bsOf.set(g.bsRef.bsOf, await newTeam({
+            seasonId: g.bsRef.bsOf, nameHe: 'הפועל באר שבע', nameEn: bsTemplate.nameEn, apiFootballId: 563, logoUrl: bsTemplate.logoUrl,
+            cityEn: bsTemplate.cityEn, countryEn: bsTemplate.countryEn, founded: bsTemplate.founded, additionalInfo: { sources: [A.SOURCE] },
+          }));
+        }
+        bsId = bsOf.get(g.bsRef.bsOf);
+      }
+      const oppId = g.oppRef.id || teamIds.get(g.oppRef.key);
+      const data = { ...g.data, dateTime: new Date(g.data.dateTime), homeTeamId: g.bsHome ? bsId : oppId, awayTeamId: g.bsHome ? oppId : bsId };
+      await prisma.$transaction(async (tx) => {
+        const row = await tx.game.create({ data, select: { id: true } });
+        await tx.dataImportChange.create({ data: { source: A.SOURCE, batchId, table: 'games', recordId: row.id, field: '*created*', newValue: { ...g.data, homeTeamId: data.homeTeamId, awayTeamId: data.awayTeamId }, basis: 'created', sourceRef: g.ref } });
+      });
+      created += 1;
+    }
+    await recordBatch(batchId, STAGE, { created, updated: 0, matched: 0 });
+    console.log(`\nhistory: ${created} games, ${teamIds.size + bsOf.size} teams, ${hist.competitions.filter((c) => !have.has(c.id)).length} competitions created — batch ${batchId}. Re-run enrich, goals, round-dates and build-squads.`);
   }
 
   if (STAGE === 'reconcile') {

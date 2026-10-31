@@ -142,6 +142,15 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   }
   const createdLedgerIds = changes.filter((c) => c.field === '*created*' && c.table === 'games' && deletedGames.includes(c.recordId)).map((c) => c.id);
   restoredLedgerIds.push(...createdLedgerIds);
+  // Teams and competitions the history stage created, once no game points at them.
+  for (const [table, model] of [['teams', 'team'], ['competitions', 'competition']]) {
+    for (const c of changes.filter((x) => x.table === table && x.field === '*created*')) {
+      try {
+        await prisma[model].delete({ where: { id: c.recordId } });
+        restoredLedgerIds.push(c.id);
+      } catch (e) { console.log(`    kept created ${model} ${c.recordId}: ${e.code || e.message}`); }
+    }
+  }
   // Ledger rows of fields edited since stay, so the history of what the archive wrote is kept.
   const eventLedgerIds = [...changes.filter((c) => c.table === 'game_events' && c.field === '*created*'), ...eventRestore].map((c) => c.id);
   await prisma.dataImportChange.deleteMany({ where: { id: { in: [...restoredLedgerIds, ...eventLedgerIds] } } });

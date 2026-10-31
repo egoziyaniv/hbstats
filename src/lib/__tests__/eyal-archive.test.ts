@@ -89,7 +89,14 @@ describe('competitionTarget', () => {
     expect(competitionTarget({ 'מסגרת': 'משחקי הליגה', 'רמת ליגה': 3 })).toBeNull();
     expect(competitionTarget({ 'מסגרת': 'גביע המדינה 66/67' })).toEqual({ ids: ['comp_state_cup'] });
     expect(competitionTarget({ 'מסגרת': 'ליגת האלופות' })).toEqual({ europe: true });
-    expect(competitionTarget({ 'מסגרת': 'משחקי ידידות' })).toBeNull();
+    expect(competitionTarget({ 'מסגרת': 'משחקי ידידות' })).toEqual({ ids: ['comp_friendlies'] });
+    expect(competitionTarget({ 'מסגרת': 'גביע הטוטו ארצית' })).toEqual({ ids: ['comp_hist_toto_artzit'] });
+  });
+
+  it('puts a lower league under its historical name', () => {
+    expect(competitionTarget({ 'מסגרת': 'משחקי הליגה', 'רמת ליגה': 3, _leagueName: "ליגה ג' הנגב" })).toEqual({ ids: ['comp_hist_liga_gimel'] });
+    expect(competitionTarget({ 'מסגרת': 'משחקי הליגה', 'רמת ליגה': 2, _leagueName: "ליגה א' דרום" })).toEqual({ ids: ['comp_hist_liga_alef'] });
+    expect(competitionTarget({ 'מסגרת': 'משחקי הליגה', 'רמת ליגה': 2, _leagueName: 'ליגה לאומית' })).toEqual({ ids: ['comp_liga_leumit'] });
   });
 });
 
