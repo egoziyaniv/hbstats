@@ -5,8 +5,8 @@
  * archive names as a Beer Sheva scorer that season becomes a player of that season's team,
  * and their goals point at them. The rest of each squad is for other sources to fill.
  *
- *  - only a Beer Sheva team row with no players at all — a season with a squad is left to
- *    scripts/link-legacy-event-players.js, which matches names inside it;
+ *  - only a Beer Sheva team row with no players, or only players this script made — a season
+ *    with a real squad is left to scripts/link-legacy-event-players.js, which matches names in it;
  *  - one player per name per season; nothing is linked across seasons (the identity rule in
  *    the player-data notes: a name alone is not a person across teams);
  *  - own goals are skipped — that scorer played for the other side.
@@ -41,10 +41,12 @@ const APPLY = process.argv.includes('--apply');
 const prisma = new PrismaClient();
 
 (async () => {
-  const teams = await prisma.team.findMany({
-    where: { OR: [{ apiFootballId: 563 }, { nameHe: 'הפועל באר שבע' }], players: { none: {} } },
-    select: { id: true, season: { select: { year: true } } },
-  });
+  // A season with no players, or only players this script made (its scorers grow as games are added).
+  const teams = (await prisma.team.findMany({
+    where: { OR: [{ apiFootballId: 563 }, { nameHe: 'הפועל באר שבע' }] },
+    select: { id: true, season: { select: { year: true } }, players: { select: { nameHe: true, additionalInfo: true } } },
+  })).filter((t) => t.players.every((pl) => (pl.additionalInfo?.sources || []).includes(SOURCE)));
+  const known = new Map(teams.map((t) => [t.id, new Set(t.players.map((pl) => pl.nameHe))]));
   const events = await prisma.gameEvent.findMany({
     where: { teamId: { in: teams.map((t) => t.id) }, playerId: null, type: { in: ['GOAL', 'PENALTY_GOAL'] }, participantName: { not: null } },
     select: { id: true, teamId: true, participantName: true },
@@ -53,6 +55,7 @@ const prisma = new PrismaClient();
   for (const e of events) {
     const name = e.participantName.replace(/\s+/g, ' ').trim();
     if (!name) continue;
+    if (known.get(e.teamId)?.has(name)) continue; // link-legacy-event-players.js links these by name
     const key = `${e.teamId}|${name}`;
     if (!squads.has(key)) squads.set(key, { teamId: e.teamId, name, events: [] });
     squads.get(key).events.push(e.id);
@@ -60,7 +63,7 @@ const prisma = new PrismaClient();
   const year = new Map(teams.map((t) => [t.id, t.season?.year]));
   const perSeason = {};
   for (const s of squads.values()) perSeason[year.get(s.teamId)] = (perSeason[year.get(s.teamId)] || 0) + 1;
-  console.log(`${APPLY ? 'APPLY' : 'DRY RUN'} — ${teams.length} Beer Sheva seasons without players; ${squads.size} players from ${events.length} goals`);
+  console.log(`${APPLY ? 'APPLY' : 'DRY RUN'} — ${teams.length} Beer Sheva seasons with no squad of their own; ${squads.size} players from ${events.length} goals`);
   console.log('players per season:', Object.entries(perSeason).map(([y, n]) => `${y}:${n}`).join(' '));
 
   if (!APPLY) { console.log('\nDry run — re-run with --apply.'); await prisma.$disconnect(); return; }
