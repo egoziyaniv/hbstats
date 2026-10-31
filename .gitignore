@@ -73,3 +73,5 @@ scratchpad/
 # Source archives shared privately (e.g. Eyal Hatav's HBS games archive). The repo is public —
 # these files go to the server by scp, never into git.
 docs/games/
+# IFA pages the owner saves by hand (squads, transfers) — local source material, never committed
+docs/[0-9][0-9][0-9][0-9]-*/
