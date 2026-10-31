@@ -96,6 +96,14 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
     if (e && same(e[c.field], c.newValue)) eventRestore.push(c);
     else if (e) editedSince.push(`${c.recordId}.${c.field}`);
   }
+  // Field changes on lineup entries and teams (team clean-ups): restore when untouched since.
+  const MODELS = { game_lineup_entries: 'gameLineupEntry', teams: 'team' };
+  const otherRestore = [];
+  for (const c of changes.filter((x) => MODELS[x.table] && x.field !== '*deleted*')) {
+    const row = await prisma[MODELS[c.table]].findUnique({ where: { id: c.recordId } });
+    if (row && same(row[c.field], c.newValue)) otherRestore.push(c);
+    else if (row) editedSince.push(`${c.recordId}.${c.field}`);
+  }
   console.log(`  games to restore: ${restore.size}, events to delete: ${createdEvents.length}, event fields to restore: ${eventRestore.length}, games to delete: ${createdGames.length}, edited since import (kept): ${editedSince.length}`);
   for (const e of editedSince.slice(0, 10)) console.log(`    kept ${e}`);
   if (RAW) console.log(`  scraped rows to delete: ${await prisma.scrapedMatch.count({ where: { source: SOURCE } })}`);
@@ -110,6 +118,10 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
     restoredLedgerIds.push(c.id);
   }
   for (const [id, data] of restore) await prisma.game.update({ where: { id }, data });
+  for (const c of otherRestore) {
+    await prisma[MODELS[c.table]].update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
+    restoredLedgerIds.push(c.id);
+  }
   for (const c of eventRestore) await prisma.gameEvent.update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
   await prisma.gameEvent.deleteMany({ where: { id: { in: createdEvents }, source: SOURCE } });
   // Created games go last, with any archive events on them; a game something else now hangs on is kept.
