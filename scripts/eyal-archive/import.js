@@ -858,18 +858,20 @@ async function recordBatch(batchId, stage, counts) {
     const createdIds = new Set(created.map((c) => c.recordId));
     const mine = await prisma.game.findMany({
       where: { id: { in: [...createdIds] } },
-      select: { id: true, seasonId: true, dateTime: true, homeScore: true, awayScore: true, homeTeamId: true, awayTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+      select: { id: true, seasonId: true, competitionId: true, dateTime: true, homeScore: true, awayScore: true, homeTeamId: true, awayTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
     });
     let removed = 0;
     for (const g of mine) {
       const bsHome = ctx.bsIds.has(g.homeTeamId);
       const opp = A.normalizeTeamName(bsHome ? g.awayTeam.nameHe : g.homeTeam.nameHe);
       const day = g.dateTime.toISOString().slice(0, 10);
+      // Same day — or, for a twin with no real date (an import placeholder), the same competition.
       const twins = (await prisma.game.findMany({
-        where: { seasonId: g.seasonId, id: { not: g.id }, homeScore: g.homeScore, awayScore: g.awayScore,
-          dateTime: { gte: new Date(`${day}T00:00:00Z`), lte: new Date(`${day}T23:59:59Z`) } },
-        select: { id: true, homeTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
-      })).filter((t) => !createdIds.has(t.id) && ctx.bsIds.has(t.homeTeamId) === bsHome
+        where: { seasonId: g.seasonId, id: { not: g.id }, homeScore: g.homeScore, awayScore: g.awayScore },
+        select: { id: true, dateTime: true, apiFootballId: true, competitionId: true, homeTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+      })).filter((t) => (t.dateTime.toISOString().slice(0, 10) === day
+          || (isPlaceholderDate(t.dateTime, t.apiFootballId) && t.competitionId === g.competitionId))
+        && !createdIds.has(t.id) && ctx.bsIds.has(t.homeTeamId) === bsHome
         && A.normalizeTeamName(bsHome ? t.awayTeam.nameHe : t.homeTeam.nameHe) === opp);
       if (!twins.length) continue;
       console.log(`  duplicate ${day} ${g.homeTeam.nameHe} ${g.homeScore}:${g.awayScore} ${g.awayTeam.nameHe} = ${twins[0].id}`);
