@@ -85,6 +85,8 @@ export default async function ClubPage() {
         </Link>
       </section>
 
+      <Link href="/club/photos" className="modern-card block rounded-2xl border border-stone-200/80 bg-white p-5 font-black text-red-900">גלריית תמונות — מהיציע ומהמגרש</Link>
+
       {/* Honors board */}
       {honors.length > 0 ? (
         <section className="space-y-4">

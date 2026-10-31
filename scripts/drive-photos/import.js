@@ -12,21 +12,31 @@ function captureDay(value) {
   return Number.isFinite(+parsed) && parsed.toISOString().slice(0, 19) === value ? value.slice(0, 10) : null;
 }
 
-function planImport(photos, fixtures) {
+function planImport(photos, fixtures, options = {}) {
   const ready = [], skipped = [], hashes = new Set();
   for (const photo of photos) {
     let reason;
-    const day = captureDay(photo.captureLocal);
+    const originalDay = photo.dateEvidence === 'exif-original' ? captureDay(photo.captureLocal) : null;
+    const association = photo.association || {};
+    const confirmedDay = options.includeGeneral && association.precision === 'day' && association.userConfirmed === true
+      ? captureDay(association.date + 'T12:00:00') : null;
+    const day = originalDay || confirmedDay;
     if (photo.reviewed !== true) reason = 'not-reviewed';
-    else if (photo.dateEvidence !== 'exif-original' || !day) reason = 'unverified-capture-date';
+    else if (!options.includeGeneral && !originalDay) reason = 'unverified-capture-date';
     else if (!/^[a-f0-9]{64}$/.test(photo.sha256 || '')) reason = 'missing-content-hash';
     else if (hashes.has(photo.sha256)) reason = 'duplicate-content';
-    const matches = reason ? [] : fixtures.filter((game) =>
+    const matches = reason || !day ? [] : fixtures.filter((game) =>
       (isHbs(game.homeTeam) || isHbs(game.awayTeam)) && israelDay.format(new Date(game.dateTime)) === day);
-    if (!reason && matches.length !== 1) reason = matches.length ? 'ambiguous-fixture' : 'no-fixture';
+    if (!reason && !options.includeGeneral && matches.length !== 1) reason = matches.length ? 'ambiguous-fixture' : 'no-fixture';
     if (reason) { skipped.push({ sourceId: photo.sourceId, reason }); continue; }
     hashes.add(photo.sha256);
-    ready.push({ ...photo, id: `drive-photo-${photo.sha256}`, gameId: matches[0].id, fixture: matches[0] });
+    const fixture = matches.length === 1 ? matches[0] : null;
+    const explicitSeason = association.precision === 'season' && association.confidence !== 'probable' && association.userConfirmed === true
+      ? (options.seasons || []).find((s) => s.year === Number(association.season?.slice(0, 4))) : null;
+    ready.push({ ...photo, id: `drive-photo-${photo.sha256}`, gameId: fixture?.id || null, fixture,
+      seasonId: fixture?.seasonId || explicitSeason?.id || null, kind: fixture ? 'GAME_PHOTO' : 'GALLERY',
+      title: photo.title + (!fixture ? (explicitSeason ? ` · עונת ${association.season}` : originalDay ? ` · ${originalDay.slice(0,4)}` : ' · כללי') : ''),
+    });
   }
   return { ready, skipped };
 }
@@ -46,13 +56,13 @@ async function applyImport(tx, photos) {
   for (const photo of photos) {
     const previous = await tx.mediaAsset.findUnique({ where: { id: photo.id } });
     if (previous) {
-      if (previous.gameId !== photo.gameId || previous.filePath !== photo.filePath) throw new Error(`Existing asset conflicts: ${photo.id}`);
+      if (previous.gameId !== photo.gameId || (previous.seasonId || null) !== (photo.seasonId || null) || previous.filePath !== photo.filePath) throw new Error(`Existing asset conflicts: ${photo.id}`);
       existing++; continue;
     }
     const last = await tx.mediaAsset.aggregate({ where: { gameId: photo.gameId }, _max: { displayOrder: true } });
     await tx.mediaAsset.create({ data: {
-      id: photo.id, kind: 'GAME_PHOTO', gameId: photo.gameId,
-      title: photo.title, originalName: photo.originalName,
+      id: photo.id, kind: photo.kind || 'GAME_PHOTO', gameId: photo.gameId, seasonId: photo.seasonId || null,
+      title: photo.title, originalName: path.basename(photo.filePath),
       filePath: photo.filePath, mimeType: 'image/jpeg', sizeBytes: photo.sizeBytes,
       displayOrder: (last._max.displayOrder ?? -1) + 1, isPrimary: false,
     } });
@@ -63,7 +73,7 @@ async function applyImport(tx, photos) {
 
 function summarizeAssignment(photo) {
   return { sourceId: photo.sourceId, captureLocal: photo.captureLocal, gameId: photo.gameId,
-    fixtureDateTime: photo.fixture.dateTime, homeTeam: photo.fixture.homeTeam.nameHe, awayTeam: photo.fixture.awayTeam.nameHe };
+    fixtureDateTime: photo.fixture?.dateTime, homeTeam: photo.fixture?.homeTeam.nameHe, awayTeam: photo.fixture?.awayTeam.nameHe };
 }
 
 async function main() {
@@ -77,9 +87,10 @@ async function main() {
   try {
     const fixtures = await prisma.game.findMany({
       where: { OR: [{ homeTeam: { nameHe: 'הפועל באר שבע' } }, { awayTeam: { nameHe: 'הפועל באר שבע' } }] },
-      select: { id: true, dateTime: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+      select: { id: true, dateTime: true, seasonId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
     });
-    const plan = planImport(manifest.photos, fixtures);
+    const seasons = await prisma.season.findMany({ select: { id: true, year: true } });
+    const plan = planImport(manifest.photos, fixtures, { includeGeneral: process.argv.includes('--include-general'), seasons });
     // Validate the entire batch before the first database write.
     for (const photo of plan.ready) verifyFile(photo, publicRoot);
     const apply = process.argv.includes('--apply');

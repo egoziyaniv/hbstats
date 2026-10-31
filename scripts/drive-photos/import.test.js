@@ -74,3 +74,20 @@ test('repeated imports do not duplicate photos or overwrite existing gallery row
   assert.equal(rows.get('existing').isPrimary, true);
   await assert.rejects(applyImport(tx, [{ ...ready[0], gameId: 'other-game' }]), /conflicts/);
 });
+
+test('approved day evidence links without fabricating capture metadata', () => {
+  const item = { ...photo, captureLocal: null, dateEvidence: null, association: { precision: 'day', date: '2017-04-01', userConfirmed: true } };
+  const plan = planImport([item], [fixture], { includeGeneral: true });
+  assert.equal(plan.ready[0].gameId, fixture.id);
+  assert.equal(plan.ready[0].captureLocal, null);
+});
+test('general import preserves uncertain dates and never chooses an ambiguous match', () => {
+  const options = { includeGeneral: true, seasons: [{ id: 's15', year: 2015 }] };
+  const seasonPhoto = { ...photo, captureLocal: null, dateEvidence: null, association: { precision: 'season', season: '2015-16', confidence: 'confirmed', userConfirmed: true } };
+  assert.equal(planImport([seasonPhoto], [], options).ready[0].seasonId, 's15');
+  assert.equal(planImport([{ ...seasonPhoto, association: { ...seasonPhoto.association, confidence: 'probable', userConfirmed: false } }], [], options).ready[0].seasonId, null);
+  const general = planImport([photo], [fixture, { ...fixture, id: 'other' }], options).ready[0];
+  assert.equal(general.gameId, null);
+  assert.equal(general.kind, 'GALLERY');
+  assert.equal(planImport([{ ...photo, reviewed: false }], [], options).ready.length, 0);
+});

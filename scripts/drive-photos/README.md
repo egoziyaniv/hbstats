@@ -40,3 +40,7 @@ node --test scripts/drive-photos/import.test.js
 אותר `hbs-backup.gz` בתיקיית `hbs site` והורד דרך דפדפן מחובר, משום שגודלו חורג ממגבלת מחבר Drive. נבדקו טבלת `gallery` ותיקיית המדיה הציבורית הראשית: 241 קבצים, ובהם גרפים, צילומי טלוויזיה ותמונות עם קרדיט לצלמים אחרים. אין בטבלת הגלריה תאריך משחק או הוכחה שכל הקבצים צולמו בידי בעל האתר, ולכן הם לא מיובאים אוטומטית ולא מיוחסים אליו. הגיבוי המלא וקובצי SQL אינם חלק מה־PR.
 
 החיפוש ב־Drive מחזיר גם תוצאות שאינן צילומי מקור. שני החיפושים המורחבים `football` ו־`soccer` הושלמו עם כל דפי התוצאות: 5,219 מועמדים ייחודיים בסך הכול. **4,079 מועמדים נוספים עדיין לא נבדקו חזותית**, ואינם נספרים כתמונות מאושרות או מוצגים באתר. האצווה הנבדקת מתועדת ב־`discovery.json`; יתר המועמדים נשארים בקטלוג המקומי הפרטי `data/drive-photos/search-complete.json`. אין כאן טענה שכל תמונות Drive כבר נבדקו או שכל תוצאת חיפוש היא תמונה שלך ממשחק הפועל באר שבע.
+
+## Reviewed general import
+
+`--include-general` imports every reviewed unique photo. Only original capture dates or explicitly user-confirmed calendar days may select a unique HBS fixture. Unmatched or ambiguous photos become `GALLERY` assets without a game. Explicitly confirmed seasons may be retained; probable seasons remain general. Public media stores sanitized filenames, never private Drive identifiers. `/club/photos` displays the collection with pagination, while exact matches also appear on game pages. Private manifests and reports stay outside Git.
