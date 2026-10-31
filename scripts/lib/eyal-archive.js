@@ -36,6 +36,8 @@ function normalizeTeamName(name) {
     .trim();
 }
 
+const CLUB_PREFIXES = new Set(['הפועל', 'מכבי', 'בית"ר', 'הכח', 'עירוני', 'מס', 'סכ', 'אליצור', 'הכוכב']);
+
 /** How well two club names agree: 3 identical, 2 one is the other plus a city/suffix
  *  ("בני יהודה" / "בני יהודה תל אביב"), 1 they share their two first words, 0 otherwise. */
 function teamNameScore(a, b) {
@@ -47,6 +49,9 @@ function teamNameScore(a, b) {
   const ys = y.split(' ');
   const [short, long] = xs.length <= ys.length ? [xs, ys] : [ys, xs];
   if (short.every((w, i) => long[i] === w)) return 2;
+  // The same name with the club's prefix dropped: "צפרירים חולון" / "הפועל צפרירים חולון".
+  const extra = long.slice(0, long.length - short.length);
+  if (short.length >= 2 && extra.length && extra.every((w) => CLUB_PREFIXES.has(w)) && short.every((w, i) => long[extra.length + i] === w)) return 2;
   if (xs.length >= 2 && ys.length >= 2 && xs[0] === ys[0] && xs[1] === ys[1]) return 1;
   return 0;
 }

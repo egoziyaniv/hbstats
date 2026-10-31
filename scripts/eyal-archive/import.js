@@ -364,6 +364,9 @@ function historyPlan(results, ctx, seasonTeams, seasonInfo, seasonComps) {
     const year = A.seasonStartYear(row['עונה']);
     const info = seasonInfo.get(year);
     if (!info) { skip('no-season', row); continue; }
+    // A league season we hold games of is reconcile's — it weighs the book against those games.
+    const held = (seasonComps.get(year) || new Set()).has(compId);
+    if (!isHistory && !isCup && held) { skip('league-held', row); continue; }
     const bsHome = isBsName(row['קבוצת בית']);
     if (bsHome === isBsName(row['קבוצת חוץ'])) { skip('teams', row); continue; }
     const kind = A.resultKind(row['הערה לתוצאה']);
@@ -373,15 +376,13 @@ function historyPlan(results, ctx, seasonTeams, seasonInfo, seasonComps) {
     // The opponent: a team of that season by name, else (where allowed) a new team.
     const teams = [...(seasonTeams.get(year) || new Map()).values()];
     const name = displayTeamName(row['יריבה']);
-    // A shortened name ("צפרירים חולון") counts when all its words are in the team's ("הפועל צפרירים חולון").
-    const contains = (a, b) => { const w = A.normalizeTeamName(a).split(' '); const t = new Set(A.normalizeTeamName(b).split(' ')); return w.length >= 2 && w.every((x) => t.has(x)); };
-    const scored = teams.map((t) => ({ t, score: Math.max(A.teamNameScore(name, t.nameHe), A.teamNameScore(name, t.nameEn), contains(name, t.nameHe) ? 2 : 0) }));
+    const scored = teams.map((t) => ({ t, score: Math.max(A.teamNameScore(name, t.nameHe), A.teamNameScore(name, t.nameEn)) }));
     const best = Math.max(0, ...scored.map((x) => x.score));
     const hits = scored.filter((x) => x.score === best && best >= 2);
     let oppRef;
     if (hits.length === 1) oppRef = { id: hits[0].t.id };
     else if (hits.length > 1) { skip('opponent-ambiguous', row); continue; }
-    else if (isHistory || isCup || !(seasonComps.get(year) || new Set()).has(compId)) {
+    else if (isHistory || isCup || !held) {
       const key = `${year}|${name}`;
       if (!plan.teams.has(key)) plan.teams.set(key, { key, seasonId: info.seasonId, nameHe: name, nameEn: name, countryHe: countryOf(row['יריבה']) });
       oppRef = { key };

@@ -32,6 +32,8 @@ describe('team names', () => {
     expect(teamNameScore('בני יהודה תל-אביב', 'בני יהודה')).toBe(2);
     expect(teamNameScore('הפועל תל-אביב', 'הפועל חיפה')).toBe(0);
     expect(teamNameScore('הפועל רמת-השרון', 'הפועל ניר רמת השרון')).toBe(3);
+    expect(teamNameScore('צפרירים חולון', 'הפועל צפרירים חולון')).toBe(2);
+    expect(teamNameScore('הפועל אשקלון', 'הפועל מגדל אשקלון')).toBe(0);
   });
 });
 
