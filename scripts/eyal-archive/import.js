@@ -291,8 +291,19 @@ function swapPlan(results, ctx, matchedIds) {
   return [...plan.values()];
 }
 
-/** Reconcile only where we hold whole seasons (RSSSF from 1991); earlier ones need every game created (stage 2). */
-const RECONCILE_FROM = 1991;
+/** The book starts in 1950. Before 1991 we hold each top-flight season's table and its teams but
+ *  hardly a game, so the games are created against those teams (stage 2). */
+const RECONCILE_FROM = 1949;
+
+/** Where a row's game goes when Beer Sheva has no game of ours in that competition that season:
+ *  the league whose table we hold that season, the State Cup, or the Toto Cup of its level. */
+function fallbackCompetition(target, row, info) {
+  if (!info) return null;
+  if (row['מסגרת'] === 'משחקי הליגה') return target.ids.find((id) => info.tableComps.has(id)) || null;
+  if (target.ids.includes('comp_state_cup')) return 'comp_state_cup';
+  if (target.ids.includes('comp_toto_cup_al')) return row['רמת ליגה'] === 2 ? 'comp_toto_cup_leumit' : 'comp_toto_cup_al';
+  return null;
+}
 
 /**
  * What matching left over, per season + competition + opponent: the book's rows against our
@@ -303,7 +314,7 @@ const RECONCILE_FROM = 1991;
  *   create — a row with no game of ours left at that venue: the game is missing
  * A game of ours still left at a venue blocks creating there (it may be the same game).
  */
-function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
+function reconcilePlan(results, ctx, matchedIds, seasonTeams, seasonInfo) {
   const groups = new Map();
   const skipped = {};
   const skippedRefs = [];
@@ -319,7 +330,9 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
     const bsHome = isBsName(row['קבוצת בית']);
     if (bsHome === isBsName(row['קבוצת חוץ'])) { skip('teams'); continue; }
     const bsGames = ctx.games.filter((g) => g.season.year === year && target.ids.includes(g.competitionId));
-    const comps = [...new Set(bsGames.map((g) => g.competitionId))];
+    const info = seasonInfo.get(year);
+    let comps = [...new Set(bsGames.map((g) => g.competitionId))];
+    if (!comps.length && info?.bsId) comps = [fallbackCompetition(target, row, info)].filter(Boolean);
     if (comps.length !== 1) { skip(comps.length ? 'competition-ambiguous' : 'competition-not-held'); continue; }
     const teams = seasonTeams.get(year) || new Map();
     const scored = [...teams.values()].map((t) => ({ t, score: Math.max(A.teamNameScore(row['יריבה'], t.nameHe), A.teamNameScore(row['יריבה'], t.nameEn)) }));
@@ -333,8 +346,9 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
       // A season can sit under two season rows (and Beer Sheva under two team rows): take the common one.
       const mode = (xs) => [...xs.reduce((m, x) => m.set(x, (m.get(x) || 0) + 1), new Map())].sort((a, b) => b[1] - a[1])[0][0];
       groups.set(key, {
-        year, oppIds, seasonId: mode(bsGames.map((g) => g.seasonId)), competitionId: comps[0], oppId: opp[0].t.id,
-        bsId: mode(bsGames.map((g) => (ctx.bsIds.has(g.homeTeamId) ? g.homeTeamId : g.awayTeamId))), rows: [],
+        year, oppIds, competitionId: comps[0], oppId: opp[0].t.id, rows: [],
+        seasonId: bsGames.length ? mode(bsGames.map((g) => g.seasonId)) : info.seasonId,
+        bsId: bsGames.length ? mode(bsGames.map((g) => (ctx.bsIds.has(g.homeTeamId) ? g.homeTeamId : g.awayTeamId))) : info.bsId,
         games: ctx.games.filter((g) => g.season.year === year && g.competitionId === comps[0] && !matchedIds.has(g.id)
           && (oppIds.has(g.homeTeamId) || oppIds.has(g.awayTeamId))),
       });
@@ -574,7 +588,27 @@ async function recordBatch(batchId, stage, counts) {
     for (const t of [g.homeTeam, g.awayTeam]) if (!ctx.bsIds.has(t.id)) m.set(t.id, t);
     seasonTeams.set(g.season.year, m);
   }
-  const rec = reconcilePlan(results, ctx, new Set(good.map((x) => x.m.game.id)), seasonTeams);
+  // The season's own teams (its table) — before 1991 almost the only trace of a season we hold.
+  const seasonInfo = new Map();
+  for (const sn of await prisma.season.findMany({
+    where: { year: { gte: RECONCILE_FROM } },
+    select: { id: true, year: true, teams: { select: { id: true, nameHe: true, nameEn: true, apiFootballId: true } }, standings: { select: { competitionId: true } } },
+  })) {
+    const m = seasonTeams.get(sn.year) || new Map();
+    for (const t of sn.teams) if (!ctx.bsIds.has(t.id)) m.set(t.id, t);
+    seasonTeams.set(sn.year, m);
+    const bs = sn.teams.filter((t) => ctx.bsIds.has(t.id));
+    const prev = seasonInfo.get(sn.year);
+    // Two season rows for one year: the one with Beer Sheva and a table wins.
+    if (prev && (prev.bsId && prev.tableComps.size >= new Set(sn.standings.map((x) => x.competitionId)).size)) continue;
+    if (!bs.length && prev) continue;
+    seasonInfo.set(sn.year, {
+      seasonId: sn.id,
+      bsId: (bs.find((t) => t.apiFootballId != null) || bs[0])?.id || null,
+      tableComps: new Set(sn.standings.map((x) => x.competitionId)),
+    });
+  }
+  const rec = reconcilePlan(results, ctx, new Set(good.map((x) => x.m.game.id)), seasonTeams, seasonInfo);
   console.log(`\nreconcile: swap ${rec.swap.length}, fix ${rec.fix.length}, create ${rec.create.length}, left ${rec.left.length}; skipped`, rec.skipped);
   for (const f of rec.fix) console.log(`  fix ${f.ref} ${f.gameId}: ${f.changes.map((c) => `${c.field} ${JSON.stringify(c.oldValue)}→${JSON.stringify(c.newValue)}`).join(', ')}`);
 
