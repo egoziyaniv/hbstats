@@ -80,6 +80,15 @@ export async function getLegend(id: string): Promise<LegendDetail | null> {
 const BS_AF = 563;
 const LIGAT_HAAL_ID = 'comp_liga_haal';
 const LIGA_LEUMIT_ID = 'comp_liga_leumit';
+// The lower leagues of the 1950s-90s, from Eyal Hatav's book (scripts/lib/eyal-archive.js).
+const HISTORICAL_LEAGUE_IDS = ['comp_hist_liga_alef', 'comp_hist_liga_bet', 'comp_hist_liga_gimel', 'comp_hist_liga_artzit'];
+
+/** The book's season summary on Beer Sheva's team row: who ran the club and who coached it. */
+type BookSeason = { staff?: Array<{ roleHe: string; namesHe: string }> };
+function bookSeason(info: unknown): BookSeason | null {
+  const s = info && typeof info === 'object' ? (info as { eyalSeason?: unknown }).eyalSeason : null;
+  return s && typeof s === 'object' ? (s as BookSeason) : null;
+}
 
 export function selectClubLeagueStanding<T extends { competitionId: string; played: number }>(rows: T[]): T | null {
   const usable = rows.filter((row) => row.played > 0);
@@ -101,9 +110,12 @@ export async function buildClubSeasons() {
       // club identity by accepting its canonical Hebrew name as well.
       where: { OR: [{ apiFootballId: BS_AF }, { nameHe: 'הפועל באר שבע' }] },
       select: {
-        id: true, apiFootballId: true, seasonId: true,
+        id: true, apiFootballId: true, seasonId: true, additionalInfo: true,
         season: { select: { id: true, year: true, name: true } },
-        standings: { where: { competitionId: { in: [LIGAT_HAAL_ID, LIGA_LEUMIT_ID] } }, select: { competitionId: true, position: true, played: true, wins: true, draws: true, losses: true, goalsFor: true, goalsAgainst: true, points: true } },
+        standings: {
+          where: { competitionId: { in: [LIGAT_HAAL_ID, LIGA_LEUMIT_ID, ...HISTORICAL_LEAGUE_IDS] } },
+          select: { competitionId: true, position: true, played: true, wins: true, draws: true, losses: true, goalsFor: true, goalsAgainst: true, points: true, groupNameHe: true, additionalInfo: true, competition: { select: { nameHe: true } } },
+        },
       },
     }),
     prisma.clubHonor.findMany({ where: { place: 'WINNER' } }),
@@ -127,7 +139,19 @@ export async function buildClubSeasons() {
     const candidate = chosen ? seasonRows.find((row) => row.standing === chosen) : null;
     if (!candidate) return [];
     const { team, standing } = candidate;
-    return [{ seasonId: team.season.id, year: team.season.year, name: team.season.name, teamId: team.id, competitionId: standing.competitionId, position: standing.position, played: standing.played, wins: standing.wins, draws: standing.draws, losses: standing.losses, goalsFor: standing.goalsFor, goalsAgainst: standing.goalsAgainst, points: standing.points, honors: honorsByYear.get(team.season.year) ?? [] }];
+    const historical = HISTORICAL_LEAGUE_IDS.includes(standing.competitionId);
+    const staff = seasonRows.map((row) => bookSeason(row.team.additionalInfo)?.staff).find(Boolean)
+      ?? bookSeason(teams.find((t) => t.seasonId === team.seasonId && bookSeason(t.additionalInfo))?.additionalInfo)?.staff ?? [];
+    const info = standing.additionalInfo && typeof standing.additionalInfo === 'object' ? standing.additionalInfo as { wdlUnknown?: boolean } : {};
+    return [{
+      seasonId: team.season.id, year: team.season.year, name: team.season.name, teamId: team.id, competitionId: standing.competitionId,
+      position: standing.position, played: standing.played, wins: standing.wins, draws: standing.draws, losses: standing.losses,
+      goalsFor: standing.goalsFor, goalsAgainst: standing.goalsAgainst, points: standing.points, honors: honorsByYear.get(team.season.year) ?? [],
+      historical,
+      leagueHe: historical ? standing.groupNameHe || standing.competition.nameHe || '' : standing.competitionId === LIGA_LEUMIT_ID ? 'לאומית' : 'על',
+      wdlKnown: !info.wdlUnknown,
+      staff,
+    }];
   }).sort((a, b) => b.year - a.year);
 }
 

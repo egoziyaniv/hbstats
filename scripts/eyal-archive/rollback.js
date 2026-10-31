@@ -33,7 +33,7 @@ function loadEnv(file) {
 }
 loadEnv(path.resolve(__dirname, '..', '..', '.env'));
 
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, Prisma } = require('@prisma/client');
 const { SOURCE: ARCHIVE } = require('../lib/eyal-archive');
 
 const arg = (name) => {
@@ -97,7 +97,7 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
     else if (e) editedSince.push(`${c.recordId}.${c.field}`);
   }
   // Field changes on lineup entries and teams (team clean-ups): restore when untouched since.
-  const MODELS = { game_lineup_entries: 'gameLineupEntry', teams: 'team' };
+  const MODELS = { game_lineup_entries: 'gameLineupEntry', teams: 'team', standings: 'standing' };
   const otherRestore = [];
   for (const c of changes.filter((x) => MODELS[x.table] && x.field !== '*deleted*')) {
     const row = await prisma[MODELS[c.table]].findUnique({ where: { id: c.recordId } });
@@ -119,7 +119,9 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   }
   for (const [id, data] of restore) await prisma.game.update({ where: { id }, data });
   for (const c of otherRestore) {
-    await prisma[MODELS[c.table]].update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
+    // A JSON field that was empty goes back to SQL NULL (Prisma refuses a plain null there).
+    const old = c.oldValue ?? (c.field === 'additionalInfo' ? Prisma.DbNull : null);
+    await prisma[MODELS[c.table]].update({ where: { id: c.recordId }, data: { [c.field]: old } });
     restoredLedgerIds.push(c.id);
   }
   for (const c of eventRestore) await prisma.gameEvent.update({ where: { id: c.recordId }, data: { [c.field]: c.oldValue } });
@@ -142,8 +144,8 @@ const asStored = (field, v) => (field === 'dateTime' && v ? new Date(v).toISOStr
   }
   const createdLedgerIds = changes.filter((c) => c.field === '*created*' && c.table === 'games' && deletedGames.includes(c.recordId)).map((c) => c.id);
   restoredLedgerIds.push(...createdLedgerIds);
-  // Teams and competitions the history stage created, once no game points at them.
-  for (const [table, model] of [['teams', 'team'], ['competitions', 'competition']]) {
+  // Table rows, then the teams and competitions the history and tables stages created, once nothing points at them.
+  for (const [table, model] of [['standings', 'standing'], ['competition_seasons', 'competitionSeason'], ['teams', 'team'], ['competitions', 'competition']]) {
     for (const c of changes.filter((x) => x.table === table && x.field === '*created*')) {
       try {
         await prisma[model].delete({ where: { id: c.recordId } });

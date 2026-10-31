@@ -324,17 +324,6 @@ function abandonedPlan(results, good) {
   return plan;
 }
 
-/** A club's name as we write it: "מכבי פתח-תקוה (ארצית)" → "מכבי פתח תקווה". */
-function displayTeamName(name) {
-  return String(name || '')
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/מכביתל/g, 'מכבי תל')
-    .replace(/-/g, ' ')
-    .replace(/תקוה/g, 'תקווה')
-    .replace(/קרית/g, 'קריית')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 /** "אריס סלוניקי (יוון)" → "יוון"; a league marker ("(ארצית)", "(ליגה א')") is not a country. */
 function countryOf(name) {
   const m = String(name || '').match(/\(([^)]*)\)/);
@@ -375,7 +364,7 @@ function historyPlan(results, ctx, seasonTeams, seasonInfo, seasonComps) {
 
     // The opponent: a team of that season by name, else (where allowed) a new team.
     const teams = [...(seasonTeams.get(year) || new Map()).values()];
-    const name = displayTeamName(row['יריבה']);
+    const name = A.displayTeamName(row['יריבה']);
     const scored = teams.map((t) => ({ t, score: Math.max(A.teamNameScore(name, t.nameHe), A.teamNameScore(name, t.nameEn)) }));
     const best = Math.max(0, ...scored.map((x) => x.score));
     const hits = scored.filter((x) => x.score === best && best >= 2);

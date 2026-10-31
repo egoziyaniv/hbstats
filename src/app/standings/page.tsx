@@ -6,7 +6,7 @@ import { getCompetitionById } from '@/lib/competitions';
 import { getDisplayMode } from '@/lib/display-mode';
 import { getCurrentSeasonStartYear, getDefaultDisplaySeasonId } from '@/lib/home-live';
 import prisma from '@/lib/prisma';
-import { sortStandings, type StandingWithDerived } from '@/lib/standings';
+import { bookTableNote, isBookTable, sortStandings, wdlLabel, type StandingWithDerived } from '@/lib/standings';
 import { buildStandingsFromGames } from '@/lib/standings-from-games';
 import { TeamLogo } from '@/components/MediaImage';
 
@@ -265,17 +265,21 @@ export default async function StandingsPage({
   // just played (e.g. Maccabi TA won today) would otherwise show 0 until the
   // feed catches up. Comparing games (2 team-rows each) catches within-round lag.
   const gamesInStandings = hasStoredStandings ? Math.round(competitionStandings.reduce((a, s) => a + (s.played || 0), 0) / 2) : 0;
-  const hasOutdatedStandings = !hasPlayoffGroupInfo && (maxRoundInGames > maxRoundInStandings || completedLeagueGames.length > gamesInStandings);
+  // A table from Eyal Hatav's book is the record — the games we hold of it are only Beer Sheva's.
+  const bookTable = isBookTable(competitionStandings);
+  const byPosition = { byPosition: bookTable };
+  const bookNote = bookTableNote(competitionStandings);
+  const hasOutdatedStandings = !bookTable && !hasPlayoffGroupInfo && (maxRoundInGames > maxRoundInStandings || completedLeagueGames.length > gamesInStandings);
   const isPlayoffSeason = hasStoredStandings && !hasOutdatedStandings && competitionStandings.some(
     (s) => isChampionshipGroup(s.groupNameEn) || isRelegationGroup(s.groupNameEn)
   );
   const selectedPhase = isPlayoffSeason ? (searchParams?.phase ?? 'regular') : 'regular';
   const regularRoundCount = roundOptions.filter((r) => /^Regular Season\s*-\s*\d+$/i.test(r)).length;
   const playoffChampionshipRows = isPlayoffSeason
-    ? sortStandings(competitionStandings.filter((s) => isChampionshipGroup(s.groupNameEn)))
+    ? sortStandings(competitionStandings.filter((s) => isChampionshipGroup(s.groupNameEn)), byPosition)
     : [];
   const playoffRelegationRows = isPlayoffSeason
-    ? sortStandings(competitionStandings.filter((s) => isRelegationGroup(s.groupNameEn)))
+    ? sortStandings(competitionStandings.filter((s) => isRelegationGroup(s.groupNameEn)), byPosition)
     : [];
   const championshipCount = playoffChampionshipRows.length;
 
@@ -289,7 +293,7 @@ export default async function StandingsPage({
       ];
     }
     // Standings are up-to-date: use stored standings
-    if (hasStoredStandings && isCurrentRoundView && !hasOutdatedStandings) return sortStandings(competitionStandings);
+    if (hasStoredStandings && isCurrentRoundView && !hasOutdatedStandings) return sortStandings(competitionStandings, byPosition);
     // Standings outdated or missing: derive from all completed games (incl. playoff rounds)
     if (selectedCompetitionKind === 'LEAGUE') {
       const derived = buildStandingsFromGames(teams, snapshotGames);
@@ -346,6 +350,7 @@ export default async function StandingsPage({
         selectedPhase={selectedPhase}
         championshipCount={championshipCount}
         regularRoundCount={regularRoundCount}
+        bookNote={bookNote}
       />
     );
   }
@@ -454,6 +459,8 @@ export default async function StandingsPage({
           </div>
         ) : null}
 
+        <BookTableNote note={bookNote} />
+
         <section className="modern-card overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-stone-100 px-6 py-5">
             <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">דירוג הקבוצות</h2>
@@ -540,9 +547,9 @@ export default async function StandingsPage({
                         </Link>
                       </td>
                       <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.played}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.wins}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.draws}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.losses}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{wdlLabel(row, row.wins)}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{wdlLabel(row, row.draws)}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{wdlLabel(row, row.losses)}</td>
                       <td className="px-3 py-3 text-center font-semibold text-stone-500">
                         {row.goalsFor}:{row.goalsAgainst}
                       </td>
@@ -611,6 +618,20 @@ export default async function StandingsPage({
   );
 }
 
+/** Where a table came from Eyal Hatav's book: its league or group, its notes, and why some columns are empty. */
+function BookTableNote({ note }: { note: ReturnType<typeof bookTableNote> }) {
+  if (!note) return null;
+  return (
+    <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-950">
+      {note.groups.length ? <div className="font-bold">{note.groups.join(' · ')}</div> : null}
+      {note.notes.map((n) => <div key={n}>{n}</div>)}
+      <div className="text-xs text-amber-800">
+        מקור: הארכיון של אייל חטב{note.wdlUnknown ? ' · בספר אין פירוט ניצחונות, תיקו והפסדים (—)' : ''}
+      </div>
+    </div>
+  );
+}
+
 function PremierStandingsView({
   seasons,
   selectedSeason,
@@ -632,6 +653,7 @@ function PremierStandingsView({
   selectedPhase,
   championshipCount,
   regularRoundCount,
+  bookNote,
 }: {
   seasons: Array<{ id: string; name: string }>;
   selectedSeason: { id: string; name: string } | null;
@@ -653,6 +675,7 @@ function PremierStandingsView({
   selectedPhase: string;
   championshipCount: number;
   regularRoundCount: number;
+  bookNote: ReturnType<typeof bookTableNote>;
 }) {
   const gamesByRound = Array.from(
     competitionGames.reduce((map, game) => {
@@ -735,6 +758,8 @@ function PremierStandingsView({
             מוצגת טבלה מחושבת מתוך {completedLeagueGames} משחקי ליגה שהסתיימו.
           </div>
         ) : null}
+
+        <BookTableNote note={bookNote} />
 
         {isPlayoffSeason && (
           <div className="flex gap-1 rounded-xl border border-stone-200 bg-stone-50 p-1">
@@ -842,9 +867,9 @@ function PremierStandingsView({
                         </Link>
                       </td>
                       <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.played}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.wins}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.draws}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{row.losses}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{wdlLabel(row, row.wins)}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{wdlLabel(row, row.draws)}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-700">{wdlLabel(row, row.losses)}</td>
                       <td className="px-3 py-3 text-center font-semibold text-stone-500">{row.goalsFor}</td>
                       <td className="px-3 py-3 text-center font-semibold text-stone-500">{row.goalsAgainst}</td>
                       <td className={`px-3 py-3 text-center font-black ${row.goalDifference > 0 ? 'text-emerald-600' : row.goalDifference < 0 ? 'text-red-500' : 'text-stone-400'}`}>

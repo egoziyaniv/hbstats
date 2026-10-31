@@ -15,8 +15,12 @@ export default async function ClubSeasonsPage() {
     <div dir="rtl" className="mx-auto max-w-6xl px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-black text-stone-900">עונה אחר עונה</h1>
-        <p className="mt-1 text-sm font-semibold text-stone-500">מאזן הפועל באר שבע בליגה לאורך השנים, כולל עונות בליגה הלאומית — לחצו על עונה למשחקים שלה.</p>
+        <p className="mt-1 text-sm font-semibold text-stone-500">מאזן הפועל באר שבע בליגה לאורך השנים, מליגה ג' של שנות ה-50 ועד היום — לחצו על עונה למשחקים שלה.</p>
       </div>
+
+      {seasons.some((s) => s.staff.length > 0) && (
+        <p className="text-xs font-semibold text-stone-400">הנהלה, מאמנים ועונות הליגות הנמוכות: הארכיון של אייל חטב.</p>
+      )}
 
       {seasons.length === 0 ? (
         <div className="modern-card rounded-2xl border border-stone-200/80 bg-white p-6 text-center text-sm text-stone-500 shadow-sm">
@@ -53,15 +57,20 @@ export default async function ClubSeasonsPage() {
                           {s.name}
                         </Link>
                         {(s.year === 2025 || s.year === 2026 || available.has(s.seasonId)) && <Link href={`/games?season=${s.seasonId}&teamId=${s.teamId}`} className="mr-2 text-[11px] font-semibold text-stone-500 underline">לכל המשחקים</Link>}
+                        {s.staff.length > 0 && (
+                          <div className="mt-0.5 text-[11px] font-semibold text-stone-500">
+                            {s.staff.map((x) => `${x.roleHe}: ${x.namesHe}`).join(' · ')}
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-2.5 text-center font-black text-stone-900">
                         {s.position === 1 ? <span className="text-amber-600">1</span> : s.position}
                       </td>
-                      <td className="px-2 py-2.5 text-center text-xs font-bold text-stone-600">{s.competitionId === 'comp_liga_leumit' ? 'לאומית' : 'על'}</td>
+                      <td className="whitespace-nowrap px-2 py-2.5 text-center text-xs font-bold text-stone-600">{s.leagueHe}</td>
                       <td className="px-2 py-2.5 text-center text-stone-500">{s.played}</td>
-                      <td className="px-2 py-2.5 text-center text-stone-700">{s.wins}</td>
-                      <td className="px-2 py-2.5 text-center text-stone-700">{s.draws}</td>
-                      <td className="px-2 py-2.5 text-center text-stone-700">{s.losses}</td>
+                      <td className="px-2 py-2.5 text-center text-stone-700">{s.wdlKnown ? s.wins : '—'}</td>
+                      <td className="px-2 py-2.5 text-center text-stone-700">{s.wdlKnown ? s.draws : '—'}</td>
+                      <td className="px-2 py-2.5 text-center text-stone-700">{s.wdlKnown ? s.losses : '—'}</td>
                       <td className="px-2 py-2.5 text-center text-stone-500">{s.goalsFor}:{s.goalsAgainst}</td>
                       <td className="px-2 py-2.5 text-center font-black text-stone-900">{s.points}</td>
                       <td className="px-3 py-2.5">

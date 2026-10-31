@@ -11,7 +11,8 @@ export async function GET() {
     prisma.clubSeasonDossier.findMany({ where: { isPublished: true, team: { apiFootballId: 563 } }, select: { seasonId: true } }),
   ]);
   const available = new Set(published.map(dossier => dossier.seasonId));
-  const seasons: ClubSeasonsPayload['seasons'] = rows.map(row => ({
+  // The app's season list shows wins-draws-losses, which the book's lower-league tables lack.
+  const seasons: ClubSeasonsPayload['seasons'] = rows.filter(row => !row.historical).map(({ historical, leagueHe, wdlKnown, staff, ...row }) => ({
     ...row, dossierAvailable: row.year === 2025 || row.year === 2026 || available.has(row.seasonId),
   }));
   return NextResponse.json({ seasons } satisfies ClubSeasonsPayload);

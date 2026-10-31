@@ -51,6 +51,17 @@ function baseTeamName(name) {
     .trim();
 }
 
+/** A club's name as we write it: "מכבי פתח-תקוה (ארצית)" → "מכבי פתח תקווה". */
+function displayTeamName(name) {
+  return String(name || '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/מכביתל/g, 'מכבי תל')
+    .replace(/-/g, ' ')
+    .replace(/תקוה/g, 'תקווה')
+    .replace(/קרית/g, 'קריית')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 const CLUB_PREFIXES = new Set(['הפועל', 'מכבי', 'בית"ר', 'הכח', 'עירוני', 'מס', 'סכ', 'אליצור', 'הכוכב']);
 
 /** How well two club names agree: 3 identical, 2 one is the other plus a city/suffix
@@ -208,6 +219,7 @@ module.exports = {
   SOURCE_LABEL_HE,
   seasonStartYear,
   normalizeTeamName,
+  displayTeamName,
   teamNameScore,
   parseScore,
   resultKind,
