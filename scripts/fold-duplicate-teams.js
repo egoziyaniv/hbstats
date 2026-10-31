@@ -38,9 +38,13 @@ function loadEnv(file) {
 loadEnv(path.resolve(__dirname, '..', '.env'));
 
 const { PrismaClient } = require('@prisma/client');
+const { normalizeTeamName } = require('./lib/eyal-archive');
 
 const SOURCE = 'team-fold';
 const APPLY = process.argv.includes('--apply');
+// --archive-created: fold only teams the archive import created into a team of the same season
+// whose name is the same club spelled another way ("מכבי פתח תקווה" / "מכבי  פ\"ת").
+const ARCHIVE_CREATED = process.argv.includes('--archive-created');
 const BRACKET = /\s*\[[^\]]*\]\s*$/;
 const DIRTY = /\[|\(\s*(\d+|x|A|B|C|Artzit)\s*\)\s*$/;
 // What a folded team may carry — moved to the kept team. Anything else blocks the fold.
@@ -75,15 +79,31 @@ const better = (a, b) => {
     },
   });
 
+  const archiveCreated = new Set((await prisma.dataImportChange.findMany({
+    where: { source: 'eyal-archive', table: 'teams', field: '*created*' }, select: { recordId: true },
+  })).map((c) => c.recordId));
   const groups = new Map();
   for (const t of teams) {
     if (!t.seasonId || !t.nameHe) continue;
-    const k = `${t.seasonId}|${t.nameHe.trim()}`;
+    const k = `${t.seasonId}|${ARCHIVE_CREATED ? normalizeTeamName(t.nameHe) : t.nameHe.trim()}`;
     groups.set(k, [...(groups.get(k) || []), t]);
   }
   const folds = [];
   const blocked = [];
   const renames = [];
+  if (ARCHIVE_CREATED) {
+    for (const list of groups.values()) {
+      const theirs = list.filter((t) => !archiveCreated.has(t.id));
+      const ours = list.filter((t) => archiveCreated.has(t.id));
+      if (!ours.length || theirs.length !== 1) continue;
+      for (const t of ours) {
+        const b = blockers(t);
+        if (b.length) blocked.push(`${t.season?.year} ${t.nameHe} → ${theirs[0].nameHe}: ${b.join(', ')}`);
+        else folds.push({ from: t, to: theirs[0] });
+      }
+    }
+    groups.clear();
+  }
   for (const list of groups.values()) {
     if (list.length > 1) {
       const keep = list.reduce((a, b) => (better(b, a) ? b : a));
