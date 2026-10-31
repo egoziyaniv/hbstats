@@ -20,7 +20,19 @@ function seasonStartYear(label) {
  *  The book writes "פתח-תקוה", "קרית-שמונה", "מ.ס אשדוד", sometimes a level in brackets
  *  ("הפועל צפת (ליגה א')") and the odd typo ("מכביתל-אביב"); we write "פתח תקווה",
  *  "קריית שמונה", "מ.ס. אשדוד". */
+/** One club under two names — proven by the same game held under both (same day, same score). */
+const CLUB_ALIASES = new Map([
+  ['עירוני רמת השרון', 'הפועל רמת השרון'],
+  ['עירוני ראשון לציון', 'הפועל ראשון לציון'],
+  ['הכח עמידר רמת גן', 'הכח מכבי עמידר רמת גן'],
+]);
+
 function normalizeTeamName(name) {
+  const n = baseTeamName(name);
+  return CLUB_ALIASES.get(n) || n;
+}
+
+function baseTeamName(name) {
   return String(name || '')
     .replace(/\([^)]*\)/g, ' ')
     .replace(/[״”“]/g, '"')

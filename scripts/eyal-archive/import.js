@@ -52,7 +52,7 @@ const FILE = arg('--file');
 const STAGE = arg('--stage');
 const APPLY = process.argv.includes('--apply');
 const REPORT = arg('--report');
-const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap', 'reconcile', 'abandoned', 'history'];
+const STAGES = ['raw', 'enrich', 'goals', 'round-dates', 'swap', 'reconcile', 'abandoned', 'history', 'dedupe'];
 if (!FILE) { console.error('--file <archive.json> is required'); process.exit(1); }
 if (APPLY && !STAGES.includes(STAGE)) { console.error(`--apply needs --stage ${STAGES.join('|')}`); process.exit(1); }
 if (STAGE && !STAGES.includes(STAGE)) { console.error(`unknown stage ${STAGE}`); process.exit(1); }
@@ -767,7 +767,8 @@ async function recordBatch(batchId, stage, counts) {
     console.log(`\nreport → ${REPORT}`);
   }
 
-  if (!APPLY) {
+  // The dedupe stage reports its duplicates in a dry run too.
+  if (!APPLY && STAGE !== 'dedupe') {
     console.log('\nDry run — nothing written. Re-run with --stage <stage> --apply.');
     await prisma.$disconnect();
     return;
@@ -847,6 +848,41 @@ async function recordBatch(batchId, stage, counts) {
     const updated = await writeChanges(batchId, abandoned);
     await recordBatch(batchId, STAGE, { updated });
     console.log(`\nabandoned: ${updated} replays noted — batch ${batchId}`);
+  }
+
+  // A game the archive created that we turn out to hold already under another spelling of the
+  // club — same season, same day, same score, Beer Sheva on the same side. It goes, with its
+  // archive events and its ledger rows, as if never created; the book row then matches ours.
+  if (STAGE === 'dedupe') {
+    const created = await prisma.dataImportChange.findMany({ where: { source: A.SOURCE, table: 'games', field: '*created*' }, select: { recordId: true } });
+    const createdIds = new Set(created.map((c) => c.recordId));
+    const mine = await prisma.game.findMany({
+      where: { id: { in: [...createdIds] } },
+      select: { id: true, seasonId: true, dateTime: true, homeScore: true, awayScore: true, homeTeamId: true, awayTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+    });
+    let removed = 0;
+    for (const g of mine) {
+      const bsHome = ctx.bsIds.has(g.homeTeamId);
+      const opp = A.normalizeTeamName(bsHome ? g.awayTeam.nameHe : g.homeTeam.nameHe);
+      const day = g.dateTime.toISOString().slice(0, 10);
+      const twins = (await prisma.game.findMany({
+        where: { seasonId: g.seasonId, id: { not: g.id }, homeScore: g.homeScore, awayScore: g.awayScore,
+          dateTime: { gte: new Date(`${day}T00:00:00Z`), lte: new Date(`${day}T23:59:59Z`) } },
+        select: { id: true, homeTeamId: true, homeTeam: { select: { nameHe: true } }, awayTeam: { select: { nameHe: true } } },
+      })).filter((t) => !createdIds.has(t.id) && ctx.bsIds.has(t.homeTeamId) === bsHome
+        && A.normalizeTeamName(bsHome ? t.awayTeam.nameHe : t.homeTeam.nameHe) === opp);
+      if (!twins.length) continue;
+      console.log(`  duplicate ${day} ${g.homeTeam.nameHe} ${g.homeScore}:${g.awayScore} ${g.awayTeam.nameHe} = ${twins[0].id}`);
+      if (!APPLY) { removed += 1; continue; }
+      const events = await prisma.gameEvent.findMany({ where: { gameId: g.id }, select: { id: true } });
+      await prisma.$transaction([
+        prisma.gameEvent.deleteMany({ where: { gameId: g.id } }),
+        prisma.dataImportChange.deleteMany({ where: { source: A.SOURCE, OR: [{ recordId: g.id }, { recordId: { in: events.map((e) => e.id) } }] } }),
+        prisma.game.delete({ where: { id: g.id } }),
+      ]);
+      removed += 1;
+    }
+    console.log(`\ndedupe: ${removed} created games already held${APPLY ? ' — removed' : ''}`);
   }
 
   if (STAGE === 'history') {
