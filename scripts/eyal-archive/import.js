@@ -333,7 +333,7 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
       // A season can sit under two season rows (and Beer Sheva under two team rows): take the common one.
       const mode = (xs) => [...xs.reduce((m, x) => m.set(x, (m.get(x) || 0) + 1), new Map())].sort((a, b) => b[1] - a[1])[0][0];
       groups.set(key, {
-        seasonId: mode(bsGames.map((g) => g.seasonId)), competitionId: comps[0], oppId: opp[0].t.id,
+        year, oppIds, seasonId: mode(bsGames.map((g) => g.seasonId)), competitionId: comps[0], oppId: opp[0].t.id,
         bsId: mode(bsGames.map((g) => (ctx.bsIds.has(g.homeTeamId) ? g.homeTeamId : g.awayTeamId))), rows: [],
         games: ctx.games.filter((g) => g.season.year === year && g.competitionId === comps[0] && !matchedIds.has(g.id)
           && (oppIds.has(g.homeTeamId) || oppIds.has(g.awayTeamId))),
@@ -371,6 +371,11 @@ function reconcilePlan(results, ctx, matchedIds, seasonTeams) {
       if (games.some((g) => bsHomeOf(g) === side)) continue;
       for (const r of rows.filter((x) => x.bsHome === side)) {
         if (!r.file || !['normal', 'aet'].includes(r.kind)) { skip(`create-${r.kind}`); continue; }
+        // The same game held under another competition (State Cup finals sit in their own one).
+        const elsewhere = ctx.games.some((g) => g.season.year === grp.year
+          && (side ? ctx.bsIds.has(g.homeTeamId) && grp.oppIds.has(g.awayTeamId) : grp.oppIds.has(g.homeTeamId) && ctx.bsIds.has(g.awayTeamId))
+          && g.homeScore === r.file.home && g.awayScore === r.file.away);
+        if (elsewhere) { skip('create-held-elsewhere'); continue; }
         plan.create.push({ ref: A.sourceRef(r.row), data: createData(r, grp) });
         rows = rows.filter((x) => x !== r);
       }
