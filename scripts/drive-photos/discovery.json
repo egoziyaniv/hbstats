@@ -1,0 +1,33 @@
+{
+  "searchedAt": "2026-10-31",
+  "queries": [
+    "הפועל",
+    "באר שבע",
+    "Hapoel",
+    "HBS",
+    "football",
+    "soccer",
+    "Beer Sheva"
+  ],
+  "paginatedSearchesCompleted": {
+    "football": 42,
+    "soccer": 47
+  },
+  "uniqueCandidates": 5219,
+  "downloadedAndVisuallyInspected": 1140,
+  "cataloguedPhotos": 1085,
+  "cataloguedWithoutCaptureDate": 36,
+  "excludedFromInspectedBatch": 55,
+  "additionalCandidatesNotVisuallyReviewed": 4079,
+  "legacyPublicUploadsInspected": 241,
+  "legacyImported": 0,
+  "localDatabasePreview": {
+    "ready": 383,
+    "distinctGames": 14,
+    "skipped": {
+      "no-fixture": 666,
+      "unverified-capture-date": 36
+    }
+  },
+  "coverage": "The manifest is the first visually reviewed batch, not a full review of all Drive search results. Remaining candidates are in the private local search-complete.json inventory. Search results include unrelated images; candidate counts are not counts of verified HBS photographs."
+}
