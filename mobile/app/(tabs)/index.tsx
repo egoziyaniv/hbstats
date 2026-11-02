@@ -118,6 +118,24 @@ export default function HomeScreen() {
           </Section>
         ) : null}
 
+        {data.analysisTeaser?.paragraphs.length ? (
+          <Section title={data.analysisTeaser.kind === 'PRE' ? 'לקראת המשחק · ניתוח' : 'ניתוח אחרי המשחק'}>
+            <Card>
+              <Pressable onPress={() => router.push(`/games/${data.analysisTeaser!.gameId}` as any)} style={{ gap: 6 }}>
+                {data.analysisTeaser.titleHe ? (
+                  <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' }}>
+                    {data.analysisTeaser.titleHe}
+                  </Text>
+                ) : null}
+                <Text numberOfLines={3} style={{ color: theme.ink[700], fontSize: 13, lineHeight: 20, textAlign: 'right', writingDirection: 'rtl' }}>
+                  {data.analysisTeaser.paragraphs[0]}
+                </Text>
+                <Text style={{ color: brand.accent, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>להמשך ←</Text>
+              </Pressable>
+            </Card>
+          </Section>
+        ) : null}
+
         {data.onThisDay?.match ? (
           <Section title="היום בהיסטוריה">
             <Card>

@@ -108,6 +108,7 @@ export async function GET(request: NextRequest) {
     liveStrip,
     newsStrip,
     onThisDay: raw.onThisDay,
+    analysisTeaser: await (await import('@/lib/match-analysis/public')).getLatestPublishedAnalysis().catch(() => null),
   };
 
   return NextResponse.json(payload);

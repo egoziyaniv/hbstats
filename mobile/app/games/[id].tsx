@@ -18,6 +18,7 @@ import { PlayerRatingsTable } from '@/design-system/PlayerRatingsTable';
 import { FotmobPlayerStatsTable } from '@/design-system/FotmobPlayerStatsTable';
 import { FotmobUnavailable } from '@/design-system/FotmobUnavailable';
 import { GameEditorialBlock } from '@/design-system/GameEditorialBlock';
+import { MatchAnalysisBlock } from '@/design-system/MatchAnalysisBlock';
 import { MatchInfoCard } from '@/design-system/MatchInfoCard';
 import { LiveDot } from '@/design-system/LiveDot';
 import { TabBar } from '@/design-system/TabBar';
@@ -27,7 +28,7 @@ import { theme } from '@/design-system/theme';
 import { PlayerMatchStatsSheet } from '@/design-system/PlayerMatchStatsSheet';
 import { GameRatingSheet } from '@/design-system/GameRatingSheet';
 import { useGamePlayerStats } from '@/hooks/useGamePlayerStats';
-import type { MatchEvent, MatchPreviewApi, MatchPreviewFormItem, MatchPreviewSidelinedItem } from '@shared/types/mobile-api';
+import type { MatchAnalysisApi, MatchEvent, MatchPreviewApi, MatchPreviewFormItem, MatchPreviewSidelinedItem } from '@shared/types/mobile-api';
 
 type MatchTabId = 'overview' | 'events' | 'stats' | 'lineups';
 
@@ -229,12 +230,15 @@ export default function MatchScreen() {
           <>
             {/* Editor-curated content — match fact, recap/full video, report,
                 photo gallery. Self-guards (renders null when empty). */}
+            {/* Owner-approved post-match data column. */}
+            {data.analysis?.post ? <MatchAnalysisBlock analysis={data.analysis.post} /> : null}
             <GameEditorialBlock editorial={data.editorial ?? null} gallery={data.gallery ?? []} />
             {/* Pre-match preview — form + injuries/suspensions + AI, only for
                 not-yet-started games (matches the web "לקראת המשחק" block). */}
             {data.preview ? (
               <PreMatchBlock
                 preview={data.preview}
+                analysis={data.analysis?.pre ?? null}
                 homeName={homeTeam.nameHe}
                 awayName={awayTeam.nameHe}
                 onGamePress={(gid) => router.push(`/games/${gid}` as any)}
@@ -571,11 +575,13 @@ function PreMatchSidelined({ items }: { items: MatchPreviewSidelinedItem[] }) {
 
 function PreMatchBlock({
   preview,
+  analysis,
   homeName,
   awayName,
   onGamePress,
 }: {
   preview: MatchPreviewApi;
+  analysis: MatchAnalysisApi | null;
   homeName: string;
   awayName: string;
   onGamePress: (id: string) => void;
@@ -587,7 +593,9 @@ function PreMatchBlock({
   return (
     <Card>
       <Section title="לקראת המשחק">
-        {preview.aiSummary ? (
+        {analysis ? (
+          <MatchAnalysisBlock analysis={analysis} embedded />
+        ) : preview.aiSummary ? (
           <View style={{ backgroundColor: '#fffbeb', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }}>
             <Text style={{ fontSize: 13, lineHeight: 20, color: theme.ink[700], textAlign: 'right', writingDirection: 'rtl' }}>
               {preview.aiSummary}

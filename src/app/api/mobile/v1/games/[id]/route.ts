@@ -244,6 +244,7 @@ export async function GET(_request: Request, { params: paramsPromise }: { params
     preview: await buildPreviewBlock(raw),
     editorial: ((raw.sections as { editorial?: MatchPayload['editorial'] }).editorial ?? null),
     gallery: ((raw.sections as { gallery?: MatchPayload['gallery'] }).gallery ?? []),
+    analysis: await (await import('@/lib/match-analysis/public')).getPublishedAnalyses(raw.game.id),
   };
 
   return NextResponse.json(payload);

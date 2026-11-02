@@ -557,6 +557,8 @@ export interface HomePayload {
   liveStrip: LiveMatchCompact[];
   newsStrip: NewsCard[];
   onThisDay?: OnThisDayHome | null;
+  /** Newest owner-approved match analysis (title + first item → game page). */
+  analysisTeaser?: MatchAnalysisApi | null;
 }
 
 // ---------- Live ----------
@@ -898,6 +900,18 @@ export interface MatchPayload {
   editorial: MatchEditorial | null;
   /** Editor-curated photo gallery for this game. */
   gallery: MatchGalleryPhoto[];
+  /** Owner-approved data columns: after this game (post) and before it (pre). */
+  analysis?: { post: MatchAnalysisApi | null; pre: MatchAnalysisApi | null };
+}
+
+/** Mirrors src/lib/match-analysis/public.ts PublicAnalysis. */
+export interface MatchAnalysisApi {
+  id: string;
+  kind: 'POST' | 'PRE';
+  gameId: string;
+  titleHe: string | null;
+  paragraphs: string[];
+  publishedAt: string | null;
 }
 
 export interface MatchEditorial {
