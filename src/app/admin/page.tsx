@@ -55,7 +55,7 @@ export default async function AdminPage({
   const seasons = await prisma.season.findMany({ orderBy: { year: 'desc' } });
   const selectedSeasonId = searchParams?.season || seasons[0]?.id || null;
 
-  const [teams, fetchJobs, activityLogs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags, failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue] = await Promise.all([
+  const [teams, fetchJobs, activityLogs, telegramSourcesSetting, displayZeroStatPlayers, homepageLiveLimit, liveCountryLabels, liveSnapshots, coverageSeason, pushFlags, failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue, analysisDrafts] = await Promise.all([
     prisma.team.findMany({
       include: { season: true },
       orderBy: [{ updatedAt: 'desc' }],
@@ -256,6 +256,7 @@ export default async function AdminPage({
         dateTime: { gte: new Date() },
       },
     }),
+    prisma.matchAnalysis.findMany({ where: { status: 'DRAFT' }, orderBy: { createdAt: 'desc' }, select: { gameId: true, sourceGameId: true } }),
   ]);
 
   const telegramSourcesRaw = Array.isArray(telegramSourcesSetting?.valueJson)
@@ -275,7 +276,12 @@ export default async function AdminPage({
 
   const selectedSeason = seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null;
   const coverageRows = buildAdminCoverageRows(coverageSeason ? [coverageSeason] : []);
-  const attentionItems = buildAdminAttentionItems({ failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue });
+  const attentionItems = buildAdminAttentionItems({
+    failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue,
+    pendingAnalyses: analysisDrafts.length
+      ? { count: analysisDrafts.length, href: `/admin/games/${analysisDrafts[0].sourceGameId ?? analysisDrafts[0].gameId}/analysis` }
+      : undefined,
+  });
   const formatActivityTime = new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   const liveCountries = Array.from(
     new Set(

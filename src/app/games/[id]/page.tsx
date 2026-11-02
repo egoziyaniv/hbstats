@@ -24,6 +24,8 @@ import { PlayerRatingsTable } from '@/components/PlayerRatingsTable';
 import { FotmobPlayerStatsTable } from '@/components/FotmobPlayerStatsTable';
 import { FotmobUnavailableBlock } from '@/components/FotmobUnavailableBlock';
 import { GameEditorialBlock } from '@/components/GameEditorialBlock';
+import { MatchAnalysisBlock } from '@/components/MatchAnalysisBlock';
+import { getPublishedAnalyses } from '@/lib/match-analysis/public';
 import type { FotmobPlayerRating, FotmobUnavailablePlayer } from '@shared/types/mobile-api';
 import { MatchInfoCard } from '@/components/MatchInfoCard';
 import MatchdayAttendanceButton from '@/components/MatchdayAttendanceButton';
@@ -176,6 +178,8 @@ export default async function GamePage({
 
   // Pre-match "לקראת המשחק" preview: recent form + injuries/suspensions + AI summary.
   const matchPreview: MatchPreview | null = isPreMatch ? await buildMatchPreview(game) : null;
+  // The owner-approved data column: after this game (post) or before it (pre).
+  const analyses = await getPublishedAnalyses(game.id);
 
   // Player of the match — highest-rated player from either team (starter or sub).
   const allRatedPlayers = [
@@ -271,6 +275,7 @@ export default async function GamePage({
         ratingPlayers={ratingPlayers}
         predictedLineups={predictedLineups}
         matchPreview={matchPreview}
+        analyses={analyses}
         predictedFormation={predictedFormation}
         isLoggedIn={!!currentUser}
         initiallyAttended={Boolean(attendance)}
@@ -474,6 +479,7 @@ function PremierGameView({
   ratingPlayers,
   predictedLineups,
   matchPreview,
+  analyses,
   predictedFormation,
   isLoggedIn,
   initiallyAttended,
@@ -494,6 +500,7 @@ function PremierGameView({
   ratingPlayers: Array<{ playerId: string; displayName: string; photoUrl: string | null; jerseyNumber: number | null; position: string | null; side: 'home' | 'away' }>;
   predictedLineups: [import('@/lib/predicted-lineup').PredictedPlayer[], import('@/lib/predicted-lineup').PredictedPlayer[]] | null;
   matchPreview: MatchPreview | null;
+  analyses: Awaited<ReturnType<typeof getPublishedAnalyses>>;
   predictedFormation: import('@/lib/predicted-lineup').FormationId;
   isLoggedIn: boolean;
   initiallyAttended: boolean;
@@ -599,7 +606,7 @@ function PremierGameView({
 
         {selectedTab === 'overview' && matchPreview ? (
           <div className="mb-6">
-            <MatchPreviewSection preview={matchPreview} homeName={homeTeamName} awayName={awayTeamName} />
+            <MatchPreviewSection preview={matchPreview} homeName={homeTeamName} awayName={awayTeamName} analysis={analyses.pre} />
           </div>
         ) : null}
 
@@ -612,6 +619,18 @@ function PremierGameView({
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
               ערוך תוכן משחק
             </a>
+            <a
+              href={`/admin/games/${game.id}/analysis`}
+              className="ms-2 inline-flex items-center gap-1.5 rounded-xl border border-[var(--accent)] px-4 py-2 text-sm font-bold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white"
+            >
+              ניתוח
+            </a>
+          </div>
+        ) : null}
+
+        {selectedTab === 'overview' && analyses.post ? (
+          <div className="mb-6">
+            <MatchAnalysisBlock analysis={analyses.post} />
           </div>
         ) : null}
 

@@ -75,7 +75,7 @@ export async function buildAnalyses(
       const data = {
         facts: piece.facts as unknown as Prisma.InputJsonValue,
         titleHe: piece.titleHe, bodyHe: piece.bodyHe, aiGenerated: piece.bodyHe != null,
-        scoreAtBuild: kind === 'POST' ? `${target.gf}-${target.ga}` : null,
+        scoreAtBuild: kind === 'POST' ? (target.atHome ? `${target.gf}-${target.ga}` : `${target.ga}-${target.gf}`) : null, // home-away
         sourceGameId: target.id, status: 'DRAFT' as const, publishedAt: null,
       };
       await prisma.matchAnalysis.upsert({

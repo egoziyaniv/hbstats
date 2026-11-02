@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type { MatchPreview, FormItem, SidelinedItem } from '@/lib/match-preview';
+import type { PublicAnalysis } from '@/lib/match-analysis/public';
+import { MatchAnalysisBlock } from '@/components/MatchAnalysisBlock';
 
 function FormDots({ items }: { items: FormItem[] }) {
   if (!items.length) return <span className="text-xs text-stone-400">אין נתונים</span>;
@@ -54,10 +56,12 @@ export function MatchPreviewSection({
   preview,
   homeName,
   awayName,
+  analysis = null,
 }: {
   preview: MatchPreview;
   homeName: string;
   awayName: string;
+  analysis?: PublicAnalysis | null;
 }) {
   return (
     <section className="rounded-[24px] border border-stone-200 bg-white p-6 shadow-sm" dir="rtl">
@@ -65,7 +69,11 @@ export function MatchPreviewSection({
         <span className="h-5 w-1 rounded bg-[var(--accent,#dc2626)]" />
         <h2 className="text-lg font-black text-stone-900">לקראת המשחק</h2>
       </div>
-      {preview.aiSummary ? (
+      {analysis ? (
+        <div className="mb-5">
+          <MatchAnalysisBlock analysis={analysis} embedded />
+        </div>
+      ) : preview.aiSummary ? (
         <p className="mb-5 rounded-[18px] bg-amber-50 px-4 py-3 text-sm leading-6 text-stone-700">
           {preview.aiSummary}
         </p>

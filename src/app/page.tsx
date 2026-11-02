@@ -23,6 +23,7 @@ import { resolveHomeLeagueScope } from '@/lib/home-league-scope';
 import { ClubPointsTrendChart, GoalMinutesChart } from '@/components/Charts';
 import HomeFilterBar from '@/components/HomeFilterBar';
 import { HomeStatTeaser } from '@/components/HomeStatTeaser';
+import { HomeAnalysisTeaser } from '@/components/HomeAnalysisTeaser';
 import ClubHubBand from '@/components/ClubHubBand';
 import { buildClubSeasonSnapshot, buildClubTrend, pickClubArchiveGame, resolveHomeClubId } from '@/lib/home-club-hub';
 
@@ -1030,6 +1031,8 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
                 {nextRoundGames.length === 0 && <EmptyState text="אין משחקי מחזור קרוב." />}
               </div>
             </Card>
+
+            <HomeAnalysisTeaser />
 
             <HomeStatTeaser />
 

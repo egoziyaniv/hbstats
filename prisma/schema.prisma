@@ -2065,7 +2065,7 @@ model MatchAnalysis {
   facts        Json
   titleHe      String?
   bodyHe       String?
-  scoreAtBuild String? // POST: the score the facts were computed on
+  scoreAtBuild String? // POST: the home-away score the facts were computed on
   sourceGameId String? // the finished game whose final whistle produced this draft
   aiGenerated  Boolean             @default(true)
   publishedAt  DateTime?
