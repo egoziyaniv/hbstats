@@ -28,7 +28,7 @@ export const secondHalf: Detector = ({ kind, target, history }) => {
   if (!higher.length) {
     return [{
       key: 'second-half-share', kind, scope: 'club', coverageHe: `מאז ${seasonHe(earlier[0].y)} (עונות עם דקות שערים)`, rarity: 0.85,
-      textHe: `${base} — השיעור הגבוה ביותר של המועדון מאז ${seasonHe(earlier[0].y)}, מאז שיש לנו דקות שערים`,
+      textHe: `${base} — השיעור הגבוה ביותר של המועדון בכל העונות שיש לנו בהן דקות שערים (מאז ${seasonHe(earlier[0].y)})`,
       numbers: { ...numbers, since: seasonHe(earlier[0].y) }, evidenceGameIds: [target.id],
     }];
   }
