@@ -536,6 +536,7 @@ model Game {
   sofascoreMatchStats SofascoreMatchStats?
   fotmobData          FotmobMatchData?
   editorial           GameEditorial?
+  matchAnalyses       MatchAnalysis[]
   mediaAssets         MediaAsset[]             @relation("GameAssets")
   awayTeam            Team                     @relation("AwayTeam", fields: [awayTeamId], references: [id])
   competition         Competition?             @relation(fields: [competitionId], references: [id])
@@ -2042,6 +2043,39 @@ model GameEditorial {
   game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@map("game_editorials")
+}
+
+enum MatchAnalysisKind {
+  POST
+  PRE
+}
+
+enum MatchAnalysisStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// Data-driven column for a Beer Sheva game: POST = after the game, PRE = before the next one.
+// facts = the Fact[] the text rests on (src/lib/match-analysis); the owner approves before it's public.
+model MatchAnalysis {
+  id           String              @id @default(cuid())
+  gameId       String
+  kind         MatchAnalysisKind
+  status       MatchAnalysisStatus @default(DRAFT)
+  facts        Json
+  titleHe      String?
+  bodyHe       String?
+  scoreAtBuild String? // POST: the score the facts were computed on
+  sourceGameId String? // the finished game whose final whistle produced this draft
+  aiGenerated  Boolean             @default(true)
+  publishedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  game         Game                @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, kind])
+  @@index([status, publishedAt])
+  @@map("match_analyses")
 }
 
 model Song {
