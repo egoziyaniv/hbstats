@@ -45,6 +45,9 @@
 */3 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-matches.js --execute >> /home/hbs/logs/notify-matches.log 2>&1
 */10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-reminders.js --execute >> /home/hbs/logs/notify-reminders.log 2>&1
 */10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/call-cron.js notify-news >> /home/hbs/logs/notify-news.log 2>&1
+# Beer Sheva match analysis: ~2.5h after kickoff, drafts the post-match piece + next-game preview
+# (idempotent; no-op once both drafts exist) and pushes the admins to approve them.
+*/10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/call-cron.js match-analysis >> /home/hbs/logs/match-analysis.log 2>&1
 
 # ── Backups ───────────────────────────────────────────────────────────────────
 0 2 * * * /home/hbs/hbstats/scripts/backup-db.sh >> /home/hbs/logs/db-backup.log 2>&1
