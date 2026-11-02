@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireAdminUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { countAnalysesByStatus } from '@/lib/match-analysis/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,7 @@ type ContentCard = { title: string; description: string; href: string; total: nu
 
 export default async function AdminContentPage() {
   await requireAdminUser();
-  const [dossiers, pages, songs, hallEntries, honors, archivePending, archivePublished] = await Promise.all([
+  const [dossiers, pages, songs, hallEntries, honors, archivePending, archivePublished, analyses] = await Promise.all([
     prisma.clubSeasonDossier.groupBy({ by: ['isPublished'], _count: { _all: true } }),
     prisma.clubPage.groupBy({ by: ['isPublished'], _count: { _all: true } }),
     prisma.song.groupBy({ by: ['isPublished'], _count: { _all: true } }),
@@ -16,6 +17,7 @@ export default async function AdminContentPage() {
     prisma.clubHonor.count(),
     prisma.fanArchiveItem.count({ where: { status: 'PENDING' } }),
     prisma.fanArchiveItem.count({ where: { status: 'PUBLISHED' } }),
+    countAnalysesByStatus(),
   ]);
   const split = (rows: Array<{ isPublished: boolean; _count: { _all: number } }>) => ({
     published: rows.find((row) => row.isPublished)?._count._all ?? 0,
@@ -26,6 +28,7 @@ export default async function AdminContentPage() {
   const song = split(songs);
   const hall = split(hallEntries);
   const cards: ContentCard[] = [
+    { title: 'ניתוחי משחק', description: 'ניתוח אחרי כל משחק ולקראת הבא — לאישור לפני פרסום.', href: '/admin/analyses', total: analyses.DRAFT + analyses.PUBLISHED, published: analyses.PUBLISHED, pending: analyses.DRAFT, tone: 'border-orange-200 bg-orange-50 text-orange-950' },
     { title: 'תיקי עונה', description: 'סיכומי עונה, רגעים ומקורות מאומתים.', href: '/admin/club/seasons', total: dossier.published + dossier.draft, published: dossier.published, pending: dossier.draft, tone: 'border-red-200 bg-red-50 text-red-950' },
     { title: 'עמודי מועדון', description: 'היסטוריה, זהות, אצטדיון ותרבות.', href: '/admin/club-pages', total: clubPages.published + clubPages.draft, published: clubPages.published, pending: clubPages.draft, tone: 'border-sky-200 bg-sky-50 text-sky-950' },
     { title: 'ארכיון אוהדים', description: 'בדיקת מקור, קרדיט והרשאת פרסום.', href: '/admin/archive', total: archivePending + archivePublished, published: archivePublished, pending: archivePending, tone: 'border-amber-200 bg-amber-50 text-amber-950' },
@@ -39,6 +42,7 @@ export default async function AdminContentPage() {
     <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => <Link key={card.href} href={card.href} className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.tone}`}><div className="flex items-start justify-between gap-3"><h2 className="text-lg font-black">{card.title}</h2><span className="rounded-full bg-white/70 px-3 py-1 text-sm font-black">{card.total}</span></div><p className="mt-1 text-sm leading-5 opacity-80">{card.description}</p>{card.published !== undefined && <div className="mt-3 flex gap-2 text-xs font-bold"><span className="rounded-full bg-white/70 px-2.5 py-1">מפורסם: {card.published}</span><span className="rounded-full bg-white/70 px-2.5 py-1">{card.title === 'ארכיון אוהדים' ? 'לבדיקה' : 'טיוטה'}: {card.pending}</span></div>}<span className="mt-3 block text-sm font-black">לניהול ←</span></Link>)}
     </section>
+    {analyses.DRAFT > 0 && <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-orange-950"><div><strong className="text-lg font-black">{analyses.DRAFT} ניתוחי משחק מחכים לאישור</strong><p className="mt-1 text-sm">שום ניתוח לא מוצג באתר לפני אישור.</p></div><Link href="/admin/analyses" className="rounded-xl bg-orange-700 px-4 py-2 font-black text-white">לתור האישור</Link></section>}
     {archivePending > 0 && <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950"><div><strong className="text-lg font-black">{archivePending} פריטים מחכים לבדיקה</strong><p className="mt-1 text-sm">יש לאמת מקור, קרדיט והרשאה לפני פרסום לציבור.</p></div><Link href="/admin/archive" className="rounded-xl bg-amber-700 px-4 py-2 font-black text-white">פתיחת תור הבדיקה</Link></section>}
   </main>;
 }

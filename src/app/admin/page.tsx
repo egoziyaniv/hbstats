@@ -256,7 +256,7 @@ export default async function AdminPage({
         dateTime: { gte: new Date() },
       },
     }),
-    prisma.matchAnalysis.findMany({ where: { status: 'DRAFT' }, orderBy: { createdAt: 'desc' }, select: { gameId: true, sourceGameId: true } }),
+    prisma.matchAnalysis.count({ where: { status: 'DRAFT' } }),
   ]);
 
   const telegramSourcesRaw = Array.isArray(telegramSourcesSetting?.valueJson)
@@ -278,9 +278,7 @@ export default async function AdminPage({
   const coverageRows = buildAdminCoverageRows(coverageSeason ? [coverageSeason] : []);
   const attentionItems = buildAdminAttentionItems({
     failedJobs, pendingMerges, pendingArchiveItems, upcomingGamesMissingVenue,
-    pendingAnalyses: analysisDrafts.length
-      ? { count: analysisDrafts.length, href: `/admin/games/${analysisDrafts[0].sourceGameId ?? analysisDrafts[0].gameId}/analysis` }
-      : undefined,
+    pendingAnalyses: analysisDrafts,
   });
   const formatActivityTime = new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   const liveCountries = Array.from(

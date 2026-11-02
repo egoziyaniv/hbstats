@@ -8,8 +8,15 @@ import MatchAnalysisClient from '@/components/admin/MatchAnalysisClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminGameAnalysisPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default async function AdminGameAnalysisPage({
+  params: paramsPromise,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ kind?: string }>;
+}) {
   const params = await paramsPromise;
+  const { kind } = await searchParams;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') redirect('/login');
 
@@ -39,11 +46,16 @@ export default async function AdminGameAnalysisPage({ params: paramsPromise }: {
               ניתוח אחרי המשחק וטור לקראת המשחק הבא. המספרים מחושבים מהנתונים; ה-AI רק מנסח. שום דבר לא מוצג לפני אישור.
             </p>
           </div>
-          <Link href={`/games/${game.id}`} className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-stone-700">
-            לדף המשחק
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/admin/analyses" className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-stone-700">
+              כל הניתוחים
+            </Link>
+            <Link href={`/games/${game.id}`} className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-stone-700">
+              לדף המשחק
+            </Link>
+          </div>
         </div>
-        <MatchAnalysisClient gameId={game.id} initial={analyses} />
+        <MatchAnalysisClient gameId={game.id} initial={analyses} initialKind={kind === 'PRE' ? 'PRE' : 'POST'} />
       </div>
     </div>
   );

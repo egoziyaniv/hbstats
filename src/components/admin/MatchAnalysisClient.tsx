@@ -5,9 +5,9 @@ import type { AdminAnalysis } from '@/lib/match-analysis/admin';
 
 const KIND_HE = { POST: 'אחרי המשחק', PRE: 'לקראת המשחק הבא' } as const;
 
-export default function MatchAnalysisClient({ gameId, initial }: { gameId: string; initial: AdminAnalysis[] }) {
+export default function MatchAnalysisClient({ gameId, initial, initialKind = 'POST' }: { gameId: string; initial: AdminAnalysis[]; initialKind?: 'POST' | 'PRE' }) {
   const [analyses, setAnalyses] = useState(initial);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(Math.max(0, initial.findIndex((a) => a.kind === initialKind)));
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const current = analyses[tab];

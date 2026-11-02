@@ -20,6 +20,7 @@ const groups = [
   ] },
   { title: 'תוכן וארכיון', links: [
     { href: '/admin/content', label: 'מרכז תוכן' },
+    { href: '/admin/analyses', label: 'ניתוחי משחק' },
     { href: '/admin/club/seasons', label: 'תיקי עונה' },
     { href: '/admin/club-pages', label: 'עמודי מועדון' },
     { href: '/admin/archive', label: 'ארכיון אוהדים' },
