@@ -3,7 +3,9 @@
 const { loadEnvConfig } = require('@next/env');
 const path = require('node:path');
 
-const ENDPOINTS = new Set(['notify-news', 'on-this-day']);
+const ENDPOINTS = new Set(['notify-news', 'on-this-day', 'match-analysis']);
+// match-analysis loads the club's whole history and makes two AI calls.
+const TIMEOUT_MS = { 'match-analysis': 180_000 };
 
 async function runCron(endpoint, {
   projectDir = path.resolve(__dirname, '..'),
@@ -20,7 +22,7 @@ async function runCron(endpoint, {
     response = await fetchImpl(`http://localhost:3100/api/cron/${endpoint}`, {
       headers: { 'x-cron-secret': secret },
       redirect: 'error',
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(TIMEOUT_MS[endpoint] ?? 30_000),
     });
   } catch {
     throw new Error(`Cron ${endpoint} request failed or timed out`);
