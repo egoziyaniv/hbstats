@@ -71,8 +71,10 @@ export async function chatWithClaude(apiKey: string, messages: ChatMessage[]): P
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      // Sonnet 5.5 thinks adaptively by default; low effort keeps chat replies quick.
+      model: 'claude-sonnet-5-5',
+      max_tokens: 16000,
+      output_config: { effort: 'low' },
       system: buildSystemPrompt(),
       tools: anthropicTools,
       messages: anthropicMessages,
@@ -111,7 +113,7 @@ export async function chatWithClaude(apiKey: string, messages: ChatMessage[]): P
 
 // ─── OpenAI ───
 
-export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[], model = 'gpt-4o'): Promise<string> {
+export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[], model = 'gpt-6-luna'): Promise<string> {
   const client = new OpenAI({ apiKey });
 
   const openaiTools: OpenAI.ChatCompletionTool[] = toolDefinitions.map((t) => ({
@@ -139,7 +141,7 @@ export async function chatWithOpenAI(apiKey: string, messages: ChatMessage[], mo
       tools: openaiTools,
       messages: openaiMessages,
     } as OpenAI.ChatCompletionCreateParamsNonStreaming;
-    if (/^(gpt-5|o[1-9])/.test(model)) (params as unknown as Record<string, unknown>).reasoning_effort = 'none';
+    if (/^(gpt-([5-9]|[1-9][0-9])|o[1-9])/.test(model)) (params as unknown as Record<string, unknown>).reasoning_effort = 'none';
     const response = await client.chat.completions.create(params);
 
     const choice = response.choices[0];

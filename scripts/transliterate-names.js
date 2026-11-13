@@ -29,8 +29,9 @@ async function transliterate(client, names) {
   const prompt = `תעתק את השמות הבאים מאנגלית לעברית (transliteration, לא תרגום). השמות הם של שופטי כדורגל או מאמני כדורגל. החזר JSON עם המבנה: { "results": [{ "input": "<original>", "output": "<hebrew>" }] }. אם השם כבר בעברית, החזר אותו כמו שהוא.\n\nשמות:\n${names.map((n, i) => `${i + 1}. ${n}`).join('\n')}`;
 
   const res = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    max_tokens: 2000,
+    model: 'gpt-6-luna', // gpt-4o-mini shuts down 2027-01-14
+    reasoning_effort: 'none',
+    max_completion_tokens: 2000,
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: 'אתה מתעתק שמות לועזיים לעברית בדיוק רב. דוגמא: "Orel Grinfeeld" → "אורל גרינפלד".' },

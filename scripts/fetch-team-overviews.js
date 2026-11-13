@@ -227,9 +227,9 @@ async function generateAiNarrative(team, snapshot, wiki, apiKey) {
     `- אם אין נתונים מספיקים — כתוב משפט אחד בלבד שמציין את שם הקבוצה ועונה ${seasonName}.\n`;
 
   const res = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    max_tokens: 400,
-    temperature: 0.3, // less hallucination
+    model: 'gpt-6-luna', // gpt-4o-mini shuts down 2027-01-14
+    reasoning_effort: 'none',
+    max_completion_tokens: 400,
     messages: [
       { role: 'system', content: systemMessage },
       { role: 'user', content: prompt },

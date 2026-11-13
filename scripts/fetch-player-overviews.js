@@ -133,9 +133,9 @@ async function generateAi(player, snap, wiki, apiKey) {
     `- אסור להזכיר שחקנים אחרים, רק את ${playerName}.\n`;
 
   const res = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    max_tokens: 300,
-    temperature: 0.3,
+    model: 'gpt-6-luna', // gpt-4o-mini shuts down 2027-01-14
+    reasoning_effort: 'none',
+    max_completion_tokens: 300,
     messages: [
       { role: 'system', content: systemMessage },
       { role: 'user', content: prompt },

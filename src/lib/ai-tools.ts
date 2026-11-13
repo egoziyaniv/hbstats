@@ -82,8 +82,8 @@ export const toolDefinitions = [
   {
     name: 'getTeamCardSummary',
     description: 'Per-team summary of yellow + red cards per player for the season. Returns each player with their yellow count and a status: SUSPENDED (just hit 5/9/13 milestone in latest matchday → next game banned), AT_RISK (count is 4/8/12 → next yellow triggers ban), or CLEAR. Use this to answer questions like "who is suspended" or "who is at risk of suspension" for a specific team.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: 'object' as const,
       properties: {
         teamName: { type: 'string', description: 'Team name (Hebrew or English)' },
         seasonYear: { type: 'number', description: 'Season year (defaults to most recent)' },
