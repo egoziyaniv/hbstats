@@ -10,11 +10,27 @@ import { runChatQuery } from './run';
 
 const NUM = /\d+(?:[.,]\d+)*/g;
 /** Multi-digit numbers in the reply that appear in no tool output or in the conversation — invented. */
+function columnTotals(src: string): number[] {
+  let parsed: unknown;
+  try { parsed = JSON.parse(src); } catch { return []; }
+  const rows = (parsed as { rows?: unknown })?.rows;
+  if (!Array.isArray(rows) || rows.length < 2) return [];
+  const sums = new Map<string, number>();
+  for (const row of rows) {
+    for (const [k, v] of Object.entries((row ?? {}) as Record<string, unknown>)) {
+      if (typeof v === 'number') sums.set(k, (sums.get(k) ?? 0) + v);
+    }
+  }
+  return Array.from(sums.values()).map((n) => Math.round(n * 100) / 100);
+}
+
 export function unbackedNumbers(reply: string, sources: string[]): string[] {
   const seen = new Set<string>();
   for (const src of sources) {
     const found: string[] = src.match(NUM) ?? [];
     for (const n of found) { seen.add(n); seen.add(n.replace(/,/g, '')); }
+    // Column totals of a result's rows (35+34+29+13 games → "111 games") are arithmetic, not invention.
+    for (const total of columnTotals(src)) { seen.add(String(total)); seen.add(total.toLocaleString('en-US')); }
     // 1971-01-02 in a result is written 2.1.1971 / 2.1.71 / 02.01.1971 in the answer.
     for (const [, y, m, d] of Array.from(src.matchAll(/(\d{4})-(\d{2})-(\d{2})/g))) {
       for (const day of [String(+d), d]) for (const month of [String(+m), m]) for (const year of [y, y.slice(2)]) seen.add(`${day}.${month}.${year}`);
