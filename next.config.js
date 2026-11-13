@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ['puppeteer-real-browser', 'puppeteer-core'],
+  serverExternalPackages: ['puppeteer-real-browser', 'puppeteer-core', 'libpg-query'],
   experimental: {
     serverActions: {
       bodySizeLimit: '1mb',

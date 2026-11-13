@@ -38,6 +38,10 @@
 
 # ── Derived content ───────────────────────────────────────────────────────────
 30 4 * * * cd /home/hbs/hbstats && npx tsx scripts/rebuild-records.ts >> /home/hbs/logs/rebuild-records.log 2>&1
+# Site chat: rebuild the read-only `chat` schema (club map + materialized views) every 3 hours so
+# answers include the latest games; prune chat questions older than a year nightly.
+20 */3 * * * cd /home/hbs/hbstats && npx tsx scripts/chat/apply-schema.ts >> /home/hbs/logs/chat-schema.log 2>&1
+45 4 * * * cd /home/hbs/hbstats && npx tsx scripts/chat/prune-log.ts >> /home/hbs/logs/chat-prune.log 2>&1
 30 3 * * * /home/hbs/hbstats/scripts/cron-refresh-ai.sh >> /home/hbs/logs/ai-refresh.log 2>&1
 0 9 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/call-cron.js on-this-day >> /home/hbs/logs/on-this-day.log 2>&1
 
