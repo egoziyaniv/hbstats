@@ -55,7 +55,7 @@ const RULES = `כללים לכתיבת שאילתות:
 - כשהשאילתה נכשלת — קרא את הודעת השגיאה, תקן ונסה שוב. אל תנחש תשובה בלי נתונים.`;
 
 const ANSWER = `כללים לתשובה:
-- ענה בעברית, קצר וברור, עם המספרים מהשאילתה בלבד — לעולם אל תמציא מספר, שם או תאריך.
+- ענה בעברית, קצר וברור, עם המספרים מהשאילתה בלבד — לעולם אל תמציא מספר, שם או תאריך, וגם לא תחשב פירוק או סכום שלא הופיע בתוצאה: אם צריך פירוק — הרץ שאילתה שמחזירה אותו.
 - כשהשאלה נוגעת לתקופה שבה הנתונים חלקיים — אמור זאת במפורש (למשל "מאז 2009/10, אין לנו הרכבים לפני כן").
 - אם הנתונים לא מאפשרים לענות — אמור מה חסר.
 - כשמזכירים משחק ספציפי אפשר לקשר: [תיאור](/games/<game_id>).
@@ -112,13 +112,16 @@ where r = 1 and position = 1 and season_year in (1961, 1962) order by season_yea
 select season from chat.beer_sheva_honors where competition = 'ליגת העל' and place = 'WINNER' order by season_year;
 
 שאלה: מי מלך השערים של ליגת העל בעונה 2024/25?
-select player, count(*) as goals,
-  string_agg(distinct team, ' / ') as teams, min(date) as first_goal, max(date) as last_goal
-from chat.goals
-where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal
-group by player order by goals desc limit 5;
+with per_team as (
+  select player, team, count(*) as n, min(date) as first_goal, max(date) as last_goal
+  from chat.goals
+  where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal
+  group by player, team)
+select player, sum(n) as goals,
+  string_agg(team || ': ' || n || ' (' || to_char(first_goal, 'DD.MM.YY') || '–' || to_char(last_goal, 'DD.MM.YY') || ')', ', ' order by first_goal) as by_team
+from per_team group by player order by goals desc limit 5;
 (קיבוץ לפי שם ולא לפי player_key: לחלק מהשחקנים יש שתי רשומות באותה עונה, ויש שעברו קבוצה באמצע העונה.
- אם בשורה יש שתי קבוצות — בדוק שזה מעבר (תאריכים לא חופפים, למשל עם שאילתה לפי team) ופרט כמה שערים בכל קבוצה.)`;
+ by_team נותן את הפירוק לפי קבוצה והתאריכים — טווחים לא חופפים = מעבר קבוצה.)`;
 
 export function buildDataInstructions(basePrompt: string): string {
   const tables = Object.entries(TABLES).map(([name, desc]) => `${name}: ${desc}`).join('\n');

@@ -8,6 +8,14 @@ import { executeTool, toolDefinitions } from '@/lib/ai-tools';
 import { buildDataInstructions, describeTable } from './dictionary';
 import { runChatQuery } from './run';
 
+const NUM = /\d+(?:[.,]\d+)*/g;
+/** Multi-digit numbers in the reply that appear in no tool output or in the conversation — invented. */
+export function unbackedNumbers(reply: string, sources: string[]): string[] {
+  const seen = new Set<string>();
+  for (const src of sources) for (const n of src.match(NUM) || []) { seen.add(n); seen.add(n.replace(/,/g, '')); }
+  return Array.from(new Set((reply.match(NUM) || []).filter((n) => !/^\d$/.test(n) && !seen.has(n) && !seen.has(n.replace(/,/g, '')))));
+}
+
 export const LUNA = 'gpt-6-luna';
 export const SOL = 'gpt-6.1-sol';
 const MAX_ROUNDS = 8;
@@ -49,12 +57,12 @@ const cost = (model: string, input: number, output: number) => {
   return (input * i + output * o) / 1_000_000;
 };
 
-interface RunOutcome { reply: string | null; queries: QueryLog[]; sqlErrors: number; input: number; output: number }
+interface RunOutcome { reply: string | null; queries: QueryLog[]; sqlErrors: number; input: number; output: number; sources: string[] }
 
 async function runModel(client: OpenAI, model: string, messages: ChatMessage[], sqlAllowed: boolean): Promise<RunOutcome> {
   const instructions = sqlAllowed ? buildDataInstructions(buildSystemPrompt()) : buildSystemPrompt();
   const tools = sqlAllowed ? [...SQL_TOOLS, ...LOOKUP_TOOLS] : LOOKUP_TOOLS;
-  const out: RunOutcome = { reply: null, queries: [], sqlErrors: 0, input: 0, output: 0 };
+  const out: RunOutcome = { reply: null, queries: [], sqlErrors: 0, input: 0, output: 0, sources: messages.map((m) => m.content) };
   let input: ResponseInput = messages.map((m) => ({ role: m.role, content: m.content }));
   let previous: string | undefined;
 
@@ -93,7 +101,9 @@ async function runModel(client: OpenAI, model: string, messages: ChatMessage[], 
       } else {
         result = await executeTool(call.name, args).catch((e) => ({ error: String((e as Error).message || e) }));
       }
-      results.push({ type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(result).slice(0, MAX_TOOL_OUTPUT) });
+      const output = JSON.stringify(result).slice(0, MAX_TOOL_OUTPUT);
+      out.sources.push(output);
+      results.push({ type: 'function_call_output', call_id: call.call_id, output });
     }
     input = results;
     if (out.sqlErrors >= 2 && model !== SOL) return out; // escalate rather than keep guessing
@@ -105,7 +115,9 @@ export async function answerWithData(apiKey: string, messages: ChatMessage[], { 
   const client = new OpenAI({ apiKey });
   const first = await runModel(client, LUNA, messages, sqlAllowed);
   const firstCost = cost(LUNA, first.input, first.output);
-  if (first.reply && first.sqlErrors < 2) {
+  // A reply with numbers no query returned is rerun on sol rather than shown.
+  const invented = first.reply && first.queries.length ? unbackedNumbers(first.reply, first.sources) : [];
+  if (first.reply && first.sqlErrors < 2 && !invented.length) {
     return { reply: first.reply, model: LUNA, outcome: 'ok', queries: first.queries, inputTokens: first.input, outputTokens: first.output, costUsd: firstCost };
   }
   const second = await runModel(client, SOL, messages, sqlAllowed);
