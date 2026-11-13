@@ -231,6 +231,12 @@ JOIN public.teams t ON t.id = st."teamId"
 LEFT JOIN chat.competitions cc ON cc.competition_id = st."competitionId"
 LEFT JOIN chat.club_map cm ON cm.team_id = st."teamId";
 
+-- Hapoel Beer Sheva's titles and runner-up finishes (editor-curated, /club) — the answer to
+-- "how many titles" questions, including seasons whose final table we don't hold.
+CREATE VIEW chat.beer_sheva_honors AS
+SELECT "competitionHe" AS competition, place::text AS place, "seasonLabel" AS season, year AS season_year
+FROM public.club_honors;
+
 -- One row per player key (canonical rows and rows with no canonical link).
 CREATE VIEW chat.players AS
 SELECT

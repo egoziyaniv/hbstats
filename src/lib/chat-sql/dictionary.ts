@@ -22,6 +22,7 @@ export const TABLES: Record<string, string> = {
   minute_on, minute_off, minutes (minutes played; 90, or 120 with extra time; stoppage time not counted), goals, assists, yellow, red, shirt_no.`,
   'chat.standings': `One row per league-table line. season_year, season, competition_id, competition, group_name (play-off group, if any),
   position, club_key, team, played, won, drawn, lost, goals_for, goals_against, points, points_adjustment.`,
+  'chat.beer_sheva_honors': "Hapoel Beer Sheva's titles (place 'WINNER') and runner-up finishes ('RUNNER_UP'): competition ('ליגת העל', 'גביע המדינה', 'אלוף האלופים', 'גביע הטוטו'…), season, season_year. The source for any question about Beer Sheva's titles / championships / cups.",
   'chat.players': 'One row per player key. player_key, player (Hebrew), player_en, birth_date, nationality, position.',
   'chat.clubs': 'club_key, club (Hebrew name), team_rows.',
   'chat.competitions': 'competition_id, competition, kind, category, top_flight (bool: comp_liga_haal, the top division in every era).',
@@ -40,11 +41,12 @@ const RULES = `כללים לכתיבת שאילתות:
 - רק SELECT על טבלאות chat.* (ראה פירוט). אין גישה לשום טבלה אחרת. השתמש ב-runQuery; אם צריך פרטי עמודות — describeTable.
 - קבוצות מזוהות לפי club_key (אותו מפתח בכל העונות). הפועל באר שבע = '${HBS_CLUB_KEY}'. כדי למצוא club_key של קבוצה אחרת: select club_key, club from chat.clubs where club ilike '%מכבי חיפה%'.
 - שחקנים: חפש לפי שם (player ilike '%שם%'), קבל player_key וסכם לפיו. ייתכנו כמה player_key לאותו שם (רשומות היסטוריות כפולות או שם הפוך, למשל "ברדה אליניב"):
-  * מותר לחבר כמה player_key רק אם כולם מאותה קבוצה (club_key) ולא חופפים בעונות.
+  * מותר לחבר כמה player_key רק כשהם באותה קבוצה (club_key). אותו שם + אותה קבוצה + אותה עונה = אותו שחקן — סכם יחד (קבץ לפי player ו-club_key, לא לפי player_key).
   * אסור לחבר שחקנים לפי שם בלבד בין קבוצות שונות — אם יש שני שחקנים בשם זהה בקבוצות שונות, שאל את המשתמש למי הכוונה.
   * בסיכום של שחקן תן גם פירוט לפי עונה, כדי שיראו אם חסרה עונה.
 - ברירת מחדל: כדורגל גברים (category = 'men'), בלי משחקי ידידות (competition_kind <> 'friendly'), אלא אם המשתמש ביקש אחרת.
 - "ליגה" = competition_kind = 'league'; "הליגה הבכירה" = competition_id = 'comp_liga_haal'.
+- תארים של הפועל באר שבע (אליפויות, גביעים) — תמיד מ-chat.beer_sheva_honors.
 - אליפות / מקום סופי: בעונות עם פלייאוף יש לקבוצה כמה שורות טבלה (עונה סדירה + פלייאוף עליון/תחתון). המקום הסופי = השורה עם played הגדול ביותר באותה עונה ומסגרת. אלופה = מקום 1 בשורה הסופית של comp_liga_haal. אם לעונה יש רק טבלת עונה סדירה (played קטן ממספר המחזורים) — אמור שטבלת הפלייאוף חסרה ואל תכריז על אלופה.
 - מלך שערים / סך שערים: כל השערים במסגרת ובעונה — כולל פנדלים ומשחקי הפלייאוף; בלי שערים עצמיים. אל תסנן לפי מחזור או שלב אלא אם ביקשו.
 - "בליגה" בלי פירוט = כל משחקי הליגה (competition_kind = 'league') בכל הדרגות; אם התשובה מגיעה מליגה נמוכה (ליגה א'/ב'/ג' של שנות ה-50–70) — ציין זאת, ואם רלוונטי תן גם את התשובה לליגה הבכירה.
@@ -106,16 +108,13 @@ where r = 1 and position = 1 and season_year in (1961, 1962) order by season_yea
 (עונה 1961/62 מסתיימת ב-1962 — כשמשתמש אומר שנה אחת, בדוק את שתי העונות האפשריות.)
 
 שאלה: כמה אליפויות יש להפועל באר שבע?
-with final as (
-  select *, rank() over (partition by season_year order by played desc) as r
-  from chat.standings where competition_id = 'comp_liga_haal')
-select season, played, points from final
-where r = 1 and position = 1 and club_key = '${HBS_CLUB_KEY}' order by season_year;
+select season from chat.beer_sheva_honors where competition = 'ליגת העל' and place = 'WINNER' order by season_year;
 
 שאלה: מי מלך השערים של ליגת העל בעונה 2024/25?
 select player, team, count(*) as goals from chat.goals
 where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal
-group by player_key, player, team order by goals desc limit 5;`;
+group by club_key, player, team order by goals desc limit 5;
+(קיבוץ לפי שם + קבוצה ולא לפי player_key: לחלק מהשחקנים יש שתי רשומות באותה עונה.)`;
 
 export function buildDataInstructions(basePrompt: string): string {
   const tables = Object.entries(TABLES).map(([name, desc]) => `${name}: ${desc}`).join('\n');

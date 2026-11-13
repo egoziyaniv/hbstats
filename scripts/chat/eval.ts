@@ -31,7 +31,7 @@ const CASES: Array<{ q: string; truth: string }> = [
   { q: 'כמה פעמים ניצחה הפועל באר שבע את מכבי תל אביב?',
     truth: `select count(*) wins from chat.team_games where ${BS} and opponent = 'מכבי תל אביב' and result = 'W' and ${MEN}` },
   { q: 'מי מלך השערים של ליגת העל בעונת 2024/25?',
-    truth: `select player, count(*) goals from chat.goals where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal group by player_key, player order by 2 desc limit 1` },
+    truth: `select player, count(*) goals from chat.goals where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal group by club_key, player order by 2 desc limit 1` },
   { q: 'כמה שערים הבקיעה הפועל באר שבע בליגה בעונת 2025/26?',
     truth: `select sum(goals_for) goals from chat.team_games where ${BS} and season = '2025/26' and competition_kind = 'league'` },
   { q: 'מה רצף הניצחונות הארוך ביותר של הפועל באר שבע בליגה?',
@@ -40,9 +40,7 @@ const CASES: Array<{ q: string; truth: string }> = [
       r as (select rn - row_number() over (order by rn) grp from n where w)
       select max(c) longest from (select grp, count(*) c from r group by grp) x` },
   { q: 'כמה פעמים זכתה הפועל באר שבע באליפות?',
-    // The final table is the row with the most games; 2025/26 holds only its regular-season table.
-    truth: `with f as (select *, rank() over (partition by season_year order by played desc) r from chat.standings where competition_id = 'comp_liga_haal' and season_year < 2025)
-      select count(*) titles from f where r = 1 and position = 1 and ${BS}` },
+    truth: `select count(*) titles from chat.beer_sheva_honors where competition = 'ליגת העל' and place = 'WINNER'` },
   { q: 'כמה כרטיסים צהובים קיבלה הפועל באר שבע בעונת 2025/26 בליגה?',
     truth: `select sum(yellow) yellows from chat.player_appearances where ${BS} and season = '2025/26' and competition_kind = 'league'` },
   { q: 'איזה שחקן של הפועל באר שבע שיחק הכי הרבה דקות בעונת 2025/26?',
