@@ -12,8 +12,12 @@ const NUM = /\d+(?:[.,]\d+)*/g;
 /** Multi-digit numbers in the reply that appear in no tool output or in the conversation — invented. */
 export function unbackedNumbers(reply: string, sources: string[]): string[] {
   const seen = new Set<string>();
-  for (const src of sources) for (const n of src.match(NUM) || []) { seen.add(n); seen.add(n.replace(/,/g, '')); }
-  return Array.from(new Set((reply.match(NUM) || []).filter((n) => !/^\d$/.test(n) && !seen.has(n) && !seen.has(n.replace(/,/g, '')))));
+  for (const src of sources) {
+    const found: string[] = src.match(NUM) ?? [];
+    for (const n of found) { seen.add(n); seen.add(n.replace(/,/g, '')); }
+  }
+  const inReply: string[] = reply.match(NUM) ?? [];
+  return Array.from(new Set(inReply.filter((n) => !/^\d$/.test(n) && !seen.has(n) && !seen.has(n.replace(/,/g, '')))));
 }
 
 export const LUNA = 'gpt-6-luna';
@@ -62,7 +66,8 @@ interface RunOutcome { reply: string | null; queries: QueryLog[]; sqlErrors: num
 async function runModel(client: OpenAI, model: string, messages: ChatMessage[], sqlAllowed: boolean): Promise<RunOutcome> {
   const instructions = sqlAllowed ? buildDataInstructions(buildSystemPrompt()) : buildSystemPrompt();
   const tools = sqlAllowed ? [...SQL_TOOLS, ...LOOKUP_TOOLS] : LOOKUP_TOOLS;
-  const out: RunOutcome = { reply: null, queries: [], sqlErrors: 0, input: 0, output: 0, sources: messages.map((m) => m.content) };
+  // Numbers may come from the conversation, the instructions (coverage years) or a tool's output.
+  const out: RunOutcome = { reply: null, queries: [], sqlErrors: 0, input: 0, output: 0, sources: [instructions, ...messages.map((m) => m.content)] };
   let input: ResponseInput = messages.map((m) => ({ role: m.role, content: m.content }));
   let previous: string | undefined;
 
