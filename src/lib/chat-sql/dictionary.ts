@@ -42,7 +42,8 @@ const RULES = `כללים לכתיבת שאילתות:
 - קבוצות מזוהות לפי club_key (אותו מפתח בכל העונות). הפועל באר שבע = '${HBS_CLUB_KEY}'. כדי למצוא club_key של קבוצה אחרת: select club_key, club from chat.clubs where club ilike '%מכבי חיפה%'.
 - שחקנים: חפש לפי שם (player ilike '%שם%'), קבל player_key וסכם לפיו. ייתכנו כמה player_key לאותו שם (רשומות היסטוריות כפולות או שם הפוך, למשל "ברדה אליניב"):
   * מותר לחבר כמה player_key רק כשהם באותה קבוצה (club_key). אותו שם + אותה קבוצה + אותה עונה = אותו שחקן — סכם יחד (קבץ לפי player ו-club_key, לא לפי player_key).
-  * אסור לחבר שחקנים לפי שם בלבד בין קבוצות שונות — אם יש שני שחקנים בשם זהה בקבוצות שונות, שאל את המשתמש למי הכוונה.
+  * מעבר באמצע עונה: אותו שם, אותה עונה, שתי קבוצות, ותאריכי המשחקים לא חופפים (אחת נגמרת לפני שהשנייה מתחילה) = אותו שחקן שעבר קבוצה — סכם ואמור "כולל X שערים במדי Y".
+  * מעבר לזה, אסור לחבר שחקנים לפי שם בלבד בין קבוצות שונות — אם יש שני שחקנים בשם זהה בקבוצות שונות, שאל את המשתמש למי הכוונה.
   * בסיכום של שחקן תן גם פירוט לפי עונה, כדי שיראו אם חסרה עונה.
 - ברירת מחדל: כדורגל גברים (category = 'men'), בלי משחקי ידידות (competition_kind <> 'friendly'), אלא אם המשתמש ביקש אחרת.
 - "ליגה" = competition_kind = 'league'; "הליגה הבכירה" = competition_id = 'comp_liga_haal'.
@@ -111,10 +112,13 @@ where r = 1 and position = 1 and season_year in (1961, 1962) order by season_yea
 select season from chat.beer_sheva_honors where competition = 'ליגת העל' and place = 'WINNER' order by season_year;
 
 שאלה: מי מלך השערים של ליגת העל בעונה 2024/25?
-select player, team, count(*) as goals from chat.goals
+select player, count(*) as goals,
+  string_agg(distinct team, ' / ') as teams, min(date) as first_goal, max(date) as last_goal
+from chat.goals
 where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal
-group by club_key, player, team order by goals desc limit 5;
-(קיבוץ לפי שם + קבוצה ולא לפי player_key: לחלק מהשחקנים יש שתי רשומות באותה עונה.)`;
+group by player order by goals desc limit 5;
+(קיבוץ לפי שם ולא לפי player_key: לחלק מהשחקנים יש שתי רשומות באותה עונה, ויש שעברו קבוצה באמצע העונה.
+ אם בשורה יש שתי קבוצות — בדוק שזה מעבר (תאריכים לא חופפים, למשל עם שאילתה לפי team) ופרט כמה שערים בכל קבוצה.)`;
 
 export function buildDataInstructions(basePrompt: string): string {
   const tables = Object.entries(TABLES).map(([name, desc]) => `${name}: ${desc}`).join('\n');

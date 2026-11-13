@@ -31,7 +31,7 @@ const CASES: Array<{ q: string; truth: string }> = [
   { q: 'כמה פעמים ניצחה הפועל באר שבע את מכבי תל אביב?',
     truth: `select count(*) wins from chat.team_games where ${BS} and opponent = 'מכבי תל אביב' and result = 'W' and ${MEN}` },
   { q: 'מי מלך השערים של ליגת העל בעונת 2024/25?',
-    truth: `select player, count(*) goals from chat.goals where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal group by club_key, player order by 2 desc limit 1` },
+    truth: `select player, count(*) goals from chat.goals where competition_id = 'comp_liga_haal' and season = '2024/25' and not own_goal group by player order by 2 desc limit 1` },
   { q: 'כמה שערים הבקיעה הפועל באר שבע בליגה בעונת 2025/26?',
     truth: `select sum(goals_for) goals from chat.team_games where ${BS} and season = '2025/26' and competition_kind = 'league'` },
   { q: 'מה רצף הניצחונות הארוך ביותר של הפועל באר שבע בליגה?',
