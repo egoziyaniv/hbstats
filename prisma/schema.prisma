@@ -2220,3 +2220,43 @@ model DataImportChange {
   @@index([table, recordId])
   @@map("data_import_changes")
 }
+
+// Every question asked in the site chat — to learn what fans ask and where answers fail.
+// userId is nulled when the account is deleted; rows older than a year are removed nightly.
+model ChatQuestion {
+  id           String   @id @default(cuid())
+  userId       String?
+  question     String
+  normalized   String // lower-cased, punctuation folded — groups variants of one question
+  answer       String?
+  queries      Json // [{ sql, rows?, ms?, error? }]
+  savedQueryId String?
+  model        String // gpt-6-luna | gpt-6.1-sol | saved | claude-…
+  outcome      String // ok | escalated | failed | saved | error
+  latencyMs    Int
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUsd      Float    @default(0)
+  feedback     Int? // +1 / -1
+  createdAt    DateTime @default(now())
+
+  @@index([normalized])
+  @@index([createdAt])
+  @@map("chat_questions")
+}
+
+// A verified, parameterised query a frequent question is answered with — no SQL writing needed.
+model ChatSavedQuery {
+  id        String   @id @default(cuid())
+  titleHe   String // "כמה שערים כבש שחקן בעונה"
+  intentHe  String // what kind of question it answers (the matcher reads this)
+  sql       String // a chat.* SELECT with $1, $2… in the order of params
+  params    Json // [{ name, descriptionHe, example }]
+  answerHe  String // how to word the answer; {rows} is replaced with the result rows
+  enabled   Boolean  @default(true)
+  hits      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("chat_saved_queries")
+}

@@ -32,6 +32,8 @@ export async function deleteUserAccount(userId: string): Promise<DeleteAccountRe
         }
       }
 
+      // Chat questions stay for learning, no longer tied to the person.
+      await tx.chatQuestion.updateMany({ where: { userId }, data: { userId: null } });
       await tx.user.delete({ where: { id: userId } });
       return { ok: true, email: user.email };
     },

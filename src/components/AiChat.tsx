@@ -1,9 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 
-type Message = { role: 'user' | 'assistant'; content: string };
+type Message = { role: 'user' | 'assistant'; content: string; questionId?: string; feedback?: 1 | -1 };
+
+// Answers may carry **bold** and [text](/games/…) links; anything else stays plain text.
+function renderRich(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\(\/[^)\s]+\))/g);
+  return parts.map((part, i) => {
+    const bold = part.match(/^\*\*([^*]+)\*\*$/);
+    if (bold) return <strong key={i}>{bold[1]}</strong>;
+    const link = part.match(/^\[([^\]]+)\]\((\/[^)\s]+)\)$/);
+    if (link) return <a key={i} href={link[2]} className="font-bold underline" style={{ color: 'var(--accent)' }}>{link[1]}</a>;
+    return part;
+  });
+}
 
 type Viewer = { id: string; name: string; role: string } | null;
 
@@ -48,13 +60,13 @@ export default function AiChat() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages.slice(-20) }),
+        body: JSON.stringify({ messages: newMessages.slice(-20).map(({ role, content }) => ({ role, content })) }),
       });
 
       const data = await res.json();
 
       if (res.ok && data.reply) {
-        setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+        setMessages([...newMessages, { role: 'assistant', content: data.reply, questionId: data.questionId || undefined }]);
       } else {
         setMessages([
           ...newMessages,
@@ -69,6 +81,17 @@ export default function AiChat() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function sendFeedback(index: number, value: 1 | -1) {
+    const msg = messages[index];
+    if (!msg?.questionId || msg.feedback) return;
+    setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, feedback: value } : m)));
+    await fetch('/api/ai/chat/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questionId: msg.questionId, value }),
+    }).catch(() => undefined);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -134,7 +157,19 @@ export default function AiChat() {
                       }`}
                       style={msg.role === 'user' ? { backgroundColor: 'var(--accent)' } : undefined}
                     >
-                      {msg.content}
+                      {msg.role === 'assistant' ? renderRich(msg.content) : msg.content}
+                      {msg.role === 'assistant' && msg.questionId ? (
+                        <div className="mt-1.5 flex items-center gap-2 text-stone-400">
+                          {msg.feedback ? (
+                            <span className="text-xs">תודה על המשוב</span>
+                          ) : (
+                            <>
+                              <button type="button" onClick={() => sendFeedback(i, 1)} className="rounded p-0.5 hover:text-emerald-600" title="תשובה טובה"><ThumbsUp className="h-3.5 w-3.5" /></button>
+                              <button type="button" onClick={() => sendFeedback(i, -1)} className="rounded p-0.5 hover:text-red-600" title="תשובה לא נכונה"><ThumbsDown className="h-3.5 w-3.5" /></button>
+                            </>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))}

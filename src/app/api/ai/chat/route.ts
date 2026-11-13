@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestUser } from '@/lib/auth';
 import { getAiSettings, getActiveApiKey } from '@/lib/ai-settings';
-import { chatWithClaude, chatWithOpenAI, type ChatMessage } from '@/lib/ai-providers';
+import { chatWithClaude, type ChatMessage } from '@/lib/ai-providers';
+import { answerWithData } from '@/lib/chat-sql/agent';
+import { logQuestion } from '@/lib/chat-sql/log';
+import { isChatSqlPublic } from '@/lib/chat-sql/run';
+import { answerFromSaved } from '@/lib/chat-sql/saved';
 import { reserveChatRequest } from '@/lib/ai-chat-quota';
 
 // Rate limiting: 10 requests per minute per user
@@ -93,15 +97,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'עוזר ה־AI אינו זמין כרגע' }, { status: 503 });
   }
 
+  const question = messages[messages.length - 1].content;
+  const t0 = Date.now();
   try {
-    const reply =
-      settings.provider === 'openai'
-        ? await chatWithOpenAI(apiKey, messages)
-        : await chatWithClaude(apiKey, messages);
-
-    return NextResponse.json({ reply });
+    if (settings.provider !== 'openai') {
+      const reply = await chatWithClaude(apiKey, messages);
+      const questionId = await logQuestion({ userId: user.id, question, answer: reply, queries: [], model: 'claude-sonnet-5-5', outcome: 'ok', latencyMs: Date.now() - t0 });
+      return NextResponse.json({ reply, questionId });
+    }
+    // SQL over all the data: public once the read-only role is configured, admins until then.
+    const sqlAllowed = isChatSqlPublic() || user.role === 'ADMIN';
+    // A frequent, pinned question is answered from its verified query (first turn only — a
+    // follow-up leans on the conversation, which the templates don't see).
+    const saved = sqlAllowed && messages.length === 1 ? await answerFromSaved(apiKey, question).catch(() => null) : null;
+    if (saved) {
+      const questionId = await logQuestion({
+        userId: user.id, question, answer: saved.reply, queries: [{ sql: saved.sql, rows: saved.rows, ms: saved.ms }],
+        savedQueryId: saved.savedQueryId, model: 'saved', outcome: 'saved', latencyMs: Date.now() - t0,
+        inputTokens: saved.inputTokens, outputTokens: saved.outputTokens, costUsd: saved.costUsd,
+      });
+      return NextResponse.json({ reply: saved.reply, questionId });
+    }
+    const r = await answerWithData(apiKey, messages, { sqlAllowed });
+    const questionId = await logQuestion({
+      userId: user.id, question, answer: r.reply, queries: r.queries, model: r.model, outcome: r.outcome,
+      latencyMs: Date.now() - t0, inputTokens: r.inputTokens, outputTokens: r.outputTokens, costUsd: r.costUsd,
+    });
+    return NextResponse.json({ reply: r.reply, questionId });
   } catch (err: any) {
     console.error('AI chat error:', err?.message || err);
+    await logQuestion({ userId: user.id, question, answer: null, queries: [], model: settings.provider, outcome: 'error', latencyMs: Date.now() - t0 });
     return NextResponse.json({ error: 'שגיאה בעיבוד השאלה. נסה שוב.' }, { status: 500 });
   }
 }
