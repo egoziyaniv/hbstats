@@ -1,9 +1,10 @@
 /**
  * The first saved queries — the question types the owner named (a player's games, minutes, starts,
  * sub appearances and goals, career or season) plus a club's record against another and its finish
- * in a season. Idempotent by title: an existing one is left as the admin edited it.
+ * in a season. Idempotent by title: an existing one is left as the admin edited it, unless
+ * --refresh, which rewrites the seeded fields (use only before the admin has edited them).
  *
- * Usage: npx tsx scripts/chat/seed-saved-queries.ts
+ * Usage: npx tsx scripts/chat/seed-saved-queries.ts [--refresh]
  */
 import prisma from '@/lib/prisma';
 import { checkSql, ensureParser } from '@/lib/chat-sql/guard';
@@ -12,7 +13,7 @@ const PLAYER = { name: 'player', descriptionHe: 'שם השחקן כפי שנכת
 const SEASON = { name: 'season', descriptionHe: 'עונה בפורמט 2024/25', example: '2015/16' };
 const CLUB = { name: 'club', descriptionHe: 'שם הקבוצה', example: 'הפועל באר שבע' };
 const OPPONENT = { name: 'opponent', descriptionHe: 'שם הקבוצה היריבה', example: 'מכבי תל אביב' };
-const SAME_NAME = 'אם יש בשורות כמה player_key בקבוצות שונות — אלה כנראה שחקנים שונים: הצג כל אחד בנפרד ושאל למי הכוונה. ציין שהרכבים ודקות יש רק מ-2009/10.';
+const SAME_NAME = 'כמה שורות של אותו שם באותה קבוצה הן אותו שחקן (רשומות כפולות) — סכם אותן. שורות בקבוצות שונות הן כנראה שחקנים שונים: הצג כל אחד בנפרד ושאל למי הכוונה. ציין שהרכבים ודקות יש רק מ-2009/10.';
 
 const SEEDS = [
   {
@@ -92,6 +93,11 @@ order by played desc`,
     const check = checkSql(s.sql, { allowParams: true });
     if ('reason' in check) throw new Error(`${s.titleHe}: ${check.reason}`);
     const exists = await prisma.chatSavedQuery.findFirst({ where: { titleHe: s.titleHe }, select: { id: true } });
+    if (exists && process.argv.includes('--refresh')) {
+      await prisma.chatSavedQuery.update({ where: { id: exists.id }, data: { ...s, params: s.params } });
+      console.log('updated', s.titleHe);
+      continue;
+    }
     if (exists) { console.log('kept   ', s.titleHe); continue; }
     await prisma.chatSavedQuery.create({ data: { ...s, params: s.params } });
     console.log('created', s.titleHe);
