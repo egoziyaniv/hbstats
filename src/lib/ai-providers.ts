@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { toolDefinitions, executeTool } from '@/lib/ai-tools';
 
-function buildSystemPrompt(): string {
+export function buildSystemPrompt(): string {
   // Israeli season runs Jul → Jun. Aug-Dec → first year is "this" season;
   // Jan-Jul → previous calendar year is the start.
   const now = new Date();
