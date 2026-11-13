@@ -68,6 +68,7 @@ const fmt = (v: unknown) => (typeof v === 'bigint' ? String(Number(v)) : v insta
     pass += ok ? 1 : 0; cost += r.costUsd; sol += r.model === 'gpt-6.1-sol' ? 1 : 0;
     console.log(`\n${ok ? 'PASS' : 'FAIL'} ${i + 1}. ${c.q}\n  expected: ${expected.join(' | ')}  [${r.model} ${r.outcome} ${((Date.now() - t0) / 1000).toFixed(1)}s $${r.costUsd.toFixed(4)}]`);
     for (const x of r.queries) if (x.error) console.log(`  sql error: ${x.error}`);
+    if (r.escalation) console.log(`  escalated: ${r.escalation}`);
     console.log('  ' + r.reply.replace(/\n+/g, '\n  '));
   }
   console.log(`\n${pass}/${cases.length} passed · sol used ${sol}× · total $${cost.toFixed(4)}`);

@@ -33,6 +33,7 @@ export interface AgentResult {
   reply: string;
   model: string;
   outcome: 'ok' | 'escalated' | 'failed';
+  escalation?: string; // why luna's answer was not used
   queries: QueryLog[];
   inputTokens: number;
   outputTokens: number;
@@ -125,11 +126,13 @@ export async function answerWithData(apiKey: string, messages: ChatMessage[], { 
   if (first.reply && first.sqlErrors < 2 && !invented.length) {
     return { reply: first.reply, model: LUNA, outcome: 'ok', queries: first.queries, inputTokens: first.input, outputTokens: first.output, costUsd: firstCost };
   }
+  const escalation = !first.reply ? 'no answer' : first.sqlErrors >= 2 ? `${first.sqlErrors} query errors` : `numbers not in any result: ${invented.join(', ')}`;
   const second = await runModel(client, SOL, messages, sqlAllowed);
   return {
     reply: second.reply || 'לא הצלחתי למצוא תשובה בנתונים. נסה לנסח את השאלה אחרת.',
     model: SOL,
     outcome: second.reply ? 'escalated' : 'failed',
+    escalation,
     queries: [...first.queries, ...second.queries],
     inputTokens: first.input + second.input,
     outputTokens: first.output + second.output,
