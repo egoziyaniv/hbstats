@@ -75,3 +75,5 @@ scratchpad/
 docs/games/
 # IFA pages the owner saves by hand (squads, transfers) — local source material, never committed
 docs/[0-9][0-9][0-9][0-9]-*/
+# Database credentials the owner keeps locally (the chat's read-only role) — never committed
+docs/hbs_chat*
