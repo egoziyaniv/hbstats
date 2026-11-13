@@ -218,7 +218,7 @@ SELECT
   s.year || '/' || lpad(((s.year + 1) % 100)::text, 2, '0') AS season,
   st."competitionId" AS competition_id,
   cc.competition,
-  st."groupNameHe" AS group_name,
+  nullif(st."groupNameHe", '') AS group_name,
   st.position,
   coalesce(cm.club_key, 'team-' || st."teamId") AS club_key,
   coalesce(nullif(t."nameHe", ''), t."nameEn") AS team,

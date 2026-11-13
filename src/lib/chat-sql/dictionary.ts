@@ -45,6 +45,9 @@ const RULES = `כללים לכתיבת שאילתות:
   * בסיכום של שחקן תן גם פירוט לפי עונה, כדי שיראו אם חסרה עונה.
 - ברירת מחדל: כדורגל גברים (category = 'men'), בלי משחקי ידידות (competition_kind <> 'friendly'), אלא אם המשתמש ביקש אחרת.
 - "ליגה" = competition_kind = 'league'; "הליגה הבכירה" = competition_id = 'comp_liga_haal'.
+- אליפות / מקום סופי: בעונות עם פלייאוף יש לקבוצה כמה שורות טבלה (עונה סדירה + פלייאוף עליון/תחתון). המקום הסופי = השורה עם played הגדול ביותר באותה עונה ומסגרת. אלופה = מקום 1 בשורה הסופית של comp_liga_haal. אם לעונה יש רק טבלת עונה סדירה (played קטן ממספר המחזורים) — אמור שטבלת הפלייאוף חסרה ואל תכריז על אלופה.
+- מלך שערים / סך שערים: כל השערים במסגרת ובעונה — כולל פנדלים ומשחקי הפלייאוף; בלי שערים עצמיים. אל תסנן לפי מחזור או שלב אלא אם ביקשו.
+- "בליגה" בלי פירוט = כל משחקי הליגה (competition_kind = 'league') בכל הדרגות; אם התשובה מגיעה מליגה נמוכה (ליגה א'/ב'/ג' של שנות ה-50–70) — ציין זאת, ואם רלוונטי תן גם את התשובה לליגה הבכירה.
 - לרצפים ("ברצף", "רצופים") השתמש ב-team_game_no (כל המסגרות) או ב-team_competition_game_no (בתוך ליגה/עונה) בשיטת gaps-and-islands — ראה דוגמה.
 - כשהשאילתה נכשלת — קרא את הודעת השגיאה, תקן ונסה שוב. אל תנחש תשובה בלי נתונים.`;
 
@@ -95,9 +98,19 @@ select season, competition, group_name, position, played, points from chat.stand
 where club_key = '${HBS_CLUB_KEY}' and season = '1975/76';
 
 שאלה: מי זכתה באליפות ב-1962?
-select season, team, points from chat.standings
-where competition_id = 'comp_liga_haal' and position = 1 and season_year in (1961, 1962) order by season_year;
+with final as (
+  select *, rank() over (partition by season_year, competition_id order by played desc) as r
+  from chat.standings where competition_id = 'comp_liga_haal')
+select season, team, played, points from final
+where r = 1 and position = 1 and season_year in (1961, 1962) order by season_year;
 (עונה 1961/62 מסתיימת ב-1962 — כשמשתמש אומר שנה אחת, בדוק את שתי העונות האפשריות.)
+
+שאלה: כמה אליפויות יש להפועל באר שבע?
+with final as (
+  select *, rank() over (partition by season_year order by played desc) as r
+  from chat.standings where competition_id = 'comp_liga_haal')
+select season, played, points from final
+where r = 1 and position = 1 and club_key = '${HBS_CLUB_KEY}' order by season_year;
 
 שאלה: מי מלך השערים של ליגת העל בעונה 2024/25?
 select player, team, count(*) as goals from chat.goals

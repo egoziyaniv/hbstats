@@ -40,7 +40,9 @@ const CASES: Array<{ q: string; truth: string }> = [
       r as (select rn - row_number() over (order by rn) grp from n where w)
       select max(c) longest from (select grp, count(*) c from r group by grp) x` },
   { q: 'כמה פעמים זכתה הפועל באר שבע באליפות?',
-    truth: `select count(distinct season_year) titles from chat.standings where ${BS} and competition_id = 'comp_liga_haal' and position = 1 and (group_name is null or group_name ilike '%עליון%')` },
+    // The final table is the row with the most games; 2025/26 holds only its regular-season table.
+    truth: `with f as (select *, rank() over (partition by season_year order by played desc) r from chat.standings where competition_id = 'comp_liga_haal' and season_year < 2025)
+      select count(*) titles from f where r = 1 and position = 1 and ${BS}` },
   { q: 'כמה כרטיסים צהובים קיבלה הפועל באר שבע בעונת 2025/26 בליגה?',
     truth: `select sum(yellow) yellows from chat.player_appearances where ${BS} and season = '2025/26' and competition_kind = 'league'` },
   { q: 'איזה שחקן של הפועל באר שבע שיחק הכי הרבה דקות בעונת 2025/26?',
