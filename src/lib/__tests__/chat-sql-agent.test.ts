@@ -8,6 +8,10 @@ describe('unbackedNumbers', () => {
   it('flags an invented breakdown', () => {
     expect(unbackedNumbers('21 שערים — 9 בהפועל חיפה ו-12 במכבי חיפה', [rows])).toEqual(['12']);
   });
+  it('accepts Israeli-format dates of ISO dates in the rows', () => {
+    expect(unbackedNumbers('בין 2.1.1971 ל-16.1.71', [JSON.stringify({ first: '1971-01-02', last: '1971-01-16 15:00:00' })])).toEqual([]);
+    expect(unbackedNumbers('ב-3.1.1971', [JSON.stringify({ first: '1971-01-02' })])).toEqual(['3.1.1971']);
+  });
   it('accepts thousands separators and numbers from the question', () => {
     expect(unbackedNumbers('9,828 דקות ב-111 משחקים', [JSON.stringify({ minutes: 9828, games: 111 })])).toEqual([]);
     expect(unbackedNumbers('בעונת 1975/76', ['באיזה מקום ב-1975/76?'])).toEqual([]);

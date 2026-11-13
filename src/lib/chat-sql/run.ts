@@ -27,7 +27,8 @@ export const isChatSqlPublic = () => Boolean(process.env.CHAT_DATABASE_URL);
 
 function plain(value: unknown): unknown {
   if (typeof value === 'bigint') return Number(value);
-  if (value instanceof Date) return value.toISOString().replace('T00:00:00.000Z', '');
+  // Israel time, so a kickoff at 00:30 isn't reported as the day before; drop a midnight time.
+  if (value instanceof Date) return value.toLocaleString('sv-SE', { timeZone: 'Asia/Jerusalem' }).replace(' 00:00:00', '');
   if (value && typeof value === 'object' && 'toNumber' in value && typeof (value as { toNumber: unknown }).toNumber === 'function') {
     return (value as { toNumber: () => number }).toNumber(); // Prisma Decimal
   }

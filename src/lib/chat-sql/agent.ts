@@ -15,6 +15,10 @@ export function unbackedNumbers(reply: string, sources: string[]): string[] {
   for (const src of sources) {
     const found: string[] = src.match(NUM) ?? [];
     for (const n of found) { seen.add(n); seen.add(n.replace(/,/g, '')); }
+    // 1971-01-02 in a result is written 2.1.1971 / 2.1.71 / 02.01.1971 in the answer.
+    for (const [, y, m, d] of Array.from(src.matchAll(/(\d{4})-(\d{2})-(\d{2})/g))) {
+      for (const day of [String(+d), d]) for (const month of [String(+m), m]) for (const year of [y, y.slice(2)]) seen.add(`${day}.${month}.${year}`);
+    }
   }
   const inReply: string[] = reply.match(NUM) ?? [];
   return Array.from(new Set(inReply.filter((n) => !/^\d$/.test(n) && !seen.has(n) && !seen.has(n.replace(/,/g, '')))));
