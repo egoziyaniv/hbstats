@@ -38,12 +38,12 @@ export async function getLatestPublishedAnalysis(): Promise<PublicAnalysis | nul
     select,
   });
   if (pre) return toPublic(pre);
-  // Only the latest analysed game's piece: while its draft awaits approval, show nothing rather
-  // than an older game's column as if it were about the last game.
-  const latest = await prisma.matchAnalysis.findFirst({
-    where: { kind: 'POST', game: { status: 'COMPLETED' } },
+  // Visitors always get the newest approved column, even when a newer game's draft awaits
+  // approval (admins see a pending notice next to it — HomeAnalysisTeaser).
+  const post = await prisma.matchAnalysis.findFirst({
+    where: { status: 'PUBLISHED', kind: 'POST', bodyHe: { not: null } },
     orderBy: { game: { dateTime: 'desc' } },
-    select: { ...select, status: true },
+    select,
   });
-  return latest && latest.status === 'PUBLISHED' && latest.bodyHe ? toPublic(latest) : null;
+  return post ? toPublic(post) : null;
 }

@@ -1032,7 +1032,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: { 
               </div>
             </Card>
 
-            <HomeAnalysisTeaser />
+            <HomeAnalysisTeaser isAdmin={viewer?.role === 'ADMIN'} />
 
             <HomeStatTeaser />
 
