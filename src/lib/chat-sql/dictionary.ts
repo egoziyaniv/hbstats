@@ -66,14 +66,18 @@ const EXAMPLES = `דוגמאות:
 
 שאלה: האם הייתה קבוצה שכבשה לפחות 5 שערים בשלושה משחקים רצופים?
 with g as (
-  select club_key, team, date, team_game_no, goals_for >= 5 as big
+  select club_key, team, game_id, date, opponent, goals_for, goals_against, competition, team_game_no, goals_for >= 5 as big
   from chat.team_games where category = 'men' and competition_kind <> 'friendly'),
 runs as (
   select *, team_game_no - row_number() over (partition by club_key, big order by team_game_no) as grp
-  from g where big)
-select club_key, min(team) as team, count(*) as games, min(date) as first_date, max(date) as last_date
-from runs group by club_key, grp having count(*) >= 3 order by games desc, first_date;
-(שים לב: לפני שנות ה-90 יש לנו בעיקר את משחקי באר שבע — ציין זאת.)
+  from g where big),
+streaks as (
+  select club_key, grp from runs group by club_key, grp having count(*) >= 3)
+select r.team, r.grp, r.date, r.opponent, r.goals_for, r.goals_against, r.competition, r.game_id
+from runs r join streaks s using (club_key, grp)
+order by r.club_key, r.grp, r.date limit 60;
+(כל שורה = משחק ברצף, עם game_id לקישור; שורות עם אותו team+grp הן רצף אחד. פרט כל רצף עם קישור לכל משחק בו.
+ שים לב: לפני שנות ה-90 יש לנו בעיקר את משחקי באר שבע — ציין זאת.)
 
 שאלה: כמה משחקים, פתיחות, כניסות כמחליף ודקות שיחק אליניב ברדה?
 select player_key, player, team, season,
