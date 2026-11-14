@@ -92,6 +92,20 @@ export default function HomeScreen() {
               onPress={() => router.push('/history/records' as any)}
             />
           </View>
+          {/* The data assistant — free-text questions over all the data (the web's floating chat). */}
+          <Pressable onPress={() => router.push('/chat' as any)} style={{ marginHorizontal: 16, marginTop: 10 }}>
+            <Card>
+              <View style={{ flexDirection: rtlRow(), alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexShrink: 1, gap: 2 }}>
+                  <Text style={{ color: theme.ink[900], fontSize: 15, fontWeight: '800', textAlign: 'right' }}>💬 שאל את StatsAI</Text>
+                  <Text style={{ color: theme.ink[500], fontSize: 12, textAlign: 'right', writingDirection: 'rtl' }}>
+                    כל שאלה על שחקנים, משחקים ושיאים — מכל השנים
+                  </Text>
+                </View>
+                <Text style={{ color: brand.accent, fontSize: 12, fontWeight: '700' }}>לשאול ←</Text>
+              </View>
+            </Card>
+          </Pressable>
         </Section>
 
         <View style={{ height: 16 }} />

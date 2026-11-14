@@ -21,6 +21,7 @@ const ITEMS: MenuItem[] = [
   { label: 'טבלה', path: '/standings', icon: '📊' },
   { label: 'שחקנים', path: '/players', icon: '👥' },
   { label: 'משחקים חיים', path: '/live', icon: '🔴' },
+  { label: 'שאל את StatsAI', path: '/chat', icon: '💬' },
   { label: 'חדשות', path: '/news', icon: '📰' },
   { label: 'תחזיות', path: '/predictions', icon: '🎯' },
   { label: 'סטטיסטיקה מתקדמת', path: '/advanced-stats', icon: '📈' },
