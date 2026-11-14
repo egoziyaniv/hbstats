@@ -893,13 +893,13 @@ function AbandonedMatchNote({ additionalInfo, className }: { additionalInfo: unk
   );
 }
 
-/** Full credit to Eyal Hatav's book at the foot of a game that came from (or was enriched by) it. */
+/** Credit to Eyal Hatav at the foot of every game page: the source line on games from his book, a thank-you on the rest. */
 function ArchiveCredit({ additionalInfo }: { additionalInfo: unknown }) {
-  if (!(additionalInfo as { eyalArchive?: unknown } | null)?.eyalArchive) return null;
+  const fromBook = Boolean((additionalInfo as { eyalArchive?: unknown } | null)?.eyalArchive);
+  const book = <span className="font-bold text-stone-700">״הפועל באר-שבע – כל המשחקים 1950–2020״</span>;
   return (
     <footer className="rounded-2xl border border-stone-200 bg-white/70 px-5 py-4 text-center text-xs leading-6 text-stone-500">
-      נתוני המשחק מבוססים על הספר{' '}
-      <span className="font-bold text-stone-700">״הפועל באר-שבע – כל המשחקים 1950–2020״</span> מאת אייל חטב.
+      {fromBook ? <>נתוני המשחק מבוססים על הספר {book} מאת אייל חטב.</> : <>הנתונים ההיסטוריים באתר נשענים על הספר {book} מאת אייל חטב.</>}
       <br />
       תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
     </footer>

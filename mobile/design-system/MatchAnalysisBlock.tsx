@@ -21,7 +21,7 @@ function Body({ analysis }: { analysis: MatchAnalysisApi }) {
       {analysis.paragraphs.map((p, i) => (
         <Text key={i} style={{ ...rtlText, fontSize: 13, lineHeight: 21, color: theme.ink[700] }}>{p}</Text>
       ))}
-      <Text style={{ ...rtlText, fontSize: 10, color: theme.ink[500] }}>נכתב בעזרת AI מנתוני האתר ונבדק בידי העורך</Text>
+      <Text style={{ ...rtlText, fontSize: 10, color: theme.ink[500] }}>נכתב בעזרת AI מנתוני האתר</Text>
     </View>
   );
 }

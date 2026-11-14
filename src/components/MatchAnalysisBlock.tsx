@@ -9,7 +9,7 @@ export function MatchAnalysisBlock({ analysis, embedded = false }: { analysis: P
       <div className="mt-2 space-y-3 text-sm leading-7 text-stone-700">
         {analysis.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
       </div>
-      <p className="mt-3 text-xs text-stone-400">נכתב בעזרת AI מנתוני האתר ונבדק בידי העורך</p>
+      <p className="mt-3 text-xs text-stone-400">נכתב בעזרת AI מנתוני האתר</p>
     </>
   );
   if (embedded) return <div className="rounded-[18px] bg-amber-50 px-4 py-3">{body}</div>;
