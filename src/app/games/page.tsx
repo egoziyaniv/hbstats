@@ -424,6 +424,14 @@ export default async function GamesPage({
             ) : null}
           </div>
         </section>
+
+        {/* Source credit — the 1950-2020 games come from Eyal Hatav's book (owner asked for this note). */}
+        <footer className="mt-6 rounded-2xl border border-stone-200 bg-white/70 px-5 py-4 text-center text-xs leading-6 text-stone-500">
+          נתוני משחקי הפועל באר שבע בשנים 1950–2020 מבוססים על הספר{' '}
+          <span className="font-bold text-stone-700">״הפועל באר-שבע – כל המשחקים 1950–2020״</span> מאת אייל חטב.
+          <br />
+          תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
+        </footer>
       </div>
     </div>
   );

@@ -176,6 +176,14 @@ export default function GamesScreen() {
               </Card>
             </Section>
           ))}
+          {/* Source credit — the 1950-2020 games come from Eyal Hatav's book (owner asked for this note). */}
+          <View style={{ marginHorizontal: 16, marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.ink[200], backgroundColor: 'rgba(255,255,255,0.7)' }}>
+            <Text style={{ color: theme.ink[500], fontSize: 12, lineHeight: 19, textAlign: 'center', writingDirection: 'rtl' }}>
+              נתוני משחקי הפועל באר שבע בשנים 1950–2020 מבוססים על הספר{' '}
+              <Text style={{ fontWeight: '800', color: theme.ink[700] }}>״הפועל באר-שבע – כל המשחקים 1950–2020״</Text> מאת אייל חטב.
+              {'\n'}תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
+            </Text>
+          </View>
         </ScrollView>
       )}
     </View>
