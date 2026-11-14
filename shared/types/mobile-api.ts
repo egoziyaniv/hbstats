@@ -883,6 +883,8 @@ export interface MatchPayload {
     venue: { name: string; city: string | null } | null;
     referee: string | null;
     awarded?: { winnerTeamId: string; noteHe: string } | null;
+    /** The game came from (or was enriched by) Eyal Hatav's book — show the credit. */
+    fromBook?: boolean;
   };
   homeTeam: TeamHeader;
   awayTeam: TeamHeader;

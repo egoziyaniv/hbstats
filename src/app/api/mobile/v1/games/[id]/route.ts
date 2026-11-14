@@ -197,7 +197,7 @@ export async function GET(_request: Request, { params: paramsPromise }: { params
       }
     : null;
 
-  const info = raw.game.additionalInfo as { awarded?: { winnerTeamId: string; noteHe?: string } } | null;
+  const info = raw.game.additionalInfo as { awarded?: { winnerTeamId: string; noteHe?: string }; eyalArchive?: unknown } | null;
   const awarded = info?.awarded
     ? { winnerTeamId: info.awarded.winnerTeamId, noteHe: info.awarded.noteHe ?? 'תוצאה טכנית' }
     : null;
@@ -220,6 +220,7 @@ export async function GET(_request: Request, { params: paramsPromise }: { params
       venue: null,
       referee: null,
       awarded,
+      fromBook: Boolean(info?.eyalArchive),
     },
     homeTeam,
     awayTeam,

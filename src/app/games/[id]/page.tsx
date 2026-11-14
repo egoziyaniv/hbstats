@@ -460,6 +460,7 @@ export default async function GamePage({
           </div>
         </section>
 
+        <ArchiveCredit additionalInfo={game.additionalInfo} />
       </div>
     </div>
   );
@@ -854,6 +855,7 @@ function PremierGameView({
             </PremierPanel>
           </>
         ) : null}
+        <ArchiveCredit additionalInfo={game.additionalInfo} />
       </div>
     </div>
   );
@@ -891,14 +893,25 @@ function AbandonedMatchNote({ additionalInfo, className }: { additionalInfo: unk
   );
 }
 
-/** Stadium, crowd and — for games enriched from it — the credit to Eyal Hatav's archive. */
+/** Full credit to Eyal Hatav's book at the foot of a game that came from (or was enriched by) it. */
+function ArchiveCredit({ additionalInfo }: { additionalInfo: unknown }) {
+  if (!(additionalInfo as { eyalArchive?: unknown } | null)?.eyalArchive) return null;
+  return (
+    <footer className="rounded-2xl border border-stone-200 bg-white/70 px-5 py-4 text-center text-xs leading-6 text-stone-500">
+      נתוני המשחק מבוססים על הספר{' '}
+      <span className="font-bold text-stone-700">״הפועל באר-שבע – כל המשחקים 1950–2020״</span> מאת אייל חטב.
+      <br />
+      תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
+    </footer>
+  );
+}
+
+/** Stadium and crowd (the archive credit sits at the foot of the page — ArchiveCredit). */
 function GameFactsLine({ game, className }: { game: GameFacts; className: string }) {
   const venue = game.venue?.nameHe || game.venueNameHe || game.venue?.nameEn || game.venueNameEn;
-  const fromArchive = Boolean((game.additionalInfo as { eyalArchive?: unknown } | null)?.eyalArchive);
   const facts = [
     venue ? `אצטדיון: ${venue}` : null,
     game.attendance ? `קהל: ${game.attendance.toLocaleString('he-IL')}` : null,
-    fromArchive ? 'מקור: הארכיון של אייל חטב' : null,
   ].filter(Boolean);
   if (!facts.length) return null;
   return (
