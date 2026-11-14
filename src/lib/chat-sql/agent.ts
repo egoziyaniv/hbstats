@@ -40,6 +40,12 @@ export function unbackedNumbers(reply: string, sources: string[]): string[] {
   return Array.from(new Set(inReply.filter((n) => !/^\d$/.test(n) && !seen.has(n) && !seen.has(n.replace(/,/g, '')))));
 }
 
+/** A [text](/games|players|teams/<id>) link whose id no tool returned is invented — keep the text, drop the link. */
+export function dropUnbackedLinks(reply: string, sources: string[]): string {
+  return reply.replace(/\[([^\]]+)\]\(\/(?:games|players|teams)\/([^)\s/]+)\)/g, (all, text: string, id: string) =>
+    sources.some((src) => src.includes(id)) ? all : text);
+}
+
 export const LUNA = 'gpt-6-luna';
 export const SOL = 'gpt-6.1-sol';
 const MAX_ROUNDS = 8;
@@ -144,12 +150,12 @@ export async function answerWithData(apiKey: string, messages: ChatMessage[], { 
   // A reply with numbers no query returned is rerun on sol rather than shown.
   const invented = first.reply && first.queries.length ? unbackedNumbers(first.reply, first.sources) : [];
   if (first.reply && first.sqlErrors < 2 && !invented.length) {
-    return { reply: first.reply, model: LUNA, outcome: 'ok', queries: first.queries, inputTokens: first.input, outputTokens: first.output, costUsd: firstCost };
+    return { reply: dropUnbackedLinks(first.reply, first.sources), model: LUNA, outcome: 'ok', queries: first.queries, inputTokens: first.input, outputTokens: first.output, costUsd: firstCost };
   }
   const escalation = !first.reply ? 'no answer' : first.sqlErrors >= 2 ? `${first.sqlErrors} query errors` : `numbers not in any result: ${invented.join(', ')}`;
   const second = await runModel(client, SOL, messages, sqlAllowed);
   return {
-    reply: second.reply || 'לא הצלחתי למצוא תשובה בנתונים. נסה לנסח את השאלה אחרת.',
+    reply: second.reply ? dropUnbackedLinks(second.reply, second.sources) : 'לא הצלחתי למצוא תשובה בנתונים. נסה לנסח את השאלה אחרת.',
     model: SOL,
     outcome: second.reply ? 'escalated' : 'failed',
     escalation,

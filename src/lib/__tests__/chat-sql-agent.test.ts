@@ -1,4 +1,4 @@
-import { unbackedNumbers } from '@/lib/chat-sql/agent';
+import { dropUnbackedLinks, unbackedNumbers } from '@/lib/chat-sql/agent';
 
 describe('unbackedNumbers', () => {
   const rows = JSON.stringify({ rows: [{ player: 'גיא מלמד', goals: 21, by_team: 'הפועל חיפה: 17, מכבי חיפה: 4', season: '2024/25' }] });
@@ -19,5 +19,16 @@ describe('unbackedNumbers', () => {
   it('accepts thousands separators and numbers from the question', () => {
     expect(unbackedNumbers('9,828 דקות ב-111 משחקים', [JSON.stringify({ minutes: 9828, games: 111 })])).toEqual([]);
     expect(unbackedNumbers('בעונת 1975/76', ['באיזה מקום ב-1975/76?'])).toEqual([]);
+  });
+});
+
+describe('dropUnbackedLinks', () => {
+  const rows = JSON.stringify({ rows: [{ game_id: 'cmgame123xyz', goals_for: 5 }] });
+  it('keeps a game link whose id a query returned', () => {
+    const reply = 'הניצחון: [5:0 מול מכבי חיפה](/games/cmgame123xyz)';
+    expect(dropUnbackedLinks(reply, [rows])).toBe(reply);
+  });
+  it('drops the link but keeps the text when the id was invented', () => {
+    expect(dropUnbackedLinks('[5:0 מול מכבי חיפה](/games/madeup999)', [rows])).toBe('5:0 מול מכבי חיפה');
   });
 });
