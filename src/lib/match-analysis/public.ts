@@ -38,10 +38,12 @@ export async function getLatestPublishedAnalysis(): Promise<PublicAnalysis | nul
     select,
   });
   if (pre) return toPublic(pre);
-  const post = await prisma.matchAnalysis.findFirst({
-    where: { status: 'PUBLISHED', kind: 'POST', bodyHe: { not: null } },
+  // Only the latest analysed game's piece: while its draft awaits approval, show nothing rather
+  // than an older game's column as if it were about the last game.
+  const latest = await prisma.matchAnalysis.findFirst({
+    where: { kind: 'POST', game: { status: 'COMPLETED' } },
     orderBy: { game: { dateTime: 'desc' } },
-    select,
+    select: { ...select, status: true },
   });
-  return post ? toPublic(post) : null;
+  return latest && latest.status === 'PUBLISHED' && latest.bodyHe ? toPublic(latest) : null;
 }
