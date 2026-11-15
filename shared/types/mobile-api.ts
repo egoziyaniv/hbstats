@@ -885,6 +885,10 @@ export interface MatchPayload {
     awarded?: { winnerTeamId: string; noteHe: string } | null;
     /** The game came from (or was enriched by) Eyal Hatav's book — show the credit. */
     fromBook?: boolean;
+    /** Header line: competition, round and crowd (kickoff date is dates.kickoff). */
+    competitionHe?: string | null;
+    roundHe?: string | null;
+    attendance?: number | null;
   };
   homeTeam: TeamHeader;
   awayTeam: TeamHeader;

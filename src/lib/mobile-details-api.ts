@@ -684,6 +684,7 @@ export async function getMobileGamePayload(gameId: string) {
       homeTeam: true,
       awayTeam: true,
       competition: true,
+      venue: { select: { nameHe: true, nameEn: true } },
       gameStats: true,
       sofascoreMatchStats: true,
       fotmobData: true,
@@ -749,6 +750,8 @@ export async function getMobileGamePayload(gameId: string) {
       homeScore: game.homeScore,
       awayScore: game.awayScore,
       additionalInfo: game.additionalInfo,
+      venueName: game.venue?.nameHe || game.venueNameHe || game.venue?.nameEn || game.venueNameEn || null,
+      attendance: game.attendance ?? null,
       homeTeam: {
         id: game.homeTeam.id,
         name: getTeamLabel(game.homeTeam),

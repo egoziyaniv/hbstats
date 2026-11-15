@@ -200,10 +200,21 @@ export default function MatchScreen() {
               <Text className="text-sm mt-2 text-center text-white font-bold" numberOfLines={2}>{awayTeam.nameHe}</Text>
             </View>
           </View>
-          {match.venue ? (
-            <View className="mt-4 self-center rounded-full bg-white/15 px-3 py-1.5 border border-white/20">
+          {/* When and what: date (with the year — old games matter), competition and round. */}
+          <Text className="mt-4 text-center text-xs font-bold text-white/85" style={{ writingDirection: 'rtl' }}>
+            {[
+              new Date(match.dates.kickoff).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Jerusalem' }),
+              match.competitionHe,
+              match.roundHe,
+            ].filter(Boolean).join(' · ')}
+          </Text>
+          {match.venue || match.attendance ? (
+            <View className="mt-2 self-center rounded-full bg-white/15 px-3 py-1.5 border border-white/20">
               <Text className="text-xs font-bold text-white">
-                {match.venue.name}{match.venue.city ? ` · ${match.venue.city}` : ''}
+                {[
+                  match.venue ? `${match.venue.name}${match.venue.city ? ` · ${match.venue.city}` : ''}` : null,
+                  match.attendance ? `${match.attendance.toLocaleString('he-IL')} צופים` : null,
+                ].filter(Boolean).join(' · ')}
               </Text>
             </View>
           ) : null}
@@ -245,7 +256,7 @@ export default function MatchScreen() {
               />
             ) : null}
             {/* Top stats highlights */}
-            {data.matchStats ? (
+            {data.matchStats && (data.matchStats.xg || data.matchStats.possession || data.matchStats.shotsOnTarget) ? (
               <Card>
                 <Section title="הסטטיסטיקה החשובה">
                   {data.matchStats.xg ? <StatRow label="שערים צפויים (xG)" home={data.matchStats.xg.home.toFixed(2)} away={data.matchStats.xg.away.toFixed(2)} /> : null}
