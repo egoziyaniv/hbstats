@@ -4,6 +4,7 @@ import { I18nManager } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { registerForPushNotifications } from '@/lib/push';
+import { useOtaUpdates } from '@/lib/useOtaUpdates';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, persister, shouldDehydrateQuery } from '@/lib/queryClient';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -26,6 +27,7 @@ if (!I18nManager.isRTL) {
 I18nManager.swapLeftAndRightInRTL(false);
 
 function AuthGate() {
+  useOtaUpdates();
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
