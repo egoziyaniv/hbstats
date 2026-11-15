@@ -480,16 +480,14 @@ export default function MatchScreen() {
             </Card>
           )
         ) : null}
-        {/* Credit to Eyal Hatav's book for games that came from (or were enriched by) it. */}
-        {data.match.fromBook ? (
-          <View style={{ marginHorizontal: 16, marginTop: 16, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.ink[200], backgroundColor: 'rgba(255,255,255,0.7)' }}>
-            <Text style={{ color: theme.ink[500], fontSize: 12, lineHeight: 19, textAlign: 'center', writingDirection: 'rtl' }}>
-              נתוני המשחק מבוססים על הספר{' '}
-              <Text style={{ fontWeight: '800', color: theme.ink[700] }}>״הפועל באר-שבע – כל המשחקים 1950–2020״</Text> מאת אייל חטב.
-              {'\n'}תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
-            </Text>
-          </View>
-        ) : null}
+        {/* Credit to Eyal Hatav at the foot of every game: the source line on games from his book, a thank-you on the rest (as on the web). */}
+        <View style={{ marginHorizontal: 16, marginTop: 16, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.ink[200], backgroundColor: 'rgba(255,255,255,0.7)' }}>
+          <Text style={{ color: theme.ink[500], fontSize: 12, lineHeight: 19, textAlign: 'center', writingDirection: 'rtl' }}>
+            {data.match.fromBook ? 'נתוני המשחק מבוססים על הספר ' : 'הנתונים ההיסטוריים באפליקציה נשענים על הספר '}
+            <Text style={{ fontWeight: '800', color: theme.ink[700] }}>״הפועל באר-שבע – כל המשחקים 1950–2020״</Text> מאת אייל חטב.
+            {'\n'}תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
+          </Text>
+        </View>
       </ScrollView>
       <BottomNav />
       <PlayerMatchStatsSheet
