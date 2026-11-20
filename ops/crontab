@@ -45,6 +45,11 @@
 30 3 * * * /home/hbs/hbstats/scripts/cron-refresh-ai.sh >> /home/hbs/logs/ai-refresh.log 2>&1
 0 9 * * * cd /home/hbs/hbstats && /usr/bin/node scripts/call-cron.js on-this-day >> /home/hbs/logs/on-this-day.log 2>&1
 
+# YouTube videos of Beer Sheva games → game pages (confident matches) or /admin/videos (the rest).
+# Every 6h: recent games + newest uploads. Nightly: also 60 older games without a video (rotating).
+15 */6 * * * cd /home/hbs/hbstats && npx tsx scripts/videos/scan-youtube.ts >> /home/hbs/logs/video-scan.log 2>&1
+40 4 * * * cd /home/hbs/hbstats && npx tsx scripts/videos/scan-youtube.ts --backfill 60 >> /home/hbs/logs/video-scan.log 2>&1
+
 # ── Notifications ─────────────────────────────────────────────────────────────
 */3 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-matches.js --execute >> /home/hbs/logs/notify-matches.log 2>&1
 */10 * * * * cd /home/hbs/hbstats && /usr/bin/node scripts/notify-reminders.js --execute >> /home/hbs/logs/notify-reminders.log 2>&1

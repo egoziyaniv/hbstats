@@ -8,32 +8,32 @@ datasource db {
 }
 
 model User {
-  fanArchiveItems FanArchiveItem[] @relation("FanArchiveAuthor")
-  reviewedFanArchiveItems FanArchiveItem[] @relation("FanArchiveReviewer")
-  id                        String               @id @default(cuid())
-  email                     String               @unique
+  fanArchiveItems           FanArchiveItem[]      @relation("FanArchiveAuthor")
+  reviewedFanArchiveItems   FanArchiveItem[]      @relation("FanArchiveReviewer")
+  id                        String                @id @default(cuid())
+  email                     String                @unique
   name                      String
   password                  String?
-  googleSub                 String?              @unique
-  appleSub                  String?              @unique
-  role                      UserRole             @default(USER)
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
+  googleSub                 String?               @unique
+  appleSub                  String?               @unique
+  role                      UserRole              @default(USER)
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
   avatarUrl                 String?
-  isActive                  Boolean              @default(true)
+  isActive                  Boolean               @default(true)
   passwordChangedAt         DateTime?
-  favoriteCompetitionApiIds Int[]                @default([])
-  favoriteTeamApiIds        Int[]                @default([])
-  homeLeagueScope           String               @default("FAVORITES") // FAVORITES | LIGAT_HAAL | ALL — home next/last-game/predictions league filter
-  colorScheme               String               @default("auto")
-  theme                     String               @default("modern")
-  notifyGoals               Boolean              @default(true)
-  notifyResults             Boolean              @default(true)
-  notifyReminders           Boolean              @default(true)
-  notifyNews                Boolean              @default(true)
-  notifyOnThisDay           Boolean              @default(true)
+  favoriteCompetitionApiIds Int[]                 @default([])
+  favoriteTeamApiIds        Int[]                 @default([])
+  homeLeagueScope           String                @default("FAVORITES") // FAVORITES | LIGAT_HAAL | ALL — home next/last-game/predictions league filter
+  colorScheme               String                @default("auto")
+  theme                     String                @default("modern")
+  notifyGoals               Boolean               @default(true)
+  notifyResults             Boolean               @default(true)
+  notifyReminders           Boolean               @default(true)
+  notifyNews                Boolean               @default(true)
+  notifyOnThisDay           Boolean               @default(true)
   activityLogs              ActivityLog[]
-  fetchJobs                 FetchJob[]           @relation("FetchJobInitiator")
+  fetchJobs                 FetchJob[]            @relation("FetchJobInitiator")
   mergeOperations           MergeOperation[]
   sessions                  Session[]
   passwordResetTokens       PasswordResetToken[]
@@ -120,7 +120,7 @@ model Session {
 }
 
 model Season {
-  fanArchiveItems FanArchiveItem[]
+  fanArchiveItems     FanArchiveItem[]
   id                  String                        @id @default(cuid())
   year                Int                           @unique
   name                String
@@ -262,25 +262,25 @@ model Team {
 
 model Venue {
   fanArchiveItems FanArchiveItem[]
-  id             String       @id @default(cuid())
-  apiFootballId  Int?         @unique
-  nameEn         String
-  nameHe         String
-  addressEn      String?
-  addressHe      String?
-  cityEn         String?
-  cityHe         String?
-  countryEn      String?
-  countryHe      String?
-  capacity       Int?
-  surface        String?
-  imageUrl       String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  additionalInfo Json?
-  games          Game[]       @relation("GameVenue")
-  uploads        MediaAsset[] @relation("VenueAssets")
-  teams          Team[]       @relation("TeamVenue")
+  id              String           @id @default(cuid())
+  apiFootballId   Int?             @unique
+  nameEn          String
+  nameHe          String
+  addressEn       String?
+  addressHe       String?
+  cityEn          String?
+  cityHe          String?
+  countryEn       String?
+  countryHe       String?
+  capacity        Int?
+  surface         String?
+  imageUrl        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  additionalInfo  Json?
+  games           Game[]           @relation("GameVenue")
+  uploads         MediaAsset[]     @relation("VenueAssets")
+  teams           Team[]           @relation("TeamVenue")
 
   @@index([nameEn])
   @@index([cityEn])
@@ -424,7 +424,7 @@ model CoachAlias {
 }
 
 model Player {
-  fanArchiveItems FanArchiveItem[]
+  fanArchiveItems    FanArchiveItem[]
   id                 String                        @id @default(cuid())
   nameEn             String
   nameHe             String
@@ -485,7 +485,7 @@ model Player {
 }
 
 model Game {
-  fanArchiveItems FanArchiveItem[]
+  fanArchiveItems     FanArchiveItem[]
   id                  String                   @id @default(cuid())
   dateTime            DateTime
   homeScore           Int?
@@ -536,6 +536,8 @@ model Game {
   sofascoreMatchStats SofascoreMatchStats?
   fotmobData          FotmobMatchData?
   editorial           GameEditorial?
+  videoCandidates     GameVideoCandidate[]
+  videoScannedAt      DateTime? // last YouTube search for this game (rotates the backfill)
   matchAnalyses       MatchAnalysis[]
   mediaAssets         MediaAsset[]             @relation("GameAssets")
   awayTeam            Team                     @relation("AwayTeam", fields: [awayTeamId], references: [id])
@@ -563,8 +565,8 @@ model UserMatchAttendance {
   userId    String
   gameId    String
   createdAt DateTime @default(now())
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  game      Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@id([userId, gameId])
   @@index([gameId])
@@ -2045,6 +2047,31 @@ model GameEditorial {
   @@map("game_editorials")
 }
 
+// YouTube videos found for Beer Sheva games (scripts/videos/scan-youtube.ts or pasted by an
+// admin) and the game each was matched to. AUTO = confident match, linked to the game's
+// editorial by itself; PENDING = a guess waiting for the admin; APPROVED/REJECTED = decided.
+model GameVideoCandidate {
+  id          String    @id @default(cuid())
+  videoId     String    @unique
+  title       String
+  channel     String?
+  publishedAt DateTime?
+  durationSec Int?
+  kind        String    @default("recap") // recap | full
+  gameId      String?
+  confidence  String    @default("none") // high | medium | none
+  status      String    @default("PENDING") // AUTO | PENDING | APPROVED | REJECTED
+  reason      String?
+  source      String    @default("scan") // scan | admin
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  game        Game?     @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([gameId])
+  @@map("game_video_candidates")
+}
+
 enum MatchAnalysisKind {
   POST
   PRE
@@ -2149,34 +2176,34 @@ enum FanArchiveStatus {
 }
 
 model FanArchiveItem {
-  revisions FanArchiveRevision[]
-  id                String           @id @default(cuid())
-  type              FanArchiveType   @default(MEMORY)
+  revisions         FanArchiveRevision[]
+  id                String               @id @default(cuid())
+  type              FanArchiveType       @default(MEMORY)
   titleHe           String
   bodyHe            String
   eventDate         DateTime?
   creditHe          String
   sourceUrl         String?
   imageUrl          String?
-  permissionGranted Boolean          @default(false)
+  permissionGranted Boolean              @default(false)
   authorId          String
   gameId            String?
   seasonId          String?
   playerId          String?
   venueId           String?
-  status            FanArchiveStatus @default(DRAFT)
+  status            FanArchiveStatus     @default(DRAFT)
   reviewNoteHe      String?
   reviewedById      String?
   reviewedAt        DateTime?
   publishedAt       DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  author            User             @relation("FanArchiveAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  reviewedBy        User?            @relation("FanArchiveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  game              Game?            @relation(fields: [gameId], references: [id], onDelete: SetNull)
-  season            Season?          @relation(fields: [seasonId], references: [id], onDelete: SetNull)
-  player            Player?          @relation(fields: [playerId], references: [id], onDelete: SetNull)
-  venue             Venue?           @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  author            User                 @relation("FanArchiveAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reviewedBy        User?                @relation("FanArchiveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  game              Game?                @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  season            Season?              @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  player            Player?              @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  venue             Venue?               @relation(fields: [venueId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
   @@index([authorId, createdAt])
@@ -2188,12 +2215,13 @@ model FanArchiveItem {
 }
 
 model FanArchiveRevision {
-  id String @id @default(cuid())
-  itemId String
-  action String
-  snapshot Json
-  createdAt DateTime @default(now())
-  item FanArchiveItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id        String         @id @default(cuid())
+  itemId    String
+  action    String
+  snapshot  Json
+  createdAt DateTime       @default(now())
+  item      FanArchiveItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
   @@index([itemId, createdAt])
   @@map("fan_archive_revisions")
 }

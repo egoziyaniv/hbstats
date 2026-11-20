@@ -24,8 +24,11 @@ export function GameEditorialBlock({
   editorial: EditorialData;
   gallery: GalleryItem[];
 }) {
-  const embedUrl = editorial?.recapVideoUrl ? youtubeEmbedUrl(editorial.recapVideoUrl) : null;
-  const fullMatchUrl = editorial?.fullMatchUrl?.trim() || null;
+  const recapEmbed = editorial?.recapVideoUrl ? youtubeEmbedUrl(editorial.recapVideoUrl) : null;
+  const fullRaw = editorial?.fullMatchUrl?.trim() || null;
+  // No highlights but a full match on YouTube → embed the full match instead of only linking it.
+  const embedUrl = recapEmbed ?? youtubeEmbedUrl(fullRaw);
+  const fullMatchUrl = recapEmbed ? fullRaw : (embedUrl ? null : fullRaw);
   const matchFactHe = editorial?.matchFactHe?.trim() || null;
   const reportTitleHe = editorial?.reportTitleHe?.trim() || null;
   const reportHe = editorial?.reportHe?.trim() || null;
@@ -57,7 +60,7 @@ export function GameEditorialBlock({
 
       {hasVideo ? (
         <div className="rounded-[24px] border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-black text-stone-900">תקציר וידאו</h2>
+          <h2 className="text-xl font-black text-stone-900">{recapEmbed || !embedUrl ? 'תקציר וידאו' : 'המשחק המלא'}</h2>
           {embedUrl ? (
             <div className="mt-4 aspect-video w-full overflow-hidden rounded-2xl bg-black">
               <iframe
