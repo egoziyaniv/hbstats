@@ -98,3 +98,15 @@ describe('round signal', () => {
     expect(r.confidence).toBe('medium');
   });
 });
+
+describe('archive-style titles', () => {
+  it('"עונת 1996 97 ... 1 0" matches the 1997 cup final', () => {
+    const fin: HbsGame[] = [
+      g('final', '1997-05-01T15:00:00Z', 'מכבי תל אביב', true, 1, 0),
+      g('league', '1996-12-14T15:00:00Z', 'מכבי תל אביב', true, 2, 2),
+    ];
+    const r = matchVideo({ title: 'עונת 1996 97 גביע גמר מכבי תל אביב נגד הפועל באר שבע 1 0', publishedAt: new Date('2020-01-01'), durationSec: 1485 }, fin, NOW);
+    expect(r.candidates[0]?.gameId).toBe('final');
+    expect(titleFacts('עונת 1996 97 גביע').years).toEqual(expect.arrayContaining([1996, 1997]));
+  });
+});

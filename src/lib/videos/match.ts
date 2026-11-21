@@ -107,7 +107,10 @@ export function titleFacts(raw: string): TitleFacts {
     if (!Number.isNaN(d.getTime()) && Number(dm[2]) <= 12 && Number(dm[1]) <= 31) { date = d; years.add(y); }
     t = t.replace(dm[0], ' ');
   }
-  for (const m of t.matchAll(/(?<!\d)((?:19|20)\d\d)\s*[/-]\s*(\d{2}|\d{4})(?!\d)/g)) {
+  // Seasons: "2023/24", "2023-2024", "1996 97".
+  for (const m of t.matchAll(/(?<!\d)((?:19|20)\d\d)\s*[/ -]\s*(\d{2}|\d{4})(?!\d)/g)) {
+    const b = Number(m[2]);
+    if (!(b === (Number(m[1]) + 1) % 100 || b === Number(m[1]) + 1)) continue; // not a season
     const a = Number(m[1]);
     years.add(a); years.add(a + 1);
     t = t.replace(m[0], ' ');
@@ -115,6 +118,8 @@ export function titleFacts(raw: string): TitleFacts {
   for (const m of t.matchAll(/(?<!\d)((?:19[4-9]|20[0-4])\d)(?!\d)/g)) { years.add(Number(m[1])); t = t.replace(m[0], ' '); }
   const scores: Array<[number, number]> = [];
   for (const m of t.matchAll(/(?<![\d:])(\d{1,2})\s*[-–:]\s*(\d{1,2})(?![\d:])/g)) scores.push([Number(m[1]), Number(m[2])]);
+  // "... 1 0" — a bare single-digit pair, only when no regular score was found.
+  if (!scores.length) for (const m of t.matchAll(/(?<![\d.:])(\d) (\d)(?![\d.:])/g)) scores.push([Number(m[1]), Number(m[2])]);
   return { scores, date, years: [...years] };
 }
 
