@@ -72,12 +72,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     for (const h of hits.slice(0, 20)) {
       if (known.has(h.videoId) || !mentionsHbs(h.title)) continue;
       known.add(h.videoId);
-      await sleep(1200);
-      let meta;
-      try { meta = await fetchVideoMeta(h.videoId); fetched++; }
-      catch (e) {
-        if (is429(e)) { console.error('YouTube 429 — stopping this run'); throttled = true; break; }
-        continue;
+      // The search hit already has title, channel, length and an approximate upload date —
+      // enough to match. The watch page (exact date) is often walled off from the server.
+      let meta: { videoId: string; title: string; channel: string | null; durationSec: number | null; publishedAt: Date | null } | null = h;
+      if (!h.publishedAt) {
+        await sleep(1200);
+        try { const m = await fetchVideoMeta(h.videoId); fetched++; if (m?.publishedAt) meta = { ...h, ...m, durationSec: m.durationSec ?? h.durationSec }; }
+        catch (e) { if (is429(e)) { console.error('YouTube 429 — stopping this run'); throttled = true; break; } }
       }
       if (!meta) continue;
       if (DRY) {

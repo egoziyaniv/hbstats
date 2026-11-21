@@ -14,6 +14,8 @@ export interface YtSearchHit {
   title: string;
   channel: string | null;
   durationSec: number | null;
+  /** Approximate upload date from "לפני 3 ימים" / "2 weeks ago"; null when coarser than ~5 weeks. */
+  publishedAt: Date | null;
 }
 
 export interface YtVideoMeta {
@@ -62,6 +64,23 @@ export function parseDuration(text: string | null | undefined): number | null {
   return text.trim().split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
 }
 
+const UNIT_DAYS: Array<[RegExp, number]> = [
+  [/שעה|שעות|דקה|דקות|hour|minute/, 0], [/יום|ימים|day/, 1], [/שבוע|שבועות|week/, 7],
+  [/חודש|חודשים|month/, 30], [/שנה|שנים|year/, 365],
+];
+
+/** "לפני 3 ימים" / "Streamed 2 weeks ago" → approximate date; null when unknown or older than ~5 weeks. */
+export function parseRelativeDate(text: string | null | undefined, now = new Date()): Date | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  const unit = UNIT_DAYS.find(([re]) => re.test(t));
+  if (!unit) return null;
+  const n = Number(t.match(/\d+/)?.[0] ?? (/שבועיים/.test(t) ? 2 : /יומיים/.test(t) ? 2 : 1));
+  const days = n * unit[1];
+  if (days > 35) return null;
+  return new Date(now.getTime() - days * 86_400_000);
+}
+
 const runsText = (o: any): string => o?.simpleText ?? (o?.runs ?? []).map((r: any) => r.text).join('') ?? '';
 
 function collectVideoRenderers(node: any, out: any[]): void {
@@ -85,6 +104,7 @@ export function parseSearchPage(html: string): YtSearchHit[] {
       title: runsText(r.title),
       channel: runsText(r.ownerText) || null,
       durationSec: parseDuration(runsText(r.lengthText)),
+      publishedAt: parseRelativeDate(runsText(r.publishedTimeText)),
     });
   }
   return hits;
@@ -113,8 +133,26 @@ export function parseWatchPage(html: string, videoId: string): YtVideoMeta | nul
   };
 }
 
-/** Title, channel, length and exact publish date of one video. */
+/**
+ * Title, channel, length and exact publish date of one video. From a datacenter IP YouTube may
+ * answer the watch page with a "confirm you're not a bot" wall — then fall back to oEmbed
+ * (title + channel only, no date or length).
+ */
 export async function fetchVideoMeta(videoId: string): Promise<YtVideoMeta | null> {
-  const html = await get(`https://www.youtube.com/watch?v=${videoId}&hl=he`);
-  return parseWatchPage(html, videoId);
+  try {
+    const meta = parseWatchPage(await get(`https://www.youtube.com/watch?v=${videoId}&hl=he`), videoId);
+    if (meta) return meta;
+  } catch (e) {
+    if (/\b429\b/.test((e as Error).message)) throw e;
+  }
+  try {
+    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`, {
+      headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const o = await res.json();
+    return o?.title ? { videoId, title: o.title, channel: o.author_name ?? null, durationSec: null, publishedAt: null } : null;
+  } catch {
+    return null;
+  }
 }

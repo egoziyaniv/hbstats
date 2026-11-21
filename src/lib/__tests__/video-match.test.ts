@@ -83,7 +83,7 @@ describe('youtube page parsing', () => {
     const data = { contents: { a: [{ videoRenderer: { videoId: 'abcdefghijk', title: { runs: [{ text: 'כותרת "עם" מרכאות' }] }, ownerText: { runs: [{ text: 'ערוץ' }] }, lengthText: { simpleText: '5:00' } } }] } };
     const html = `<script>var ytInitialData = ${JSON.stringify(data)};</script>`;
     expect(extractJsonVar(html, 'ytInitialData')).toEqual(data);
-    expect(parseSearchPage(html)).toEqual([{ videoId: 'abcdefghijk', title: 'כותרת "עם" מרכאות', channel: 'ערוץ', durationSec: 300 }]);
+    expect(parseSearchPage(html)).toEqual([{ videoId: 'abcdefghijk', title: 'כותרת "עם" מרכאות', channel: 'ערוץ', durationSec: 300, publishedAt: null }]);
   });
 });
 
@@ -116,5 +116,20 @@ describe('short season', () => {
     const f = titleFacts('ליגה לאומית 89/90 מכבי ת"א - הפועל באר שבע 0:3, מחזור 3');
     expect(f.years).toEqual(expect.arrayContaining([1989, 1990]));
     expect(f.scores).toEqual([[0, 3]]);
+  });
+});
+
+describe('relative upload dates', () => {
+  const { parseRelativeDate } = require('@/lib/videos/youtube-fetch');
+  const now = new Date('2026-11-21T00:00:00Z');
+  it('reads Hebrew and English', () => {
+    expect(parseRelativeDate('לפני 3 ימים', now)?.toISOString().slice(0, 10)).toBe('2026-11-18');
+    expect(parseRelativeDate('לפני שבועיים', now)?.toISOString().slice(0, 10)).toBe('2026-11-07');
+    expect(parseRelativeDate('2 weeks ago', now)?.toISOString().slice(0, 10)).toBe('2026-11-07');
+    expect(parseRelativeDate('לפני 5 שעות', now)?.toISOString().slice(0, 10)).toBe('2026-11-21');
+  });
+  it('too coarse → null', () => {
+    expect(parseRelativeDate('לפני 3 חודשים', now)).toBeNull();
+    expect(parseRelativeDate('לפני שנה', now)).toBeNull();
   });
 });
