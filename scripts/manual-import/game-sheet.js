@@ -148,6 +148,10 @@ const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
     const assist = ev.assist ? await playerId(side, ev.assist) : null;
     if (existing) {
       if (existing.type !== ev.type) notes.push(`${ev.minute}' ${pl.name}: אצלנו ${existing.type}, ב${sheet.sourceLabelHe} ${ev.type} — נשאר שלנו`);
+      if (!existing.playerId && clean(existing.participantName) === pl.name) {
+        eventUpdates.push({ id: existing.id, data: { playerId: realId(pl.id) } });
+        log(`  + ${ev.minute}' קישור השער של ${pl.name} לשחקן`);
+      }
       if (assist && !existing.relatedParticipantName) {
         eventUpdates.push({ id: existing.id, data: { relatedParticipantName: assist.name, relatedPlayerId: realId(assist.id) } });
         log(`  + ${ev.minute}' בישול ל${clean(existing.participantName)}: ${assist.name}`);
