@@ -1,6 +1,12 @@
 // Keyless YouTube access: the public search results page and watch page both embed their data
 // as JSON (ytInitialData / ytInitialPlayerResponse). Plain HTTP, no API quota. Server-side only.
 
+import dns from 'node:dns';
+
+// The server's IPv6 range is flagged by Google (watch pages answer with a /sorry captcha),
+// while IPv4 is served normally — prefer IPv4 for these lookups.
+dns.setDefaultResultOrder('ipv4first');
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 
 export interface YtSearchHit {
