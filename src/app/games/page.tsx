@@ -31,9 +31,12 @@ export default async function GamesPage({
     round?: string;
     teamId?: string;
     view?: string;
+    layout?: string;
   }>;
 }) {
   const searchParams = await searchParamsPromise;
+  // 'cards' = the whole season as a grid of game cards in date order; default is the list.
+  const layout = searchParams?.layout === 'cards' ? 'cards' : 'list';
   const displayMode = await getDisplayMode(searchParams?.view);
   const currentUser = await getCurrentUser();
   const seasons = await prisma.season.findMany({
@@ -271,6 +274,8 @@ export default async function GamesPage({
           homeTeam: true,
           awayTeam: true,
           competition: true,
+          editorial: { select: { recapVideoUrl: true, fullMatchUrl: true } },
+          _count: { select: { lineupEntries: true } },
           events: {
             include: {
               player: true,
@@ -280,9 +285,19 @@ export default async function GamesPage({
             take: 8,
           },
         },
-        orderBy: [{ dateTime: 'desc' }],
+        orderBy: [{ dateTime: layout === 'cards' ? 'asc' : 'desc' }],
       })
     : [];
+  const layoutHref = (l: 'list' | 'cards') => {
+    const q = new URLSearchParams();
+    if (selectedSeason) q.set('season', selectedSeason.id);
+    if (selectedCompetitionId !== 'all') q.set('competitionId', selectedCompetitionId);
+    if (selectedRound !== 'all') q.set('round', selectedRound);
+    if (selectedTeamId !== 'all') q.set('teamId', selectedTeamId);
+    q.set('view', displayMode);
+    if (l === 'cards') q.set('layout', 'cards');
+    return `/games?${q.toString()}`;
+  };
 
   return (
     <div dir="rtl" className="min-h-screen px-4 py-8">
@@ -296,7 +311,7 @@ export default async function GamesPage({
 
           <SmartFilterForm
             action="/games"
-            hiddenFields={{ view: displayMode }}
+            hiddenFields={{ view: displayMode, ...(layout === 'cards' ? { layout } : {}) }}
             fields={gamesFilterFields}
             initialValues={{
               season: selectedSeason?.id || '',
@@ -315,11 +330,23 @@ export default async function GamesPage({
             <h2 className="border-r-[3px] border-[var(--accent)] pr-3 text-xl font-black text-stone-900">
               רשימת משחקים
             </h2>
-            <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-bold text-stone-500">
-              {games.length} משחקים
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="flex overflow-hidden rounded-full border border-stone-200 text-xs font-bold">
+                {(['list', 'cards'] as const).map((l) => (
+                  <Link key={l} href={layoutHref(l)} className={`px-3 py-1 ${layout === l ? 'bg-[var(--accent)] text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+                    {l === 'list' ? 'רשימה' : 'כרטיסים'}
+                  </Link>
+                ))}
+              </div>
+              <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-bold text-stone-500">
+                {games.length} משחקים
+              </span>
+            </div>
           </div>
 
+          {layout === 'cards' ? (
+            <SeasonGameCards games={games} />
+          ) : (
           <div className="divide-y divide-stone-100">
             {games.map((game) => {
               const statusBadge = game.status === 'COMPLETED'
@@ -423,6 +450,7 @@ export default async function GamesPage({
               </div>
             ) : null}
           </div>
+          )}
         </section>
 
         {/* Source credit — the 1950-2020 games come from Eyal Hatav's book (owner asked for this note). */}
@@ -433,6 +461,70 @@ export default async function GamesPage({
           תודה גדולה לאייל על שנים של תיעוד מסור, שבזכותו ההיסטוריה של המועדון נשמרת.
         </footer>
       </div>
+    </div>
+  );
+}
+
+type CardGame = {
+  id: string;
+  dateTime: Date;
+  status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  roundNameHe: string | null;
+  roundNameEn: string | null;
+  homeTeam: { nameHe: string; nameEn: string; apiFootballId: number | null };
+  awayTeam: { nameHe: string; nameEn: string; apiFootballId: number | null };
+  competition: { nameHe: string | null; nameEn: string } | null;
+  editorial: { recapVideoUrl: string | null; fullMatchUrl: string | null } | null;
+  _count: { lineupEntries: number };
+};
+
+const isBeerSheva = (t: CardGame['homeTeam']) => t.apiFootballId === 563 || (/^הפועל/.test(t.nameHe) && /באר[ -]שבע/.test(t.nameHe));
+
+// The season at a glance: one card per game in date order — date and round, both teams with
+// the score (winner in bold), icons for a video / lineups, and Beer Sheva's result as a stripe.
+function SeasonGameCards({ games }: { games: CardGame[] }) {
+  if (!games.length) return <div className="p-12 text-center text-sm text-stone-400">לא נמצאו משחקים לפי הסינון שבחרת.</div>;
+  const date = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jerusalem' });
+  return (
+    <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {games.map((g) => {
+        const played = g.homeScore != null && g.awayScore != null;
+        const homeWon = played && g.homeScore! > g.awayScore!;
+        const awayWon = played && g.awayScore! > g.homeScore!;
+        const hbsHome = isBeerSheva(g.homeTeam);
+        const hbsAway = isBeerSheva(g.awayTeam);
+        const stripe = !played || (!hbsHome && !hbsAway)
+          ? 'border-b-stone-200'
+          : (hbsHome ? homeWon : awayWon) ? 'border-b-emerald-500' : homeWon || awayWon ? 'border-b-red-500' : 'border-b-amber-400';
+        const video = g.editorial?.recapVideoUrl || g.editorial?.fullMatchUrl;
+        const round = getRoundDisplayName(g.roundNameHe, g.roundNameEn);
+        const row = (team: CardGame['homeTeam'], score: number | null, won: boolean) => (
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+            <span className={`truncate ${won ? 'font-black text-stone-900' : 'text-stone-700'}`}>{team.nameHe || team.nameEn}</span>
+            <span className={`tabular-nums ${won ? 'font-black text-stone-900' : 'text-stone-600'}`}>{score ?? '–'}</span>
+          </div>
+        );
+        return (
+          <Link key={g.id} href={`/games/${g.id}`} className={`overflow-hidden rounded-xl border border-stone-200 border-b-4 ${stripe} bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}>
+            <div className="flex items-center justify-between gap-2 bg-[var(--accent)] px-3 py-1.5 text-xs font-bold text-white">
+              <span>{date.format(g.dateTime)}</span>
+              <span className="flex gap-1.5" aria-label="מה יש במשחק">
+                {video ? <span title="יש וידאו">🎬</span> : null}
+                {g._count.lineupEntries ? <span title="יש הרכבים">📋</span> : null}
+              </span>
+            </div>
+            <div className="border-b border-stone-100 px-3 py-1 text-center text-xs text-stone-500">
+              {[round, g.competition ? getCompetitionDisplayName(g.competition) : null].filter(Boolean).join(' · ')}
+            </div>
+            <div className="py-1 text-sm">
+              {row(g.homeTeam, g.homeScore, homeWon)}
+              {row(g.awayTeam, g.awayScore, awayWon)}
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
