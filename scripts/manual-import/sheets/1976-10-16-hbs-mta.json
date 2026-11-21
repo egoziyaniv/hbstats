@@ -1,0 +1,166 @@
+{
+  "gameId": "cmvw554x600yy10qhflm58mhi",
+  "source": "maccabipedia",
+  "sourceLabelHe": "מכביפדיה",
+  "sourceRef": "מכביפדיה: 16-10-1976 הפועל באר שבע נגד מכבי תל אביב - ליגה לאומית",
+  "roundNameHe": "מחזור 4",
+  "attendance": 17000,
+  "assistantRefereesHe": [
+    "ויקטור נעמן",
+    "אריה סלומון"
+  ],
+  "aliases": {
+    "שמעון ביטון": "שמעון ביטון",
+    "אלון בן דור": "אלון בן-דור",
+    "מוטי איווניר": "מוטי איוניר"
+  },
+  "kickoffIsrael": "14:30",
+  "home": {
+    "coach": "אלי פוקס",
+    "starters": [
+      {
+        "name": "רוני מוסקוביץ'",
+        "pos": "G"
+      },
+      {
+        "name": "רפי אליהו"
+      },
+      {
+        "name": "אלון בן דור"
+      },
+      {
+        "name": "אורי בנימין"
+      },
+      {
+        "name": "יעקב פולברניס"
+      },
+      {
+        "name": "אברהם נומה"
+      },
+      {
+        "name": "אפרים צבי"
+      },
+      {
+        "name": "מאיר ברד"
+      },
+      {
+        "name": "יעקב כהן"
+      },
+      {
+        "name": "משה אבוגזיר"
+      },
+      {
+        "name": "שלום אביטן"
+      }
+    ],
+    "subs": [
+      {
+        "name": "אליהו עופר"
+      }
+    ]
+  },
+  "away": {
+    "coach": "יעקב גרונדמן",
+    "starters": [
+      {
+        "name": "יוז'י סורינוב",
+        "pos": "G"
+      },
+      {
+        "name": "בני טבק"
+      },
+      {
+        "name": "אבי כהן"
+      },
+      {
+        "name": "מיקו בלו"
+      },
+      {
+        "name": "מאיר נמני"
+      },
+      {
+        "name": "יהודה לינקר"
+      },
+      {
+        "name": "אורי סלימאן"
+      },
+      {
+        "name": "ירון עוז"
+      },
+      {
+        "name": "יהודה גרגיר"
+      },
+      {
+        "name": "ישראל ששון"
+      },
+      {
+        "name": "ויקי פרץ"
+      }
+    ],
+    "subs": [
+      {
+        "name": "אברהם לוי"
+      }
+    ]
+  },
+  "events": [
+    {
+      "minute": 0,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "שלום אביטן"
+    },
+    {
+      "minute": 0,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "אלון בן דור"
+    },
+    {
+      "minute": 0,
+      "team": "away",
+      "type": "YELLOW_CARD",
+      "player": "בני טבק"
+    },
+    {
+      "minute": 0,
+      "team": "away",
+      "type": "YELLOW_CARD",
+      "player": "יהודה לינקר"
+    },
+    {
+      "minute": 8,
+      "team": "away",
+      "type": "GOAL",
+      "player": "ירון עוז",
+      "assist": "יהודה גרגיר"
+    },
+    {
+      "minute": 34,
+      "team": "home",
+      "type": "PENALTY_GOAL",
+      "player": "רפי אליהו"
+    },
+    {
+      "minute": 60,
+      "team": "away",
+      "type": "SUB",
+      "in": "אברהם לוי",
+      "out": "ישראל ששון"
+    },
+    {
+      "minute": 76,
+      "team": "away",
+      "type": "GOAL",
+      "player": "בני טבק",
+      "assist": "אברהם לוי"
+    },
+    {
+      "minute": 77,
+      "team": "home",
+      "type": "SUB",
+      "in": "אליהו עופר",
+      "out": "משה אבוגזיר"
+    }
+  ]
+}

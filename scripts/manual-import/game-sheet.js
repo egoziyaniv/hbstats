@@ -136,8 +136,8 @@ const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
       const pout = await playerId(side, ev.out);
       if (game.events.some((e) => same(e, side, ['SUBSTITUTION_IN', 'SUBSTITUTION_OUT'], ev.minute, null) && [pin.name, pout.name].includes(clean(e.participantName)))) continue;
       newEvents.push(
-        { gameId: game.id, minute: ev.minute, team: side, teamId, type: 'SUBSTITUTION_IN', participantName: pin.name, relatedParticipantName: pout.name, playerId: realId(pin.id), relatedPlayerId: realId(pout.id), source: SOURCE },
-        { gameId: game.id, minute: ev.minute, team: side, teamId, type: 'SUBSTITUTION_OUT', participantName: pout.name, relatedParticipantName: pin.name, playerId: realId(pout.id), relatedPlayerId: realId(pin.id), source: SOURCE },
+        { gameId: game.id, minute: ev.minute, team: side, teamId, type: 'SUBSTITUTION_IN', participantName: pin.name, relatedParticipantName: pout.name, playerId: realId(pin.id), relatedPlayerId: realId(pout.id), source: SOURCE, ...(ev.minute === 0 ? { notesHe: 'הדקה לא ידועה' } : {}) },
+        { gameId: game.id, minute: ev.minute, team: side, teamId, type: 'SUBSTITUTION_OUT', participantName: pout.name, relatedParticipantName: pin.name, playerId: realId(pout.id), relatedPlayerId: realId(pin.id), source: SOURCE, ...(ev.minute === 0 ? { notesHe: 'הדקה לא ידועה' } : {}) },
       );
       log(`  + ${ev.minute}' חילוף ${teamOf[side].nameHe}: ${pin.name} ↔ ${pout.name}`);
       continue;
