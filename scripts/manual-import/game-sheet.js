@@ -164,6 +164,8 @@ const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
     newEvents.push({
       gameId: game.id, minute: ev.minute, team: side, teamId, type: ev.type, participantName: pl.name, playerId: realId(pl.id),
       ...(assist ? { relatedParticipantName: assist.name, relatedPlayerId: realId(assist.id) } : {}), source: SOURCE,
+      // Minute 0 in the source means "minute not recorded" (cards listed with no time).
+      ...(ev.minute === 0 ? { notesHe: 'הדקה לא ידועה' } : {}),
     });
     log(`  + ${ev.minute}' ${ev.type} ${teamOf[side].nameHe}: ${pl.name}${assist ? ` (בישול ${assist.name})` : ''}`);
   }
