@@ -115,6 +115,14 @@ export function titleFacts(raw: string): TitleFacts {
     years.add(a); years.add(a + 1);
     t = t.replace(m[0], ' ');
   }
+  // Short seasons: "89/90", "88-89" → 1989+1990 / 1988+1989.
+  for (const m of t.matchAll(/(?<![\d:])(\d{2})\s*[/-]\s*(\d{2})(?![\d:])/g)) {
+    const a = Number(m[1]), b = Number(m[2]);
+    if (b !== (a + 1) % 100) continue;
+    const y = a > 40 ? 1900 + a : 2000 + a;
+    years.add(y); years.add(y + 1);
+    t = t.replace(m[0], ' ');
+  }
   for (const m of t.matchAll(/(?<!\d)((?:19[4-9]|20[0-4])\d)(?!\d)/g)) { years.add(Number(m[1])); t = t.replace(m[0], ' '); }
   const scores: Array<[number, number]> = [];
   for (const m of t.matchAll(/(?<![\d:])(\d{1,2})\s*[-–:]\s*(\d{1,2})(?![\d:])/g)) scores.push([Number(m[1]), Number(m[2])]);

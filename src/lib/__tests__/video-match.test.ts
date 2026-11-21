@@ -110,3 +110,11 @@ describe('archive-style titles', () => {
     expect(titleFacts('עונת 1996 97 גביע').years).toEqual(expect.arrayContaining([1996, 1997]));
   });
 });
+
+describe('short season', () => {
+  it('"89/90" is a season, not a score', () => {
+    const f = titleFacts('ליגה לאומית 89/90 מכבי ת"א - הפועל באר שבע 0:3, מחזור 3');
+    expect(f.years).toEqual(expect.arrayContaining([1989, 1990]));
+    expect(f.scores).toEqual([[0, 3]]);
+  });
+});
