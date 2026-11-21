@@ -57,18 +57,28 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   const known = new Set((await prisma.gameVideoCandidate.findMany({ select: { videoId: true } })).map((c) => c.videoId));
   const tally: Record<string, number> = {};
-  let searched = 0, fetched = 0;
+  let searched = 0, fetched = 0, throttled = false;
+  const is429 = (e: unknown) => /\b429\b/.test((e as Error)?.message ?? '');
   for (const q of queries) {
+    if (throttled) break;
     let hits;
     try { hits = await searchYouTube(q.q, { newestFirst: q.newestFirst }); searched++; }
-    catch (e) { console.error(`search failed "${q.q}": ${(e as Error).message}`); await sleep(5000); continue; }
-    if (q.gameId && !DRY) await prisma.game.update({ where: { id: q.gameId }, data: { videoScannedAt: new Date() } });
+    catch (e) {
+      console.error(`search failed "${q.q}": ${(e as Error).message}`);
+      if (is429(e)) { throttled = true; break; } // YouTube is rate-limiting us — stop, the next run continues
+      await sleep(5000); continue;
+    }
+    if (q.gameId && !DRY && !throttled) await prisma.game.update({ where: { id: q.gameId }, data: { videoScannedAt: new Date() } });
     for (const h of hits.slice(0, 20)) {
       if (known.has(h.videoId) || !mentionsHbs(h.title)) continue;
       known.add(h.videoId);
       await sleep(1200);
       let meta;
-      try { meta = await fetchVideoMeta(h.videoId); fetched++; } catch { continue; }
+      try { meta = await fetchVideoMeta(h.videoId); fetched++; }
+      catch (e) {
+        if (is429(e)) { console.error('YouTube 429 — stopping this run'); throttled = true; break; }
+        continue;
+      }
       if (!meta) continue;
       if (DRY) {
         const r = matchVideo(meta, games);
@@ -83,6 +93,6 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     }
     await sleep(1500);
   }
-  console.log(`${new Date().toISOString()} queries=${searched}/${queries.length} videos=${fetched} ${JSON.stringify(tally)}`);
+  console.log(`${new Date().toISOString()}${throttled ? ' THROTTLED' : ''} queries=${searched}/${queries.length} videos=${fetched} ${JSON.stringify(tally)}`);
   await prisma.$disconnect();
 })().catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1); });
