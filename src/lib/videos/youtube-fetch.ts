@@ -20,7 +20,7 @@ export interface YtVideoMeta {
 
 async function get(url: string): Promise<string> {
   const res = await fetch(url, {
-    headers: { 'User-Agent': UA, 'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8', Cookie: 'CONSENT=YES+1' },
+    headers: { 'User-Agent': UA, 'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8' },
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`YouTube ${res.status}`);
