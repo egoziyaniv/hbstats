@@ -1,0 +1,198 @@
+{
+  "gameId": "cmvw558nr02h610qhjixpzqy2",
+  "source": "maccabipedia",
+  "sourceLabelHe": "מכביפדיה",
+  "sourceRef": "מכביפדיה: 1-6-1991 מכבי תל אביב נגד הפועל באר שבע - ליגה לאומית",
+  "kickoffIsrael": "17:00",
+  "roundNameHe": "מחזור 29",
+  "attendance": 300,
+  "assistantRefereesHe": [
+    "טובי מלאך",
+    "מרדכי ואנה"
+  ],
+  "aliases": {
+    "שמעון ביטון": "שמעון ביטון ב'",
+    "גיל ספפורטס": "גילי סספורטס",
+    "אבי כהן (הירושלמי)": "אבי כהן הירושלמי"
+  },
+  "home": {
+    "coach": "צביקה רוזן",
+    "starters": [
+      {
+        "name": "שביט אלימלך",
+        "pos": "G"
+      },
+      {
+        "name": "אלי דריקס"
+      },
+      {
+        "name": "ענבר מוספי"
+      },
+      {
+        "name": "אמיר שלח"
+      },
+      {
+        "name": "אבי כהן (הירושלמי)"
+      },
+      {
+        "name": "אנדריי באל"
+      },
+      {
+        "name": "מיקי כהן"
+      },
+      {
+        "name": "איציק זוהר"
+      },
+      {
+        "name": "ניר קלינגר"
+      },
+      {
+        "name": "אבי נמני"
+      },
+      {
+        "name": "מאיר מליקה"
+      }
+    ],
+    "subs": [
+      {
+        "name": "ארז לולו"
+      },
+      {
+        "name": "ג'קי צרפתי"
+      }
+    ]
+  },
+  "away": {
+    "coach": "אליהו עופר",
+    "starters": [
+      {
+        "name": "אריה אלטר",
+        "pos": "G"
+      },
+      {
+        "name": "שגיב אליהו"
+      },
+      {
+        "name": "שלמה אילוז"
+      },
+      {
+        "name": "אלי אוזן"
+      },
+      {
+        "name": "אייל בן שימול"
+      },
+      {
+        "name": "מאיר עזרן"
+      },
+      {
+        "name": "סתיו אלימלך"
+      },
+      {
+        "name": "תומר וקנין"
+      },
+      {
+        "name": "אמיר אביגדור"
+      },
+      {
+        "name": "אילן ועקנין"
+      },
+      {
+        "name": "שמעון ביטון"
+      }
+    ],
+    "subs": [
+      {
+        "name": "מוליה יחייס"
+      },
+      {
+        "name": "אבי חיון"
+      }
+    ]
+  },
+  "events": [
+    {
+      "minute": 0,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "אמיר שלח"
+    },
+    {
+      "minute": 4,
+      "team": "home",
+      "type": "GOAL",
+      "player": "אבי כהן (הירושלמי)",
+      "assist": "איציק זוהר"
+    },
+    {
+      "minute": 22,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "איציק זוהר"
+    },
+    {
+      "minute": 35,
+      "team": "away",
+      "type": "SUB",
+      "in": "מוליה יחייס",
+      "out": "שגיב אליהו"
+    },
+    {
+      "minute": 37,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "אבי כהן (הירושלמי)"
+    },
+    {
+      "minute": 48,
+      "team": "home",
+      "type": "GOAL",
+      "player": "אנדריי באל",
+      "assist": "איציק זוהר"
+    },
+    {
+      "minute": 49,
+      "team": "away",
+      "type": "YELLOW_CARD",
+      "player": "אלי אוזן"
+    },
+    {
+      "minute": 57,
+      "team": "home",
+      "type": "SUB",
+      "in": "ג'קי צרפתי",
+      "out": "אלי דריקס"
+    },
+    {
+      "minute": 60,
+      "team": "away",
+      "type": "SUB",
+      "in": "אבי חיון",
+      "out": "אמיר אביגדור"
+    },
+    {
+      "minute": 62,
+      "team": "away",
+      "type": "GOAL",
+      "player": "שמעון ביטון"
+    },
+    {
+      "minute": 67,
+      "team": "home",
+      "type": "GOAL",
+      "player": "איציק זוהר"
+    },
+    {
+      "minute": 85,
+      "team": "home",
+      "type": "SUB",
+      "in": "ארז לולו",
+      "out": "מאיר מליקה"
+    },
+    {
+      "minute": 87,
+      "team": "away",
+      "type": "PENALTY_GOAL",
+      "player": "מאיר עזרן"
+    }
+  ]
+}

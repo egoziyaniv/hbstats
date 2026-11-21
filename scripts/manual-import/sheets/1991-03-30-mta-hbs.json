@@ -1,0 +1,210 @@
+{
+  "gameId": "cmvw558ne02h210qhku2j521g",
+  "source": "maccabipedia",
+  "sourceLabelHe": "מכביפדיה",
+  "sourceRef": "מכביפדיה: 30-3-1991 מכבי תל אביב נגד הפועל באר שבע - ליגה לאומית",
+  "kickoffIsrael": "16:00",
+  "roundNameHe": "מחזור 19",
+  "attendance": 6000,
+  "assistantRefereesHe": [
+    "שלום לביא",
+    "יורם בקטרי"
+  ],
+  "aliases": {
+    "שמעון ביטון": "שמעון ביטון ב'",
+    "גיל ספפורטס": "גילי סספורטס",
+    "אבי כהן (הירושלמי)": "אבי כהן הירושלמי"
+  },
+  "home": {
+    "coach": "צביקה רוזן",
+    "starters": [
+      {
+        "name": "משה מרכוס",
+        "number": 1,
+        "pos": "G"
+      },
+      {
+        "name": "אמיר שלח",
+        "number": 4
+      },
+      {
+        "name": "אנדריי באל",
+        "number": 5
+      },
+      {
+        "name": "מנשה שמעונוב",
+        "number": 6,
+        "captain": true
+      },
+      {
+        "name": "אלי דריקס",
+        "number": 7
+      },
+      {
+        "name": "אורי מלמיליאן",
+        "number": 8
+      },
+      {
+        "name": "אבי כהן (הירושלמי)",
+        "number": 12
+      },
+      {
+        "name": "אבי נמני",
+        "number": 13
+      },
+      {
+        "name": "ארז לולו",
+        "number": 14
+      },
+      {
+        "name": "מאיר מליקה",
+        "number": 15
+      },
+      {
+        "name": "ניר קלינגר",
+        "number": 16
+      }
+    ],
+    "subs": [
+      {
+        "name": "עמיר תורג'מן"
+      },
+      {
+        "name": "איציק זוהר",
+        "number": 10
+      }
+    ]
+  },
+  "away": {
+    "coach": "אליהו עופר",
+    "starters": [
+      {
+        "name": "אריה אלטר",
+        "pos": "G"
+      },
+      {
+        "name": "אבי חיון"
+      },
+      {
+        "name": "שלמה אילוז"
+      },
+      {
+        "name": "אורון גונן"
+      },
+      {
+        "name": "אלי אוזן"
+      },
+      {
+        "name": "גדי חזות"
+      },
+      {
+        "name": "סתיו אלימלך"
+      },
+      {
+        "name": "קלאודיו דיקסטרה"
+      },
+      {
+        "name": "צ'רלי פרץ"
+      },
+      {
+        "name": "שמעון ביטון"
+      },
+      {
+        "name": "אמיר אביגדור"
+      }
+    ],
+    "subs": [
+      {
+        "name": "גיל ספפורטס"
+      },
+      {
+        "name": "מאיר עזרן"
+      }
+    ]
+  },
+  "events": [
+    {
+      "minute": 2,
+      "team": "away",
+      "type": "YELLOW_CARD",
+      "player": "אורון גונן"
+    },
+    {
+      "minute": 8,
+      "team": "away",
+      "type": "GOAL",
+      "player": "שמעון ביטון"
+    },
+    {
+      "minute": 10,
+      "team": "home",
+      "type": "SUB",
+      "in": "איציק זוהר",
+      "out": "אורי מלמיליאן"
+    },
+    {
+      "minute": 14,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "אלי דריקס"
+    },
+    {
+      "minute": 24,
+      "team": "away",
+      "type": "GOAL",
+      "player": "שמעון ביטון"
+    },
+    {
+      "minute": 45,
+      "team": "home",
+      "type": "GOAL",
+      "player": "ניר קלינגר",
+      "assist": "מאיר מליקה"
+    },
+    {
+      "minute": 46,
+      "team": "away",
+      "type": "SUB",
+      "in": "מאיר עזרן",
+      "out": "קלאודיו דיקסטרה"
+    },
+    {
+      "minute": 49,
+      "team": "home",
+      "type": "YELLOW_CARD",
+      "player": "מאיר מליקה"
+    },
+    {
+      "minute": 51,
+      "team": "away",
+      "type": "YELLOW_CARD",
+      "player": "צ'רלי פרץ"
+    },
+    {
+      "minute": 79,
+      "team": "home",
+      "type": "SUB",
+      "in": "עמיר תורג'מן",
+      "out": "ארז לולו"
+    },
+    {
+      "minute": 79,
+      "team": "away",
+      "type": "SUB",
+      "in": "גיל ספפורטס",
+      "out": "אמיר אביגדור"
+    },
+    {
+      "minute": 86,
+      "team": "away",
+      "type": "GOAL",
+      "player": "גיל ספפורטס"
+    },
+    {
+      "minute": 88,
+      "team": "away",
+      "type": "YELLOW_CARD",
+      "player": "אריה אלטר"
+    }
+  ]
+}

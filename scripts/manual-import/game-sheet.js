@@ -17,6 +17,7 @@
  * Sheet: { gameId, source, sourceLabelHe, sourceRef?, kickoffIsrael?: "HH:MM", roundNameHe?,
  *   attendance?, assistantRefereesHe?: [], aliases?: {name: dbName},
  *   home|away: { coach?, starters: [{name, number?, pos?, captain?}], subs: [...] },
+ *   (OWN_GOAL: `team` is the side that benefits, `player` is from the other side)
  *   events: [{ minute, team: "home"|"away", type: "SUB"|"YELLOW_CARD"|"RED_CARD"|"GOAL"|"PENALTY_GOAL"|"OWN_GOAL",
  *              player, in?, out?, assist? }] }
  *
@@ -141,7 +142,9 @@ const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
       log(`  + ${ev.minute}' חילוף ${teamOf[side].nameHe}: ${pin.name} ↔ ${pout.name}`);
       continue;
     }
-    const pl = await playerId(side, ev.player);
+    // Own goal: the event belongs to the team that benefits (sheet `team`), the player to the other side.
+    const playerSide = ev.type === 'OWN_GOAL' ? (side === 'home' ? 'away' : 'home') : side;
+    const pl = await playerId(playerSide, ev.player);
     const goalTypes = ['GOAL', 'PENALTY_GOAL', 'OWN_GOAL'];
     const types = goalTypes.includes(ev.type) ? goalTypes : [ev.type];
     const existing = game.events.find((e) => same(e, side, types, ev.minute, pl.name)) || game.events.find((e) => same(e, side, types, ev.minute, null));
